@@ -1,0 +1,66 @@
+import { initials } from '@/lib/format';
+import { Icon } from '@/lib/icons';
+import { useApp } from '@/state/AppContext';
+import { useIsMobile } from '@/hooks/useMediaQuery';
+import { SearchBox } from './SearchBox';
+
+export function Logo() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="9" fill="var(--ink)" />
+      <rect x="7" y="13.5" width="18" height="5" rx="2.5" fill="var(--on-ink)" opacity=".3" />
+      <rect x="7" y="13.5" width="11" height="5" rx="2.5" fill="var(--on-ink)" />
+    </svg>
+  );
+}
+
+export function TopBar() {
+  const { user, mode, openSettings, openAuth, backToList, mapRef } = useApp();
+  const isMobile = useIsMobile();
+  const goHome = () => {
+    backToList();
+    mapRef.current?.flyTo([47.0165, 28.842], 13, { duration: 0.6 });
+  };
+  return (
+    <header className="topbar">
+      <button type="button" className="topbar__brand" onClick={goHome} aria-label="Work In Progress — înapoi la hartă">
+        <Logo />
+        <span className="topbar__name">
+          <strong>Work In Progress</strong>
+          <span>Chișinău</span>
+        </span>
+      </button>
+      {!isMobile && <SearchBox className="topbar__search" />}
+      <div className="topbar__actions">
+        {user ? (
+          <button
+            type="button"
+            className={`avatar-btn ${mode === 'settings' ? 'is-active' : ''}`}
+            onClick={openSettings}
+            aria-label="Profil și setări"
+            title="Profil și setări"
+          >
+            <span className="avatar">{initials(user.name)}</span>
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={`icon-btn ${mode === 'settings' ? 'is-active' : ''}`}
+              onClick={openSettings}
+              aria-label="Setări"
+              title="Setări"
+            >
+              <Icon name="settings" size={20} strokeWidth={1.8} />
+            </button>
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => openAuth('login')}>
+              <Icon name="user" size={18} />
+              {!isMobile && 'Intră în cont'}
+              {isMobile && <span className="sr-only">Intră în cont</span>}
+            </button>
+          </>
+        )}
+      </div>
+    </header>
+  );
+}
