@@ -32,13 +32,13 @@ export const MAP = {
   MIN_ZOOM: 11,
   MAX_ZOOM: 18,
   TILES_LIGHT:
-    import.meta.env.VITE_TILES_LIGHT ?? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    import.meta.env.VITE_TILES_LIGHT ?? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_3y9i_1_ad844f6d52cc4fc0274089cd',
   TILES_DARK:
-    import.meta.env.VITE_TILES_DARK ?? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    import.meta.env.VITE_TILES_DARK ?? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_3y9i_1_ad844f6d52cc4fc0274089cd',
   ATTRIBUTION:
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
 };
-
+2
 /** Locație demonstrativă (Botanica), folosită când VITE_USE_DEMO_LOCATION=true. */
 export const DEMO_USER_LOCATION = { lat: 46.9882, lng: 28.8695 };
 export const USE_DEMO_LOCATION = (import.meta.env.VITE_USE_DEMO_LOCATION ?? 'true') !== 'false';
