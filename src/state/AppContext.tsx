@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import L, { type Map as LeafletMap } from 'leaflet';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
-import { SUBTYPES } from '@/config/categories';
+import { ALL_TYPES_ON, SUBTYPES, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
 import { STREETS } from '@/data/streets';
 import { distanceToEvent } from '@/lib/geo';
@@ -218,9 +218,10 @@ function useAppStore() {
   }, [fallBackToManual]);
 
   // ---------- UI ----------
-  const [cats, setCats] = useState<Record<CategoryKey, boolean>>({ ...ALL_CATEGORIES_ON });
-  const [fadingCats, setFadingCats] = useState<Partial<Record<CategoryKey, true>>>({});
-  const fadeTimers = useRef<Partial<Record<CategoryKey, number>>>({});
+  /** Filtrele de pe hartă: câte unul pe tip (apă, gaz, electricitate). */
+  const [types, setTypes] = useState<Record<SubtypeKey, boolean>>({ ...ALL_TYPES_ON });
+  const [fadingTypes, setFadingTypes] = useState<Partial<Record<SubtypeKey, true>>>({});
+  const fadeTimers = useRef<Partial<Record<SubtypeKey, number>>>({});
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<PanelMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -285,7 +286,7 @@ function useAppStore() {
   const events: DerivedEvent[] = useMemo(() => {
     return raw
       .concat(userReports)
-      .filter((e) => !deletedIds[e.id])
+      .filter((e) => !deletedIds[e.id] && isKnownType(e.subtype))
       .map((e) => {
         const v = votes[e.id];
         const yes = v === 'yes' ? 1 : 0;
@@ -320,7 +321,7 @@ function useAppStore() {
     const q = normalize(search.trim());
     return events
       .filter((e) => {
-        if (!cats[e.category] && !fadingCats[e.category]) return false;
+        if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
         if (!isPublic(e, user?.uid)) return false;
         if (radius !== 'all' && e.distanceM != null && e.distanceM > radius) return false;
         if (q && !normalize(`${e.title} ${e.district} ${e.streets.join(' ')}`).includes(q)) return false;
@@ -336,24 +337,24 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, cats, fadingCats, user, radius, search]);
+  }, [events, types, fadingTypes, user, radius, search]);
 
   // ---------- acțiuni ----------
-  const toggleCategory = useCallback((k: CategoryKey) => {
-    setCats((c) => {
+  const toggleType = useCallback((k: SubtypeKey) => {
+    setTypes((c) => {
       const on = c[k];
       window.clearTimeout(fadeTimers.current[k]);
       if (on) {
-        setFadingCats((f) => ({ ...f, [k]: true }));
+        setFadingTypes((f) => ({ ...f, [k]: true }));
         fadeTimers.current[k] = window.setTimeout(() => {
-          setFadingCats((f) => {
+          setFadingTypes((f) => {
             const n = { ...f };
             delete n[k];
             return n;
           });
         }, CONFIG.FADE_MS);
       } else {
-        setFadingCats((f) => {
+        setFadingTypes((f) => {
           const n = { ...f };
           delete n[k];
           return n;
@@ -364,7 +365,7 @@ function useAppStore() {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setCats({ ...ALL_CATEGORIES_ON });
+    setTypes({ ...ALL_TYPES_ON });
     setRadius('all');
     setSearch('');
   }, []);
@@ -766,7 +767,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    cats, fadingCats, toggleCategory, resetFilters, search, setSearch,
+    types, fadingTypes, toggleType, resetFilters, search, setSearch,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,

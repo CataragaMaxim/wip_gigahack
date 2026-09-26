@@ -18,7 +18,7 @@ import { eventIcon, meIcon, placeIcon } from './markerIcons';
  */
 export function MapView() {
   const app = useApp();
-  const { events, visible, selected, fadingCats, isDark, user, locations, userPos, gps, loadState, report, modal, mode, radius, panelOpen } = app;
+  const { events, visible, selected, fadingTypes, isDark, user, locations, userPos, gps, loadState, report, modal, mode, radius, panelOpen } = app;
   // În Setări, raza aleasă se vede ca un cerc în jurul utilizatorului.
   const showRadius = mode === 'settings' && panelOpen && radius !== 'all' && !!userPos;
   const theme = isDark ? 'dark' : 'light';
@@ -40,7 +40,7 @@ export function MapView() {
   }, [userPos, dataReady, app.mapRef, app.mapInsets]);
 
   const isShown = (e: DerivedEvent) =>
-    dataReady && (shown.has(e.id) || selected?.id === e.id) && !fadingCats[e.category];
+    dataReady && (shown.has(e.id) || selected?.id === e.id) && !fadingTypes[e.subtype];
 
   return (
     <div className={`map ${pinMode ? 'map--pin' : ''}`}>

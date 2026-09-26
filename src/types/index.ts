@@ -1,11 +1,8 @@
-export type CategoryKey = 'utilitati' | 'telecom' | 'drumuri' | 'transport' | 'urban';
+/** Platforma acoperă doar utilitățile. */
+export type CategoryKey = 'utilitati';
 
-export type SubtypeKey =
-  | 'apa' | 'gaz' | 'electricitate'
-  | 'internet' | 'mobil' | 'tv'
-  | 'lucrari' | 'inchis' | 'deteriorat'
-  | 'traseu' | 'suspendat' | 'intarzieri'
-  | 'urbane' | 'eveniment';
+/** Tipurile de eveniment: apă, gaz, electricitate. */
+export type SubtypeKey = 'apa' | 'gaz' | 'electricitate';
 
 export type SourceType = 'official' | 'citizen';
 export type Severity = 'total' | 'partial';

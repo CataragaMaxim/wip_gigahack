@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { CONFIG } from '@/config/constants';
-import { CATEGORIES, CATEGORY, SUBTYPES, catTint, catVar } from '@/config/categories';
+import { CATEGORY, SUBTYPES, TYPES, catTint, catVar } from '@/config/categories';
 import { fmtAt } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { categoryLine, metaLine, statusBadge } from '@/lib/status';
@@ -38,54 +38,34 @@ export function ReportDialog() {
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
 
-  // ---------- Pas 1: Categorie + subtip ----------
+  // ---------- Pas 1: tipul (apă, gaz, electricitate) ----------
   if (r.step === 1) {
     body = (
       <>
         <h3 className="h3">Ce ai observat?</h3>
         <div className="stack gap-8">
-          {CATEGORIES.map((c) => {
-            const on = r.category === c.key;
+          {TYPES.map((k) => {
+            const on = r.subtype === k;
             return (
               <button
-                key={c.key}
+                key={k}
                 type="button"
                 className={`cat-tile ${on ? 'is-on' : ''}`}
-                style={{ ['--cat' as string]: catVar(c.key), ['--cat-t' as string]: catTint(c.key) }}
+                style={{ ['--cat' as string]: catVar('utilitati'), ['--cat-t' as string]: catTint('utilitati') }}
                 aria-pressed={on}
-                onClick={() => patchReport({ category: c.key, subtype: c.subtypes.length === 1 ? c.subtypes[0] : null })}
+                onClick={() => patchReport({ category: 'utilitati', subtype: k })}
               >
                 <span className="cat-tile__icon">
-                  <Icon name={c.icon} size={20} />
+                  <Icon name={SUBTYPES[k].icon} size={20} />
                 </span>
                 <span className="stack">
-                  <strong>{c.label}</strong>
-                  <span className="muted xsmall">{c.hint}</span>
+                  <strong>{SUBTYPES[k].label}</strong>
+                  <span className="muted xsmall">{SUBTYPES[k].hint}</span>
                 </span>
               </button>
             );
           })}
         </div>
-        {r.category && (
-          <div className="stack gap-10 fade-in">
-            <h3 className="h3">Precizează</h3>
-            <div className="row wrap gap-8">
-              {CATEGORY[r.category].subtypes.map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={`chip chip--lg ${r.subtype === k ? 'is-on' : ''}`}
-                  style={{ ['--cat' as string]: catVar(r.category!), ['--cat-t' as string]: catTint(r.category!) }}
-                  aria-pressed={r.subtype === k}
-                  onClick={() => patchReport({ subtype: k })}
-                >
-                  <Icon name={SUBTYPES[k].icon} />
-                  {SUBTYPES[k].label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </>
     );
     footer = (

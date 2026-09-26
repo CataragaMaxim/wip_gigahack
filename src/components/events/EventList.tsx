@@ -48,7 +48,7 @@ function boldCount(text: string) {
  * `subtitle`: antetul din stările 'mid' și 'tall', cu rezumatul listei filtrate.
  */
 export function useSheetSummary() {
-  const { cityActiveCount: n, visible, radius, search, cats, loadState, online, syncedAt, gps, userPos } = useApp();
+  const { cityActiveCount: n, visible, radius, search, types, loadState, online, syncedAt, gps, userPos } = useApp();
   const noGps = !userPos && gps !== 'pending';
   const synced = syncedAt ? hm(syncedAt) : null;
   const active = plural(n, 'alertă activă', 'alerte active');
@@ -65,11 +65,11 @@ export function useSheetSummary() {
   }
 
   const q = search.trim();
-  const catsOff = Object.values(cats).some((on) => !on);
+  const typesOff = Object.values(types).some((on) => !on);
   let scope = 'tot orașul';
   if (q) scope = `${plural(visible.length, 'eveniment', 'evenimente')} pentru „${q}”`;
   else if (radius !== 'all' && !noGps) scope = `${plural(visible.length, 'eveniment', 'evenimente')} · rază ${radius / 1000} km`;
-  else if (catsOff) scope = plural(visible.length, 'eveniment afișat', 'evenimente afișate');
+  else if (typesOff) scope = plural(visible.length, 'eveniment afișat', 'evenimente afișate');
   const subtitle = noGps ? `${active} · fără distanțe` : `${active} în oraș · ${scope}`;
   return { live: 'ok' as const, mini: boldCount(`${active} în oraș`), miniAria: `Evenimente în zonă, ${active} în oraș`, subtitle };
 }
@@ -107,7 +107,7 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
 }
 
 export function EventList() {
-  const { visible, loadState, fetchEvents, fadingCats, openEvent, openReport, resetFilters, events } = useApp();
+  const { visible, loadState, fetchEvents, fadingTypes, openEvent, openReport, resetFilters, events } = useApp();
 
   if (loadState === 'loading') {
     return (
@@ -180,7 +180,7 @@ export function EventList() {
     <ul className="list">
       {visible.map((e) => (
         <li key={e.id}>
-          <EventRow e={e} fading={!!fadingCats[e.category]} onOpen={() => openEvent(e.id)} />
+          <EventRow e={e} fading={!!fadingTypes[e.subtype]} onOpen={() => openEvent(e.id)} />
         </li>
       ))}
     </ul>

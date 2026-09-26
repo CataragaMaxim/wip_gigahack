@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SUBTYPES, catTint, catVar } from '@/config/categories';
+import { SUBTYPES, TYPES, catTint, catVar } from '@/config/categories';
 import { fmtDistance, hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
@@ -20,16 +20,13 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Filtrul calendarului: toate, un tip de deconectare sau restul evenimentelor programate. */
-type Kind = 'all' | Extract<SubtypeKey, 'apa' | 'electricitate'> | 'other';
+/** Filtrul calendarului: toate sau un singur tip. */
+type Kind = 'all' | SubtypeKey;
 const KINDS: { key: Kind; label: string }[] = [
   { key: 'all', label: 'Toate' },
-  { key: 'apa', label: 'Apă' },
-  { key: 'electricitate', label: 'Energie' },
-  { key: 'other', label: 'Altele' },
+  ...TYPES.map((k) => ({ key: k, label: k === 'electricitate' ? 'Energie' : SUBTYPES[k].label })),
 ];
-const matchesKind = (e: DerivedEvent, kind: Kind) =>
-  kind === 'all' || (kind === 'other' ? e.subtype !== 'apa' && e.subtype !== 'electricitate' : e.subtype === kind);
+const matchesKind = (e: DerivedEvent, kind: Kind) => kind === 'all' || e.subtype === kind;
 
 /**
  * În calendar: deconectările importate (`planned`) și orice anunț oficial cu dată de început
@@ -39,15 +36,15 @@ const isScheduled = (e: DerivedEvent) => !!e.startAt && (e.planned || e.sourceTy
 
 /** Evenimentele programate din raza și categoriile alese (ca în listă: fără locație, nu filtrăm după distanță). */
 function useScheduledEvents(kind: Kind) {
-  const { events, radius, cats } = useApp();
+  const { events, radius, types } = useApp();
   return useMemo(
     () =>
       events
-        .filter((e) => isScheduled(e) && e.status !== 'rezolvat' && cats[e.category])
+        .filter((e) => isScheduled(e) && e.status !== 'rezolvat' && types[e.subtype])
         .filter((e) => matchesKind(e, kind))
         .filter((e) => radius === 'all' || e.distanceM == null || e.distanceM <= radius)
         .sort((a, b) => a.startAt!.localeCompare(b.startAt!)),
-    [events, radius, cats, kind],
+    [events, radius, types, kind],
   );
 }
 
@@ -136,7 +133,7 @@ export function OutageCalendar() {
       <div className="seg seg--4" role="group" aria-label="Tipul evenimentului">
         {KINDS.map((k) => (
           <button key={k.key} type="button" className="seg__btn" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>
-            {(k.key === 'apa' || k.key === 'electricitate') && <Icon name={SUBTYPES[k.key].icon} size={16} />}
+            {k.key !== 'all' && <Icon name={SUBTYPES[k.key].icon} size={16} />}
             {k.label}
           </button>
         ))}

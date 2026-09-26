@@ -3,7 +3,7 @@ import type { LatLng, UrbanEvent } from '@/types';
 
 /**
  * DATE DEMONSTRATIVE — nu sunt anunțuri reale.
- * O alertă pentru fiecare categorie, pe segmente reale de stradă (geometrie din OpenStreetMap, © contribuitorii OSM, ODbL).
+ * O alertă de utilități, pe segmente reale de stradă (geometrie din OpenStreetMap, © contribuitorii OSM, ODbL).
  * Datele sunt relative la momentul deschiderii aplicației, ca demo-ul să fie mereu „activ”.
  */
 
@@ -32,9 +32,5 @@ export const DEMO_USER_ID = 'demo-user';
 export function createMockEvents(): UrbanEvent[] {
   return [
     ev({ id: 'e01', category: 'utilitati', subtype: 'electricitate', title: 'Deconectare planificată de energie', sourceType: 'official', source: 'Premier Energy', feed: 'live', severity: 'total', district: 'Botanica', streets: ['Bd. Dacia, zona intersecției cu Bd. Traian'], startAt: relIso(-2.5), endAt: relIso(3.5), updatedAt: relIso(-0.5), confirmations: 11, denials: 0, path: PATHS.dacia }),
-    ev({ id: 'e02', category: 'telecom', subtype: 'internet', title: 'Internet fix indisponibil', sourceType: 'citizen', severity: 'total', district: 'Rîșcani', streets: ['Bd. Moscova, între Str. Matei Basarab și Str. Miron Costin'], reportedAt: relIso(-1.5), confirmations: 12, denials: 1, description: 'Fără internet prin cablu în blocurile de pe bulevard. Datele mobile funcționează.', path: PATHS.moscova }),
-    ev({ id: 'e03', category: 'drumuri', subtype: 'lucrari', title: 'Reparație carosabil — o bandă închisă', sourceType: 'official', source: 'Primăria mun. Chișinău', severity: 'partial', district: 'Centru', streets: ['Str. Ismail, între Str. Mitropolit Varlaam și Str. Alexandru Hîjdeu'], startAt: relIso(-4 * 24), endAt: relIso(15 * 24), updatedAt: relIso(-6.5), confirmations: 21, denials: 0, path: PATHS.ismail }),
-    ev({ id: 'e04', category: 'transport', subtype: 'traseu', title: 'Troleibuzele circulă pe traseu modificat', sourceType: 'official', source: 'Regia Transport Electric', severity: 'partial', district: 'Ciocana', streets: ['Bd. Mircea cel Bătrîn, zona Str. Petru Zadnipru'], startAt: relIso(-3), endAt: relIso(2 * 24), updatedAt: relIso(-1), confirmations: 5, denials: 0, description: 'Stațiile de pe acest segment sunt temporar deservite doar pe sensul opus.', path: PATHS.mircea }),
-    ev({ id: 'e05', category: 'urban', subtype: 'eveniment', title: 'Eveniment în PMAN — acces auto restricționat', sourceType: 'official', source: 'Primăria mun. Chișinău', severity: 'partial', district: 'Centru', streets: ['Bd. Ștefan cel Mare și Sfînt, zona PMAN'], startAt: relIso(-1), endAt: relIso(9), updatedAt: relIso(-20), confirmations: 0, denials: 0, path: PATHS.stefan }),
   ];
 }

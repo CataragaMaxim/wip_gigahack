@@ -12,10 +12,6 @@ export interface CategoryDef {
 
 export const CATEGORIES: CategoryDef[] = [
   { key: 'utilitati', label: 'Utilități', short: 'Utilități', hint: 'Apă, gaz, electricitate', icon: 'plug', subtypes: ['apa', 'gaz', 'electricitate'] },
-  { key: 'telecom', label: 'Telecomunicații', short: 'Telecomunicații', hint: 'Internet, mobil, TV', icon: 'wifi', subtypes: ['internet', 'mobil', 'tv'] },
-  { key: 'drumuri', label: 'Drumuri', short: 'Drumuri', hint: 'Lucrări, închideri, gropi', icon: 'cone', subtypes: ['lucrari', 'inchis', 'deteriorat'] },
-  { key: 'transport', label: 'Transport public', short: 'Transport public', hint: 'Rute, linii, întârzieri', icon: 'bus', subtypes: ['traseu', 'suspendat', 'intarzieri'] },
-  { key: 'urban', label: 'Lucrări și evenimente urbane', short: 'Lucrări urbane', hint: 'Lucrări ale orașului, evenimente cu acces restricționat', icon: 'building', subtypes: ['urbane', 'eveniment'] },
 ];
 
 export const CATEGORY: Record<CategoryKey, CategoryDef> = Object.fromEntries(
@@ -27,24 +23,21 @@ export interface SubtypeDef {
   icon: IconName;
   /** Titlul implicit al unei raportări noi. */
   title: string;
+  /** Explicația scurtă din dialogul de raportare. */
+  hint: string;
 }
 
 export const SUBTYPES: Record<SubtypeKey, SubtypeDef> = {
-  apa: { label: 'Apă', icon: 'droplet', title: 'Lipsă apă' },
-  gaz: { label: 'Gaz', icon: 'flame', title: 'Lipsă gaz' },
-  electricitate: { label: 'Electricitate', icon: 'bolt', title: 'Fără energie electrică' },
-  internet: { label: 'Internet', icon: 'wifi', title: 'Internet indisponibil' },
-  mobil: { label: 'Rețea mobilă', icon: 'phone', title: 'Semnal mobil slab' },
-  tv: { label: 'TV', icon: 'tv', title: 'Semnal TV indisponibil' },
-  lucrari: { label: 'Lucrări pe drum', icon: 'cone', title: 'Lucrări pe drum' },
-  inchis: { label: 'Drum închis', icon: 'ban', title: 'Drum închis' },
-  deteriorat: { label: 'Carosabil deteriorat', icon: 'alert', title: 'Carosabil deteriorat' },
-  traseu: { label: 'Traseu modificat', icon: 'route', title: 'Traseu modificat' },
-  suspendat: { label: 'Linie suspendată', icon: 'ban', title: 'Linie suspendată' },
-  intarzieri: { label: 'Întârzieri', icon: 'clock', title: 'Întârzieri mari' },
-  urbane: { label: 'Lucrări urbane', icon: 'building', title: 'Lucrări urbane' },
-  eveniment: { label: 'Eveniment', icon: 'calendar', title: 'Eveniment cu acces restricționat' },
+  apa: { label: 'Apă', icon: 'droplet', title: 'Lipsă apă', hint: 'Fără apă, presiune joasă, avarie' },
+  gaz: { label: 'Gaz', icon: 'flame', title: 'Lipsă gaz', hint: 'Fără gaz, miros de gaz, avarie' },
+  electricitate: { label: 'Electricitate', icon: 'bolt', title: 'Fără energie electrică', hint: 'Pană de curent, tensiune instabilă' },
 };
+
+/** Opțiunile din filtre, raportare și calendar, în această ordine. */
+export const TYPES: SubtypeKey[] = ['electricitate', 'apa', 'gaz'];
+export const ALL_TYPES_ON: Record<SubtypeKey, boolean> = { apa: true, gaz: true, electricitate: true };
+/** Documentele vechi din Firestore pot avea tipuri care nu mai există (telecom, drumuri etc.): nu le afișăm. */
+export const isKnownType = (subtype: string): subtype is SubtypeKey => subtype in SUBTYPES;
 
 /**
  * Culorile categoriilor ca valori concrete (Leaflet desenează liniile ca atribute SVG,
@@ -52,8 +45,8 @@ export const SUBTYPES: Record<SubtypeKey, SubtypeDef> = {
  * Contrast verificat WCAG AA: alb pe culoare ≥ 5,5:1 (luminos), icon închis pe culoare ≥ 7,8:1 (întunecat).
  */
 export const CATEGORY_HEX: Record<'light' | 'dark', Record<CategoryKey, string>> = {
-  light: { utilitati: '#1F5FC9', telecom: '#6B3FC4', drumuri: '#A94F00', transport: '#1C7340', urban: '#0B6B75' },
-  dark: { utilitati: '#7AA7FF', telecom: '#B69CFF', drumuri: '#F59A4A', transport: '#5CC98A', urban: '#4CC3CC' },
+  light: { utilitati: '#1F5FC9' },
+  dark: { utilitati: '#7AA7FF' },
 };
 export const RESOLVED_HEX = { light: '#7A7F86', dark: '#8E959F' };
 

@@ -4,10 +4,6 @@ import { DEMO_USER_ID } from './mockEvents';
 
 export const ALL_CATEGORIES_ON: Record<CategoryKey, boolean> = {
   utilitati: true,
-  telecom: true,
-  drumuri: true,
-  transport: true,
-  urban: true,
 };
 
 /**
@@ -29,7 +25,7 @@ export const DEMO_LOCATIONS: Array<SavedLocationDoc & { id: string }> = [
     name: 'Serviciu',
     address: 'Str. Ismail 88, Centru',
     location: { lat: 47.01799, lng: 28.84983 },
-    prefs: { ...ALL_CATEGORIES_ON, telecom: false },
+    prefs: { ...ALL_CATEGORIES_ON },
   },
   {
     id: 'parinti',

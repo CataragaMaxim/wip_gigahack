@@ -96,7 +96,7 @@ export function countdown(e: DerivedEvent): { title: string; sub: string } | nul
   const en = new Date(e.endAt);
   if (st && st.getTime() > Date.now()) return { title: `Începe ${fmtAt(st)}`, sub: `Durată estimată până ${fmtAt(en)}` };
   const h = (en.getTime() - Date.now()) / 36e5;
-  const verb = e.category === 'utilitati' || e.category === 'telecom' ? 'Se reia' : 'Se încheie';
+  const verb = 'Se reia';
   const title =
     h < 1 ? `${verb} în mai puțin de o oră` : h < 36 ? `${verb} în aproximativ ${Math.round(h)} h` : `${verb} în aproximativ ${Math.round(h / 24)} zile`;
   return { title, sub: `Conform anunțului oficial: ${fmtAt(en)}` };
