@@ -1,10 +1,70 @@
-node_modules
-dist
+# ---------- Dependențe ----------
+node_modules/
+.pnp
+.pnp.js
+
+# ---------- Build ----------
+dist/
+build/
+out/
+.vite/
+
+# ---------- Cache-uri ----------
+*.tsbuildinfo
+.cache/
+.parcel-cache/
+.eslintcache
+coverage/
+.nyc_output/
+
+# ---------- Variabile de mediu ----------
 .env
-.env.example
 .env.local
 .env.*.local
+# .env.example NU se ignoră — e template pentru colegi!
+
+# ---------- Deploy ----------
 .vercel
+.netlify
+
+# ---------- Firebase ----------
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# ---------- Editor / IDE ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- Sistem de operare ----------
 .DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Log-uri ----------
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- Python (scraper apaCanal) ----------
 __pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+env/
+ENV/
+pip-log.txt
+.pytest_cache/
+
+# ---------- Diverse ----------
+*.tgz
