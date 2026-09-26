@@ -1012,3 +1012,30 @@ button, a, .chip, .seg__btn, .cal__day { touch-action: manipulation; }   /* făr
   .day-preview__text strong { white-space: normal; overflow: visible; line-height: 1.2; }
   .day-preview .btn--sm { padding: 0 10px; }
 }
+
+/* ==========================================================================
+   Margini laterale comune: tot ce plutește peste hartă (în afară de antet și de foaia de jos)
+   stă la aceeași distanță de marginile ecranului, inclusiv pe telefoanele cu decupaj (safe area).
+   ========================================================================== */
+:root {
+  --gutter: 16px;
+  --gutter-l: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  --gutter-r: calc(var(--gutter) + env(safe-area-inset-right, 0px));
+}
+.overlay { left: var(--gutter-l); right: var(--gutter-r); }
+.overlay--beside-panel { left: calc(416px + var(--gutter-l)); }
+.controls { right: var(--gutter-r); }
+.fab-wrap { right: var(--gutter-r); }
+.nearby { right: var(--gutter-r); width: min(400px, calc(100vw - var(--gutter-l) - var(--gutter-r))); }
+.consent { left: var(--gutter-l); width: min(440px, calc(100vw - var(--gutter-l) - var(--gutter-r))); }
+.toast { max-width: calc(100vw - var(--gutter-l) - var(--gutter-r)); }
+@media (max-width: 767px) {
+  :root { --gutter: 12px; }
+  .overlay, .overlay--beside-panel { left: var(--gutter-l); right: var(--gutter-r); }
+  /* Copiii overlay-ului nu mai au margini proprii: gutter-ul vine de la container, deci toți se aliniază. */
+  .overlay__search, .notice, .day-preview { margin: 0; }
+  .chips { padding: 0; }
+  .controls { right: var(--gutter-r); }
+  .nearby, .consent { left: var(--gutter-l); right: var(--gutter-r); width: auto; }
+}
+@media (max-width: 340px) { :root { --gutter: 8px; } }
