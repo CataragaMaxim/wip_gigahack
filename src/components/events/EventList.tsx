@@ -46,9 +46,8 @@ export function TypeFilter() {
             aria-pressed={on}
             onClick={() => toggleType(k)}
           >
-            <Icon name={SUBTYPES[k].icon} size={18} />
+            <Icon name={SUBTYPES[k].icon} size={17} />
             {SUBTYPES[k].label}
-            {on && <Icon name="check" size={14} strokeWidth={2.6} />}
           </button>
         );
       })}
@@ -135,8 +134,8 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
 
 /** „3 deconectări programate mai târziu · Calendar” — ce nu e încă pe hartă. */
 export function LaterNote() {
-  const { laterCount, openCalendar, focusIds } = useApp();
-  if (!laterCount || focusIds) return null;
+  const { laterCount, openCalendar, focusIds, previewDay } = useApp();
+  if (!laterCount || focusIds || previewDay) return null;
   return (
     <div className="later-note">
       <Icon name="calendar" size={16} />

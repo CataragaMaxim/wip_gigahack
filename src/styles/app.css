@@ -900,3 +900,26 @@ textarea::placeholder {
 }
 .focus-banner { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 4px 4px 4px 12px; border-radius: var(--radius-m); background: var(--sunk); border: 1px solid var(--border); font-size: 13px; font-weight: 600; }
 .later-note { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 4px 4px 4px 12px; border-radius: var(--radius-m); color: var(--text-2); font-size: 12px; font-weight: 500; border: 1px dashed var(--border-strong); }
+
+/* ---------- previzualizarea unei zile din calendar ---------- */
+.day-preview {
+  display: flex; align-items: center; gap: 4px; max-width: 520px; padding: 6px 6px 6px 4px; margin-bottom: 8px;
+  border-radius: var(--radius-l); background: var(--surface-2); border: 2px solid var(--ink); box-shadow: var(--shadow-lg); pointer-events: auto;
+}
+.day-preview__text { min-width: 0; padding: 0 4px; }
+.day-preview__text strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 767px) { .day-preview { max-width: none; } }
+
+/* Filtrele pe tip: mereu pe un singur rând (și în rusă, unde „Электричество” e lung); pe ecrane foarte înguste, derulare. */
+.type-filter { flex-wrap: nowrap; overflow-x: auto; gap: 6px; }
+.type-filter .chip { flex-shrink: 0; padding: 0 12px 0 10px; gap: 6px; font-size: 13.5px; }
+
+/* ---------- tranziția la schimbarea limbii ---------- */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 0.28s; animation-timing-function: var(--ease); }
+.app { transition: opacity 0.15s ease; }
+.is-lang-switching .app { opacity: 0.25; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .app { transition: none; }
+}

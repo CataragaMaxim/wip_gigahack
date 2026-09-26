@@ -6,39 +6,12 @@ import { useApp } from '@/state/AppContext';
 import type { DerivedEvent, SubtypeKey } from '@/types';
 import { SeverityBadge } from '@/components/events/EventBits';
 import { getLang, t } from '@/i18n';
+import { CAL, addDays, dayKey, fromKey, startOfDay } from '@/lib/days';
 import { districtName, eventTitle } from '@/lib/status';
 
-const CAL = {
-  ro: {
-    weekdays: ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'],
-    dayNames: ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'],
-    /** Titlul lunii („Septembrie 2026”) și data („28 septembrie”) — în română, aceeași formă. */
-    months: ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'],
-    monthsOf: ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'],
-  },
-  ru: {
-    weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-    dayNames: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
-    /** Rusa: nominativ în titlu („Сентябрь 2026”), genitiv în dată („28 сентября”). */
-    months: ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'],
-    monthsOf: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
-  },
-  en: {
-    weekdays: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
-    dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-    months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-    monthsOf: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-  },
-};
+
 
 /** Cheia zilei locale: „2026-09-28”. */
-const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const fromKey = (k: string) => {
-  const [y, m, d] = k.split('-').map(Number);
-  return new Date(y, m - 1, d);
-};
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Filtrul calendarului: toate sau un singur tip. */
@@ -100,7 +73,7 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
 
 export function OutageCalendar() {
   const cal = CAL[getLang()];
-  const { radius, anchors, gps, openSettings, openEvent, loadState } = useApp();
+  const { radius, anchors, gps, openSettings, openEvent, loadState, setPreviewDay, backToList, setSheetSnap } = useApp();
   const [kind, setKind] = useState<Kind>('all');
   const outages = useScheduledEvents(kind);
   const byDay = useMemo(() => groupByDay(outages), [outages]);
@@ -206,9 +179,23 @@ export function OutageCalendar() {
       </div>
 
       <section className="stack gap-8" aria-live="polite">
-        <h3 className="h3">
-          {capitalize(cal.dayNames[selDate.getDay()])}, {selDate.getDate()} {cal.monthsOf[selDate.getMonth()]}
-        </h3>
+        <div className="row between gap-8">
+          <h3 className="h3">
+            {capitalize(cal.dayNames[selDate.getDay()])}, {selDate.getDate()} {cal.monthsOf[selDate.getMonth()]}
+          </h3>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => {
+              setPreviewDay(selected);
+              backToList();
+              setSheetSnap('mini');
+            }}
+          >
+            <Icon name="pin" size={16} />
+            {t('Vezi harta din această zi')}
+          </button>
+        </div>
         {dayList.length === 0 ? (
           <div className="card card--sunk stack gap-8">
             <span className="small muted">{t('Nimic programat în această zi.')}</span>

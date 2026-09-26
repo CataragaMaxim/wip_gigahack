@@ -4,6 +4,7 @@ import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { SearchBox } from '@/components/layout/SearchBox';
 import { t } from '@/i18n';
+import { addDays, dayKey, fmtDayLong, fromKey } from '@/lib/days';
 
 /** Stratul de deasupra hărții: căutarea (mobil), butonul „Listă”, avertismente. Filtrele sunt în panou. */
 export function MapOverlay() {
@@ -20,6 +21,7 @@ export function MapOverlay() {
     <div
       className={`overlay ${!isMobile && panelOpen && !pinMode ? 'overlay--beside-panel' : ''} ${isMobile && sheetSnap === 'tall' && !pinMode ? 'is-hidden' : ''}`}>
       {isMobile && <SearchBox className="overlay__search" />}
+      <DayPreviewBanner />
       <div className="overlay__row">
         {!isMobile && !panelOpen && !pinMode && (
           <button type="button" className="btn btn--float panel-reopen" onClick={() => setPanelOpen(true)}>
@@ -100,5 +102,32 @@ export function MapControls() {
         </div>
       )}
     </>
+  );
+}
+
+/** „Harta pentru luni, 28 septembrie” — previzualizarea unei zile din calendar, cu zilele vecine și ieșirea la „acum”. */
+function DayPreviewBanner() {
+  const { previewDay, setPreviewDay, visible } = useApp();
+  if (!previewDay) return null;
+  const day = fromKey(previewDay);
+  const shift = (n: number) => setPreviewDay(dayKey(addDays(day, n)));
+  return (
+    <div className="day-preview fade-in" role="status">
+      <button type="button" className="icon-btn" aria-label={t('Ziua anterioară')} onClick={() => shift(-1)}>
+        <Icon name="chevL" />
+      </button>
+      <span className="stack grow day-preview__text">
+        <span className="xsmall muted">
+          {t('Harta pentru')} · {t('{n} evenimente', { n: visible.length })}
+        </span>
+        <strong>{fmtDayLong(day).replace(/^./, (c) => c.toUpperCase())}</strong>
+      </span>
+      <button type="button" className="icon-btn" aria-label={t('Ziua următoare')} onClick={() => shift(1)}>
+        <Icon name="chevR" />
+      </button>
+      <button type="button" className="btn btn--primary btn--sm" onClick={() => setPreviewDay(null)}>
+        {t('Înapoi la acum')}
+      </button>
+    </div>
   );
 }

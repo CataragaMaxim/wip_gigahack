@@ -1,10 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import L, { type Map as LeafletMap } from 'leaflet';
+import { flushSync } from 'react-dom';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { ALL_TYPES_ON, SUBTYPE_TITLE_RO, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
 import { distanceToEvent } from '@/lib/geo';
-import { deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
+import { activeOnDay, deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
+import { fromKey } from '@/lib/days';
 import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
@@ -123,8 +125,24 @@ function useAppStore() {
   // Limba: `t()` citește limba curentă din modulul i18n; schimbarea stării re-randează toată aplicația.
   const [lang, setLangState] = useState<Lang>(getLang);
   const setLang = useCallback((l: Lang) => {
-    applyLang(l);
-    setLangState(l);
+    const apply = () => {
+      applyLang(l);
+      setLangState(l);
+    };
+    // Tranziție la schimbarea limbii: cross-fade (View Transitions) sau o estompare scurtă, fără animație la „reduce motion”.
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+    if (!reduce && doc.startViewTransition) {
+      doc.startViewTransition(() => flushSync(apply));
+    } else if (!reduce) {
+      document.documentElement.classList.add('is-lang-switching');
+      window.setTimeout(() => {
+        apply();
+        window.setTimeout(() => document.documentElement.classList.remove('is-lang-switching'), 20);
+      }, 150);
+    } else {
+      apply();
+    }
   }, []);
   useEffect(() => save('wip.theme', theme), [theme]);
   useEffect(() => save('wip.radius', radius), [radius]);
@@ -265,6 +283,12 @@ function useAppStore() {
   const [search, setSearch] = useState('');
   /** Lista arată doar aceste evenimente (grupul de pe hartă cu mai multe evenimente în același loc). */
   const [focusIds, setFocusIds] = useState<string[] | null>(null);
+  /** Previzualizarea unei zile din calendar („2026-09-28”): harta arată evenimentele active în acea zi. */
+  const [previewDay, setPreviewDayState] = useState<string | null>(null);
+  const setPreviewDay = useCallback((d: string | null) => {
+    setPreviewDayState(d);
+    setFocusIds(null);
+  }, []);
   const [mode, setMode] = useState<PanelMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** De unde s-a deschis detaliul — „Înapoi” revine acolo. */
@@ -388,9 +412,14 @@ function useAppStore() {
     return events
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
-        if (!isPublic(e)) return false;
-        // Doar evenimentele în curs și cele din următoarele 24 h; restul apar la timpul lor (și în calendar).
-        if (!isOnMapNow(e, now)) return false;
+        if (previewDay) {
+          // Ziua aleasă din calendar: tot ce e programat sau raportat în acea zi (fără ce a fost rezolvat sau contestat).
+          if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(previewDay))) return false;
+        } else {
+          if (!isPublic(e)) return false;
+          // Doar evenimentele în curs și cele din următoarele 24 h; restul apar la timpul lor (și în calendar).
+          if (!isOnMapNow(e, now)) return false;
+        }
         if (focusIds && !focusIds.includes(e.id)) return false;
         // Raza se aplică în jurul locației curente și al fiecărei adrese salvate (Acasă + celelalte).
         if (radius !== 'all' && e.nearM != null && e.nearM > radius) return false;
@@ -407,7 +436,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search, focusIds, now]);
+  }, [events, types, fadingTypes, user, radius, search, focusIds, now, previewDay]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -838,7 +867,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds,
+    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount, laterCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,
