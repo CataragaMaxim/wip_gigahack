@@ -20,3 +20,7 @@ UI-ul folosește doar interfața `EventsService` din `eventsService.ts`. Acum ru
 - `users/{uid}/locations/{id}` — vezi tipul `SavedLocation`.
 
 Pragurile (confirmări, expirare, rază de vot, rază de deduplicare) sunt în `src/config/constants.ts`. Aceleași valori trebuie aplicate și pe server.
+
+## Străzile raportărilor
+
+`streetMatch.ts` găsește strada reală a pinului unei raportări (OpenStreetMap: Overpass pentru geometrie, Nominatim pentru sector și număr). Pinul se lipește de stradă dacă e la cel mult 60 m, iar segmentul afectat (±120 m) urmează strada. Între 60 și 150 m se păstrează doar numele străzii. Dacă serviciile nu răspund, se folosește numele din `data/streets.ts`, fără traseu. Pentru producție, serviciile publice OSM trebuie înlocuite cu o instanță proprie (limite de trafic).

@@ -111,7 +111,8 @@ function ManualMarker() {
 }
 
 function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'light' | 'dark'; show: boolean; selected: boolean }) {
-  const path = useMemo(() => (e.path && e.path.length > 1 ? e.path : segmentAround(e.location, STREETS)), [e.path, e.location]);
+  // Fără traseu: segment aproximativ. Cu traseu dintr-un singur punct (raportare departe de stradă): doar markerul.
+  const path = useMemo(() => e.path ?? segmentAround(e.location, STREETS), [e.path, e.location]);
   if (path.length < 2) return null;
   const color = isClosed(e.status) ? RESOLVED_HEX[theme] : CATEGORY_HEX[theme][e.category];
   const partial = e.severity === 'partial';

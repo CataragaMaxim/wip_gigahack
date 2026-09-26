@@ -4,11 +4,12 @@ import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from
 import { SUBTYPES } from '@/config/categories';
 import { ALL_CATEGORIES_ON, DEMO_LOCATIONS, DEMO_USER } from '@/data/mockUser';
 import { STREETS } from '@/data/streets';
-import { distanceToEvent, nearestStreet, segmentAround } from '@/lib/geo';
+import { distanceToEvent } from '@/lib/geo';
 import { deriveStatus, isClosed, isPublic } from '@/lib/status';
 import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
+import { matchStreet, type StreetMatch } from '@/services/streetMatch';
 import type {
   CategoryKey, DerivedEvent, LatLng, SavedLocation, Severity, SubtypeKey, Theme, UrbanEvent, User, Vote,
 } from '@/types';
@@ -30,6 +31,10 @@ export interface ReportDraft {
   category: CategoryKey | null;
   subtype: SubtypeKey | null;
   pin: LatLng | null;
+  /** Strada reală a pinului (OpenStreetMap); null = fără stradă cu nume în apropiere. */
+  street: StreetMatch | null;
+  /** Se caută strada pinului (după „Confirmă locația”). */
+  locating: boolean;
   pinChoice: string | null;
   duplicateId: string | null;
   duplicateDistanceM: number | null;
@@ -42,7 +47,7 @@ export interface ReportDraft {
 }
 
 const emptyReport = (): ReportDraft => ({
-  step: 1, category: null, subtype: null, pin: null, pinChoice: null, duplicateId: null, duplicateDistanceM: null,
+  step: 1, category: null, subtype: null, pin: null, street: null, locating: false, pinChoice: null, duplicateId: null, duplicateDistanceM: null,
   noDuplicate: false, description: '', photo: false, severity: 'total', resultId: null, confirmedDuplicate: false,
 });
 
@@ -505,9 +510,13 @@ function useAppStore() {
     patchReport({ step: 2, pinChoice: userPos ? 'gps' : home ? home.id : null });
     if (start) window.setTimeout(() => flyTo(start, 16), 50);
   }, [locations, userPos, patchReport, flyTo]);
-  const confirmPin = useCallback(() => {
-    const pin = visibleCenter();
-    if (!pin) return;
+  const confirmPin = useCallback(async () => {
+    const raw = visibleCenter();
+    if (!raw || report.locating) return;
+    patchReport({ locating: true });
+    // Pinul se lipește de strada reală cea mai apropiată; segmentul afectat urmează strada.
+    const street = await matchStreet(raw);
+    const pin = street ? street.snapped : raw;
     let best: DerivedEvent | null = null;
     let bd = Infinity;
     for (const e of events) {
@@ -518,8 +527,13 @@ function useAppStore() {
         best = e;
       }
     }
-    patchReport({ pin, step: best ? 3 : 4, duplicateId: best?.id ?? null, duplicateDistanceM: best ? bd : null, noDuplicate: !best });
-  }, [events, report.category, patchReport, visibleCenter]);
+    // Dacă raportarea a fost închisă între timp, nu mai schimbăm nimic.
+    setReport((r) =>
+      r.locating
+        ? { ...r, pin, street, locating: false, step: best ? 3 : 4, duplicateId: best?.id ?? null, duplicateDistanceM: best ? bd : null, noDuplicate: !best }
+        : r,
+    );
+  }, [events, report.category, report.locating, patchReport, visibleCenter]);
   const confirmDuplicate = useCallback(() => {
     const id = report.duplicateId;
     if (!id) return;
@@ -528,13 +542,13 @@ function useAppStore() {
   }, [report.duplicateId, votes, patchReport]);
   const submitReport = useCallback(async () => {
     if (!report.pin || !report.category || !report.subtype || !user) return;
-    const ns = nearestStreet(report.pin, STREETS);
+    const st = report.street;
     const e: UrbanEvent = {
       id: `u-${Date.now()}`, category: report.category, subtype: report.subtype, title: SUBTYPES[report.subtype].title,
-      sourceType: 'citizen', authorId: user.id, severity: report.severity, district: ns?.street.district ?? '',
-      streets: ns ? [ns.street.name] : [], reportedAt: new Date().toISOString(), confirmations: 0, denials: 0,
+      sourceType: 'citizen', authorId: user.id, severity: report.severity, district: st?.district ?? '',
+      streets: st ? [st.label] : [], reportedAt: new Date().toISOString(), confirmations: 0, denials: 0,
       description: report.description.trim() || undefined, photo: report.photo, location: report.pin,
-      path: segmentAround(report.pin, STREETS, 120),
+      path: st && st.path.length > 1 ? st.path : [report.pin],
     };
     const saved = await eventsService.create(e);
     setUserReports((r) => [...r, saved]);
