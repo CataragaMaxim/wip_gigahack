@@ -63,7 +63,7 @@ export function MapView() {
           eventHandlers={{ loading: () => app.setTilesReady(false), load: () => app.setTilesReady(true) }}
         />
 
-        {showRadius && userPos && radius !== 'all' && <RadiusCircle center={userPos} radiusM={radius} />}
+        {showRadius && userPos && <RadiusCircle center={userPos} radiusM={radius} />}
 
         {events.map((e) => (
           <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e)} selected={selected?.id === e.id} />
