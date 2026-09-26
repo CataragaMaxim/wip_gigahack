@@ -6,6 +6,9 @@ const MONTHS = {
   en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 };
 
+/** Luna scurtă în limba curentă: „oct.” / „окт.” / „Oct”. */
+export const monthShort = (d: Date) => MONTHS[getLang()][d.getMonth()];
+
 export const hm = (d: Date) =>
   `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 

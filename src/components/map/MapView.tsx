@@ -10,6 +10,7 @@ import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
 import { clusterIcon, eventIcon, meIcon, placeIcon } from './markerIcons';
 import { CLUSTER_MAX_ZOOM, clusterMarkers, type MarkerCluster } from './clusters';
+import { dayTag, fromKey, startOfDay } from '@/lib/days';
 import { plural } from '@/lib/format';
 import { getLang, t } from '@/i18n';
 
@@ -88,6 +89,16 @@ export function MapView() {
           selectedId={selected?.id}
           onOpen={app.openEvent}
           theme={theme}
+          dayLabel={
+            app.preview?.days === 7
+              ? (e) => {
+                  // Prima zi a evenimentului în săptămâna afișată.
+                  const monday = fromKey(app.preview!.start);
+                  const start = startOfDay(new Date(e.startAt ?? e.reportedAt ?? Date.now()));
+                  return dayTag(start < monday ? monday : start);
+                }
+              : undefined
+          }
           onSameSpot={(ids) => {
             app.setFocusIds(ids);
             app.backToList();
@@ -177,7 +188,7 @@ function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'lig
  * Markerele evenimentelor. Când zoomul e depărtat, markerele care se suprapun devin un grup mai mare,
  * cu numărul de evenimente în colțul din dreapta sus; clic pe grup = zoom până se separă.
  */
-function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot }: {
+function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot, dayLabel }: {
   events: DerivedEvent[];
   isShown: (e: DerivedEvent) => boolean;
   selectedId?: string;
@@ -185,6 +196,8 @@ function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot }
   theme: 'light' | 'dark';
   /** Grup în care toate evenimentele sunt în același loc: le arătăm în listă. */
   onSameSpot: (ids: string[]) => void;
+  /** În previzualizarea unei săptămâni: eticheta zilei pe fiecare marker („Lu 28”). */
+  dayLabel?: (e: DerivedEvent) => string | undefined;
 }) {
   const map = useMap();
   const [zoom, setZoom] = useState(() => map.getZoom());
@@ -217,7 +230,14 @@ function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot }
         <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e) && !inCluster.has(e.id)} selected={selectedId === e.id} />
       ))}
       {events.map((e) => (
-        <EventMarker key={`marker-${e.id}`} e={e} show={isShown(e) && !inCluster.has(e.id)} selected={selectedId === e.id} onOpen={onOpen} />
+        <EventMarker
+          key={`marker-${e.id}`}
+          e={e}
+          show={isShown(e) && !inCluster.has(e.id)}
+          selected={selectedId === e.id}
+          onOpen={onOpen}
+          day={isShown(e) ? dayLabel?.(e) : undefined}
+        />
       ))}
       {clusters.map((c) => (
         <Marker
@@ -233,8 +253,8 @@ function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot }
   );
 }
 
-function EventMarker({ e, show, selected, onOpen }: { e: DerivedEvent; show: boolean; selected: boolean; onOpen: (id: string) => void }) {
-  const icon = useMemo(() => eventIcon(e, selected), [e, selected]);
+function EventMarker({ e, show, selected, onOpen, day }: { e: DerivedEvent; show: boolean; selected: boolean; onOpen: (id: string) => void; day?: string }) {
+  const icon = useMemo(() => eventIcon(e, selected, day), [e, selected, day]);
   const title = `${SUBTYPES[e.subtype].label}, ${statusBadge(e).label}: ${eventTitle(e)}`;
   return (
     <Marker

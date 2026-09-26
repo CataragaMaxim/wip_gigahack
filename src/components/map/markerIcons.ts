@@ -8,7 +8,7 @@ import { clusterSize, type MarkerCluster } from './clusters';
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 /** Markerul unui eveniment: culoarea = categoria, forma = statusul, insigna = verificarea. */
-export function eventIcon(e: DerivedEvent, selected: boolean): L.DivIcon {
+export function eventIcon(e: DerivedEvent, selected: boolean, day?: string): L.DivIcon {
   const t = tileStyle(e);
   const badge =
     e.status === 'oficial'
@@ -22,7 +22,9 @@ export function eventIcon(e: DerivedEvent, selected: boolean): L.DivIcon {
   const style = `--m-bg:${t.bg};--m-fg:${t.fg};--m-bc:${t.border};--m-bs:${t.dashed ? 'dashed' : 'solid'}`;
   return L.divIcon({
     className: 'wip-marker-host',
-    html: `<div class="${cls}" style="${style}"><span class="wip-marker__dot">${iconSvg(SUBTYPES[e.subtype].icon, 18)}</span>${badge}</div>`,
+    html: `<div class="${cls}" style="${style}"><span class="wip-marker__dot">${iconSvg(SUBTYPES[e.subtype].icon, 18)}</span>${badge}${
+      day ? `<span class="wip-marker__day">${esc(day)}</span>` : ''
+    }</div>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
   });

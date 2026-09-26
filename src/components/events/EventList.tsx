@@ -7,6 +7,7 @@ import { useApp } from '@/state/AppContext';
 import type { DerivedEvent } from '@/types';
 import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits';
 import { t } from '@/i18n';
+import { dayKey, fmtDayLong, fromKey, startOfDay } from '@/lib/days';
 
 export function EventListHeader() {
   const { visible, radius, search, loadState, online, syncedAt, gps, userPos } = useApp();
@@ -134,8 +135,8 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
 
 /** „3 deconectări programate mai târziu · Calendar” — ce nu e încă pe hartă. */
 export function LaterNote() {
-  const { laterCount, openCalendar, focusIds, previewDay } = useApp();
-  if (!laterCount || focusIds || previewDay) return null;
+  const { laterCount, openCalendar, focusIds, preview } = useApp();
+  if (!laterCount || focusIds || preview) return null;
   return (
     <div className="later-note">
       <Icon name="calendar" size={16} />
@@ -163,7 +164,7 @@ export function FocusBanner() {
 }
 
 export function EventList() {
-  const { visible, loadState, fetchEvents, fadingTypes, openEvent, openReport, resetFilters, events } = useApp();
+  const { visible, loadState, fetchEvents, fadingTypes, openEvent, openReport, resetFilters, events, preview } = useApp();
 
   if (loadState === 'loading') {
     return (
@@ -232,15 +233,37 @@ export function EventList() {
     );
   }
 
-  return (
-    <ul className="list">
-      {visible.map((e) => (
-        <li key={e.id}>
-          <EventRow e={e} fading={!!fadingTypes[e.subtype]} onOpen={() => openEvent(e.id)} />
-        </li>
-      ))}
-    </ul>
+  const row = (e: DerivedEvent) => (
+    <li key={e.id}>
+      <EventRow e={e} fading={!!fadingTypes[e.subtype]} onOpen={() => openEvent(e.id)} />
+    </li>
   );
+
+  // Săptămâna pe hartă: lista e grupată pe zile (prima zi a fiecărui eveniment în săptămână).
+  if (preview?.days === 7) {
+    const monday = fromKey(preview.start);
+    const byDay = new Map<string, DerivedEvent[]>();
+    for (const e of visible) {
+      const start = startOfDay(new Date(e.startAt ?? e.reportedAt ?? Date.now()));
+      const k = dayKey(start < monday ? monday : start);
+      byDay.set(k, [...(byDay.get(k) ?? []), e]);
+    }
+    return (
+      <div className="list list--grouped">
+        {[...byDay.keys()].sort().map((k) => (
+          <section key={k} aria-label={fmtDayLong(fromKey(k))}>
+            <h3 className="list__day">
+              {fmtDayLong(fromKey(k)).replace(/^./, (c) => c.toUpperCase())}
+              <span>{byDay.get(k)!.length}</span>
+            </h3>
+            <ul className="list list--flat">{byDay.get(k)!.map(row)}</ul>
+          </section>
+        ))}
+      </div>
+    );
+  }
+
+  return <ul className="list">{visible.map(row)}</ul>;
 }
 
 function EventRow({ e, fading, onOpen }: { e: DerivedEvent; fading: boolean; onOpen: () => void }) {

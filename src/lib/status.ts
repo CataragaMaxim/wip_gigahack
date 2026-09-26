@@ -29,10 +29,10 @@ export const isClosed = (s: Status) => s === 'rezolvat' || s === 'expirat';
 export const isOnMapNow = (e: Pick<UrbanEvent, 'startAt'>, now = Date.now()) =>
   !e.startAt || new Date(e.startAt).getTime() <= now + CONFIG.MAP_AHEAD_H * 36e5;
 
-/** Evenimentul e activ (măcar o parte) în ziua dată (00:00–23:59, ora locală). */
-export function activeOnDay(e: Pick<UrbanEvent, 'startAt' | 'endAt' | 'reportedAt'>, day: Date): boolean {
+/** Evenimentul e activ (măcar o parte) în zilele date: `days` zile de la `day` (00:00, ora locală). */
+export function activeOnDay(e: Pick<UrbanEvent, 'startAt' | 'endAt' | 'reportedAt'>, day: Date, days = 1): boolean {
   const from = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
-  const to = from + 864e5 - 1;
+  const to = new Date(day.getFullYear(), day.getMonth(), day.getDate() + days).getTime() - 1;
   const start = new Date(e.startAt ?? e.reportedAt ?? 0).getTime();
   const end = e.endAt ? new Date(e.endAt).getTime() : start;
   return start <= to && end >= from;

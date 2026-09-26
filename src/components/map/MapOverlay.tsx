@@ -4,7 +4,8 @@ import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { SearchBox } from '@/components/layout/SearchBox';
 import { t } from '@/i18n';
-import { addDays, dayKey, fmtDayLong, fromKey } from '@/lib/days';
+import { addDays, dayKey, dayTag, fmtDayLong, fmtWeek, fromKey, startOfDay, weekStart } from '@/lib/days';
+import { activeOnDay } from '@/lib/status';
 
 /** Stratul de deasupra hărții: căutarea (mobil), butonul „Listă”, avertismente. Filtrele sunt în panou. */
 export function MapOverlay() {
@@ -105,29 +106,71 @@ export function MapControls() {
   );
 }
 
-/** „Harta pentru luni, 28 septembrie” — previzualizarea unei zile din calendar, cu zilele vecine și ieșirea la „acum”. */
+/**
+ * Previzualizarea din calendar: o zi sau o săptămână (luni–duminică). În modul săptămână, zilele apar ca etichete
+ * cu numărul de evenimente; clic pe o zi = harta acelei zile. ‹ › = ziua / săptămâna vecină.
+ */
 function DayPreviewBanner() {
-  const { previewDay, setPreviewDay, visible } = useApp();
-  if (!previewDay) return null;
-  const day = fromKey(previewDay);
-  const shift = (n: number) => setPreviewDay(dayKey(addDays(day, n)));
+  const { preview, setPreview, visible } = useApp();
+  if (!preview) return null;
+  const start = fromKey(preview.start);
+  const week = preview.days === 7;
+  const monday = weekStart(start);
+  const shift = (n: number) => setPreview({ start: dayKey(addDays(start, week ? 7 * n : n)), days: preview.days });
+  const today = startOfDay(new Date());
+  const inWeek = today >= monday && today < addDays(monday, 7);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   return (
     <div className="day-preview fade-in" role="status">
-      <button type="button" className="icon-btn" aria-label={t('Ziua anterioară')} onClick={() => shift(-1)}>
-        <Icon name="chevL" />
-      </button>
-      <span className="stack grow day-preview__text">
-        <span className="xsmall muted">
-          {t('Harta pentru')} · {t('{n} evenimente', { n: visible.length })}
+      <div className="day-preview__row">
+        <button type="button" className="icon-btn" aria-label={week ? t('Săptămâna anterioară') : t('Ziua anterioară')} onClick={() => shift(-1)}>
+          <Icon name="chevL" />
+        </button>
+        <span className="stack grow day-preview__text">
+          <span className="xsmall muted">
+            {week ? t('Harta săptămânii') : t('Harta pentru')} · {t('{n} evenimente', { n: visible.length })}
+          </span>
+          <strong>{week ? fmtWeek(monday) : fmtDayLong(start).replace(/^./, (c) => c.toUpperCase())}</strong>
         </span>
-        <strong>{fmtDayLong(day).replace(/^./, (c) => c.toUpperCase())}</strong>
-      </span>
-      <button type="button" className="icon-btn" aria-label={t('Ziua următoare')} onClick={() => shift(1)}>
-        <Icon name="chevR" />
-      </button>
-      <button type="button" className="btn btn--primary btn--sm" onClick={() => setPreviewDay(null)}>
-        {t('Înapoi la acum')}
-      </button>
+        <button type="button" className="icon-btn" aria-label={week ? t('Săptămâna următoare') : t('Ziua următoare')} onClick={() => shift(1)}>
+          <Icon name="chevR" />
+        </button>
+        <div className="seg seg--2 day-preview__mode" role="group" aria-label={t('Interval')}>
+          <button
+            type="button"
+            className="seg__btn"
+            aria-pressed={!week}
+            onClick={() => setPreview({ start: dayKey(week ? (inWeek ? today : monday) : start), days: 1 })}
+          >
+            {t('Zi')}
+          </button>
+          <button type="button" className="seg__btn" aria-pressed={week} onClick={() => setPreview({ start: dayKey(monday), days: 7 })}>
+            {t('Săptămână')}
+          </button>
+        </div>
+        <button type="button" className="btn btn--primary btn--sm" onClick={() => setPreview(null)}>
+          {t('Înapoi la acum')}
+        </button>
+      </div>
+      {week && (
+        <div className="day-preview__days" role="group" aria-label={t('Zilele săptămânii')}>
+          {days.map((d) => {
+            const n = visible.filter((e) => activeOnDay(e, d)).length;
+            return (
+              <button
+                key={dayKey(d)}
+                type="button"
+                className={`day-chip ${n ? 'has-events' : ''} ${dayKey(d) === dayKey(today) ? 'is-today' : ''}`}
+                aria-label={`${fmtDayLong(d)}, ${t('{n} evenimente', { n })}`}
+                onClick={() => setPreview({ start: dayKey(d), days: 1 })}
+              >
+                <span>{dayTag(d)}</span>
+                <strong>{n}</strong>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -283,10 +283,13 @@ function useAppStore() {
   const [search, setSearch] = useState('');
   /** Lista arată doar aceste evenimente (grupul de pe hartă cu mai multe evenimente în același loc). */
   const [focusIds, setFocusIds] = useState<string[] | null>(null);
-  /** Previzualizarea unei zile din calendar („2026-09-28”): harta arată evenimentele active în acea zi. */
-  const [previewDay, setPreviewDayState] = useState<string | null>(null);
-  const setPreviewDay = useCallback((d: string | null) => {
-    setPreviewDayState(d);
+  /**
+   * Previzualizare din calendar: o zi (`days: 1`) sau o săptămână (`days: 7`, de luni) — harta arată evenimentele
+   * active în acel interval. `start` = „2026-09-28”.
+   */
+  const [preview, setPreviewState] = useState<{ start: string; days: 1 | 7 } | null>(null);
+  const setPreview = useCallback((p: { start: string; days: 1 | 7 } | null) => {
+    setPreviewState(p);
     setFocusIds(null);
   }, []);
   const [mode, setMode] = useState<PanelMode>('list');
@@ -412,9 +415,9 @@ function useAppStore() {
     return events
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
-        if (previewDay) {
-          // Ziua aleasă din calendar: tot ce e programat sau raportat în acea zi (fără ce a fost rezolvat sau contestat).
-          if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(previewDay))) return false;
+        if (preview) {
+          // Ziua / săptămâna aleasă din calendar: tot ce e programat sau raportat atunci (fără ce a fost rezolvat sau contestat).
+          if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(preview.start), preview.days)) return false;
         } else {
           if (!isPublic(e)) return false;
           // Doar evenimentele în curs și cele din următoarele 24 h; restul apar la timpul lor (și în calendar).
@@ -436,7 +439,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search, focusIds, now, previewDay]);
+  }, [events, types, fadingTypes, user, radius, search, focusIds, now, preview]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -867,7 +870,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
+    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, preview, setPreview,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount, laterCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,

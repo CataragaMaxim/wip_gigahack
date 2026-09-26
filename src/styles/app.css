@@ -923,3 +923,36 @@ textarea::placeholder {
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
   .app { transition: none; }
 }
+
+/* ---------- săptămâna pe hartă ---------- */
+.day-preview { flex-direction: column; align-items: stretch; gap: 6px; max-width: 640px; }
+.day-preview__row { display: flex; align-items: center; gap: 4px; }
+.day-preview__mode { flex-shrink: 0; padding: 2px; }
+.day-preview__mode .seg__btn { height: 32px; padding: 0 10px; }
+.day-preview__days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 0 2px 2px; }
+.day-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 2px; border-radius: var(--radius-s);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-3); font-size: 11px; font-weight: 600;
+}
+.day-chip strong { font-size: 14px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.day-chip.has-events { color: var(--text-2); }
+.day-chip.has-events strong { color: var(--text); }
+.day-chip.is-today { border-color: var(--ink); }
+.day-chip:hover { background: var(--hover); }
+.wip-marker__day {
+  position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); padding: 1px 5px; border-radius: 6px;
+  background: var(--ink); color: var(--on-ink); font-size: 10px; font-weight: 700; line-height: 1.4; white-space: nowrap;
+  border: 1.5px solid var(--surface);
+}
+@media (max-width: 767px) {
+  .day-preview__row { flex-wrap: wrap; }
+  .day-preview__mode { order: 5; }
+}
+.list--grouped { gap: 10px; }
+.list--flat { padding: 0; animation: none; }
+.list__day {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; margin: 0 0 2px; border-radius: var(--radius-s); background: var(--sunk);
+  font-size: 13px; font-weight: 700;
+}
+.list__day span { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }

@@ -6,7 +6,7 @@ import { useApp } from '@/state/AppContext';
 import type { DerivedEvent, SubtypeKey } from '@/types';
 import { SeverityBadge } from '@/components/events/EventBits';
 import { getLang, t } from '@/i18n';
-import { CAL, addDays, dayKey, fromKey, startOfDay } from '@/lib/days';
+import { CAL, addDays, dayKey, fromKey, startOfDay, weekStart } from '@/lib/days';
 import { districtName, eventTitle } from '@/lib/status';
 
 
@@ -73,7 +73,12 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
 
 export function OutageCalendar() {
   const cal = CAL[getLang()];
-  const { radius, anchors, gps, openSettings, openEvent, loadState, setPreviewDay, backToList, setSheetSnap } = useApp();
+  const { radius, anchors, gps, openSettings, openEvent, loadState, setPreview, backToList, setSheetSnap } = useApp();
+  const showOnMap = (start: string, days: 1 | 7) => {
+    setPreview({ start, days });
+    backToList();
+    setSheetSnap('mini');
+  };
   const [kind, setKind] = useState<Kind>('all');
   const outages = useScheduledEvents(kind);
   const byDay = useMemo(() => groupByDay(outages), [outages]);
@@ -183,17 +188,15 @@ export function OutageCalendar() {
           <h3 className="h3">
             {capitalize(cal.dayNames[selDate.getDay()])}, {selDate.getDate()} {cal.monthsOf[selDate.getMonth()]}
           </h3>
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm"
-            onClick={() => {
-              setPreviewDay(selected);
-              backToList();
-              setSheetSnap('mini');
-            }}
-          >
+        </div>
+        <div className="grid-2">
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => showOnMap(selected, 1)}>
             <Icon name="pin" size={16} />
-            {t('Vezi harta din această zi')}
+            {t('Harta zilei')}
+          </button>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => showOnMap(dayKey(weekStart(selDate)), 7)}>
+            <Icon name="calendar" size={16} />
+            {t('Harta săptămânii')}
           </button>
         </div>
         {dayList.length === 0 ? (
