@@ -718,3 +718,20 @@ textarea::placeholder {
 .splash__name { font-size: 20px; letter-spacing: -0.01em; }
 .splash__loading { font-size: 15px; font-weight: 600; color: var(--text); }
 .splash__status { min-height: 18px; font-size: 13px; color: var(--text-2); }
+
+/* ---------- cercul razei (Setări) ---------- */
+/* Culorile vin din CSS (proprietățile CSS au prioritate față de atributele SVG puse de Leaflet). */
+.wip-radius { stroke: var(--ink); fill: var(--ink); fill-opacity: 0.06; stroke-opacity: 0.7; animation: wip-in 0.3s ease; }
+.wip-radius-host { background: none; border: 0; }
+.wip-radius-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
+}

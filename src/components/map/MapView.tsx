@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
-import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
 import { CATEGORY_HEX, RESOLVED_HEX, CATEGORY } from '@/config/categories';
 import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
@@ -18,7 +18,9 @@ import { eventIcon, meIcon, placeIcon } from './markerIcons';
  */
 export function MapView() {
   const app = useApp();
-  const { events, visible, selected, fadingCats, isDark, user, locations, userPos, gps, loadState, report, modal } = app;
+  const { events, visible, selected, fadingCats, isDark, user, locations, userPos, gps, loadState, report, modal, mode, radius, panelOpen } = app;
+  // În Setări, raza aleasă se vede ca un cerc în jurul utilizatorului.
+  const showRadius = mode === 'settings' && panelOpen && radius !== 'all' && !!userPos;
   const theme = isDark ? 'dark' : 'light';
   const shown = useMemo(() => new Set(visible.map((e) => e.id)), [visible]);
   const pinMode = modal === 'report' && report.step === 2;
@@ -61,6 +63,8 @@ export function MapView() {
           eventHandlers={{ loading: () => app.setTilesReady(false), load: () => app.setTilesReady(true) }}
         />
 
+        {showRadius && userPos && radius !== 'all' && <RadiusCircle center={userPos} radiusM={radius} />}
+
         {events.map((e) => (
           <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e)} selected={selected?.id === e.id} />
         ))}
@@ -87,6 +91,21 @@ export function MapView() {
       )}
       {loadState === 'loading' && <div className="map__loading" aria-hidden="true" />}
     </div>
+  );
+}
+
+/** Cercul razei afișate, cu eticheta „2 km” pe marginea de sus. */
+function RadiusCircle({ center, radiusM }: { center: { lat: number; lng: number }; radiusM: number }) {
+  const label = useMemo(
+    () => L.divIcon({ className: 'wip-radius-host', html: `<span class="wip-radius-label">${radiusM / 1000} km</span>`, iconSize: [0, 0] }),
+    [radiusM],
+  );
+  const top: [number, number] = [center.lat + radiusM / 111320, center.lng];
+  return (
+    <>
+      <Circle center={[center.lat, center.lng]} radius={radiusM} interactive={false} pathOptions={{ className: 'wip-radius', weight: 2, dashArray: '6 6' }} />
+      <Marker position={top} icon={label} interactive={false} keyboard={false} zIndexOffset={-600} />
+    </>
   );
 }
 

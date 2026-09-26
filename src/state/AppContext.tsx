@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Map as LeafletMap } from 'leaflet';
+import L, { type Map as LeafletMap } from 'leaflet';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { SUBTYPES } from '@/config/categories';
 import { ALL_CATEGORIES_ON, DEMO_LOCATIONS, DEMO_USER } from '@/data/mockUser';
@@ -233,6 +233,17 @@ function useAppStore() {
     const { left, top, bottom } = mapInsets.current;
     const pt = m.project([p.lat, p.lng], z).subtract([left / 2, (top - bottom) / 2]);
     m.flyTo(m.unproject(pt, z), z, { duration: 0.6 });
+  }, []);
+  /** Încadrează cercul razei alese în jurul utilizatorului, în zona vizibilă a hărții. */
+  const fitRadius = useCallback((center: LatLng, radiusM: number) => {
+    const m = mapRef.current;
+    if (!m) return;
+    const { left, top, bottom } = mapInsets.current;
+    m.flyToBounds(L.latLng(center.lat, center.lng).toBounds(radiusM * 2), {
+      paddingTopLeft: [left + 24, top + 32],
+      paddingBottomRight: [24, bottom + 24],
+      duration: 0.6,
+    });
   }, []);
   /** Centrul zonei vizibile a hărții (unde stă pinul de raportare). */
   const visibleCenter = useCallback((): LatLng | null => {
@@ -579,7 +590,7 @@ function useAppStore() {
     modal, setModal, authMode, setAuthMode, authAfter, openAuth,
     report, patchReport, openReport, closeReport, goToPinStep, confirmPin, confirmDuplicate, submitReport, viewReportResult,
     // hartă
-    mapRef, mapInsets, flyTo, visibleCenter, tilesReady, setTilesReady,
+    mapRef, mapInsets, flyTo, fitRadius, visibleCenter, tilesReady, setTilesReady,
     toast, flash,
   };
 }

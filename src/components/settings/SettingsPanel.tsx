@@ -8,6 +8,7 @@ import type { Theme } from '@/types';
 import { StatusBadge } from '@/components/events/EventBits';
 import { DeleteConfirm } from '@/components/events/EventDetail';
 import { StreetInput } from '@/components/ui/StreetInput';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 const THEMES: { key: Theme; label: string; icon: IconName }[] = [
   { key: 'light', label: 'Luminoasă', icon: 'sun' },
@@ -19,6 +20,8 @@ const KIND_ICON = { home: 'home', work: 'briefcase', person: 'user' } as const;
 export function SettingsPanel() {
   const app = useApp();
   const { user, theme, setTheme, radius, setRadius, locations, events, openAuth, logOut, deleteAccount, removeLocation, openEvent, deleteAsk, setDeleteAsk, deleteEvent } = app;
+  const { userPos, fitRadius, setSheetSnap } = app;
+  const isMobile = useIsMobile();
   const [confirmAccount, setConfirmAccount] = useState(false);
   const [adding, setAdding] = useState<null | 'work' | 'person'>(null);
   const myReports = user ? events.filter((e) => e.authorId === user.id).sort((a, b) => (b.reportedAt ?? '').localeCompare(a.reportedAt ?? '')) : [];
@@ -102,11 +105,27 @@ export function SettingsPanel() {
       <section className="stack gap-8">
         <div className="stack">
           <h3 className="h3">Rază afișată</h3>
-          <span className="muted small">Ce evenimente vezi în jurul locației tale.</span>
+          <span className="muted small">
+            {userPos ? 'Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.' : 'Ce evenimente vezi în jurul locației tale.'}
+          </span>
         </div>
         <div className="seg seg--4" role="group" aria-label="Rază afișată">
           {CONFIG.RADIUS_OPTIONS.map((r) => (
-            <button key={String(r)} type="button" className="seg__btn" aria-pressed={radius === r} onClick={() => setRadius(r)}>
+            <button
+              key={String(r)}
+              type="button"
+              className="seg__btn"
+              aria-pressed={radius === r}
+              onClick={() => {
+                setRadius(r);
+                if (r === 'all' || !userPos) return;
+                const center = userPos;
+                const radiusM: number = r;
+                // Pe mobil, setările acoperă harta: coborâm foaia ca cercul să se vadă.
+                if (isMobile) setSheetSnap('mid');
+                window.setTimeout(() => fitRadius(center, radiusM), isMobile ? 350 : 0);
+              }}
+            >
               {r === 'all' ? 'Tot orașul' : `${r / 1000} km`}
             </button>
           ))}
