@@ -8,6 +8,7 @@ import { MapView } from '@/components/map/MapView';
 import { MapControls, MapOverlay } from '@/components/map/MapOverlay';
 import { PinCard, ReportDialog } from '@/components/report/ReportDialog';
 import { AuthDialog } from '@/components/auth/AuthDialog';
+import { LocationDialog } from '@/components/location/LocationDialog';
 
 function Shell() {
   const app = useApp();
@@ -46,6 +47,7 @@ function Shell() {
       </main>
       {modal === 'report' && <ReportDialog />}
       {modal === 'auth' && <AuthDialog />}
+      {modal === 'location' && <LocationDialog />}
       <div className="toast-region" aria-live="polite">
         {toast && (
           <div className="toast" key={toast}>

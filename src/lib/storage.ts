@@ -15,3 +15,14 @@ export function save(key: string, value: unknown): void {
     /* ignorat */
   }
 }
+
+/** Șterge cheile date dacă versiunea datelor s-a schimbat (ex. setul demonstrativ de alerte a fost înlocuit). */
+export function resetIfStale(version: string, keys: string[]): void {
+  if (load<string | null>('wip.dataVersion', null) === version) return;
+  try {
+    keys.forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    /* ignorat */
+  }
+  save('wip.dataVersion', version);
+}

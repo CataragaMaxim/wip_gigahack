@@ -18,6 +18,8 @@ export const CONFIG = {
   DESCRIPTION_MAX: 280,
   /** O adresă salvată e „afectată” dacă e la cel mult atâția metri de eveniment. */
   IMPACT_RADIUS_M: 250,
+  /** La deschidere, harta arată o rază de atâția metri în jurul utilizatorului. */
+  INITIAL_VIEW_RADIUS_M: 5000,
   /** Opțiunile de rază din Setări (metri; 'all' = tot orașul). */
   RADIUS_OPTIONS: ['all', 1000, 2000, 5000] as const,
   /** Durata animației de estompare la filtrare (ms). */
@@ -39,6 +41,6 @@ export const MAP = {
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
 };
 2
-/** Locație demonstrativă (Botanica), folosită când VITE_USE_DEMO_LOCATION=true. */
+/** Locație demonstrativă (Botanica), folosită doar când VITE_USE_DEMO_LOCATION=true. */
 export const DEMO_USER_LOCATION = { lat: 46.9882, lng: 28.8695 };
-export const USE_DEMO_LOCATION = (import.meta.env.VITE_USE_DEMO_LOCATION ?? 'true') !== 'false';
+export const USE_DEMO_LOCATION = import.meta.env.VITE_USE_DEMO_LOCATION === 'true';

@@ -55,7 +55,7 @@ Workflow-ul din `.github/workflows/ci.yml` verifică tipurile și build-ul la fi
 
 | Variabilă | Implicit | Rol |
 | --- | --- | --- |
-| `VITE_USE_DEMO_LOCATION` | `true` | Folosește o locație demonstrativă în Botanica în loc de GPS. Pune `false` ca să ceri locația reală. |
+| `VITE_USE_DEMO_LOCATION` | `false` | Pune `true` ca să folosești o locație demonstrativă în Botanica în loc de GPS. Implicit, aplicația cere locația live; dacă e refuzată, utilizatorul introduce adresa manual. |
 | `VITE_TILES_LIGHT` / `VITE_TILES_DARK` | CARTO Positron / Dark Matter | Stilul hărții. |
 | `VITE_FIREBASE_*` | — | Pregătite pentru conectarea la Firebase (vezi `src/services/README.md`). |
 

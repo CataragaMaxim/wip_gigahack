@@ -4,7 +4,8 @@ import { Icon } from '@/lib/icons';
 interface Props {
   title: string;
   subtitle?: string;
-  onClose: () => void;
+  /** Lipsă = dialog obligatoriu (fără „Închide”, Escape sau clic în afară). */
+  onClose?: () => void;
   onBack?: () => void;
   width?: number;
   header?: ReactNode;
@@ -18,7 +19,7 @@ export function Dialog({ title, subtitle, onClose, onBack, width = 580, header, 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     ref.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose?.();
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
@@ -42,9 +43,11 @@ export function Dialog({ title, subtitle, onClose, onBack, width = 580, header, 
               {subtitle && <span className="muted small">{subtitle}</span>}
             </div>
           </div>
-          <button type="button" className="icon-btn" aria-label="Închide" onClick={onClose}>
-            <Icon name="x" />
-          </button>
+          {onClose && (
+            <button type="button" className="icon-btn" aria-label="Închide" onClick={onClose}>
+              <Icon name="x" />
+            </button>
+          )}
         </div>
         {header}
         <div className="dialog__body">{children}</div>

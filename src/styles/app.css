@@ -266,7 +266,7 @@ textarea::placeholder {
 .search__item, .street-input__menu li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border-radius: var(--radius-s); cursor: pointer; font-size: 14px; }
 .search__item span, .street-input__menu li span { color: var(--text-2); }
 .search__item svg, .street-input__menu li svg { color: var(--text-2); }
-.search__item:hover, .search__item.is-active, .street-input__menu li:hover { background: var(--hover); }
+.search__item:hover, .search__item.is-active, .street-input__menu li:hover, .street-input__menu li.is-active { background: var(--hover); }
 
 /* ---------- hartă ---------- */
 .map { position: absolute; inset: 0; z-index: 0; isolation: isolate; }

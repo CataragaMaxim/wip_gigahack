@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
 import { CATEGORY_HEX, RESOLVED_HEX, CATEGORY } from '@/config/categories';
-import { MAP } from '@/config/constants';
+import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
 import { isClosed, statusBadge } from '@/lib/status';
 import { STREETS } from '@/data/streets';
 import { segmentAround } from '@/lib/geo';
+import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
 import { eventIcon, meIcon, placeIcon } from './markerIcons';
 
@@ -17,22 +18,23 @@ import { eventIcon, meIcon, placeIcon } from './markerIcons';
  */
 export function MapView() {
   const app = useApp();
-  const { events, visible, selected, fadingCats, isDark, user, locations, userPos, loadState, report, modal } = app;
+  const { events, visible, selected, fadingCats, isDark, user, locations, userPos, gps, loadState, report, modal } = app;
   const theme = isDark ? 'dark' : 'light';
   const shown = useMemo(() => new Set(visible.map((e) => e.id)), [visible]);
   const pinMode = modal === 'report' && report.step === 2;
   const dataReady = loadState === 'ready';
 
-  // La prima încărcare, încadrează toate alertele publice în zona vizibilă (ține cont de panou / bottom sheet).
+  // Prima dată când aflăm locația (GPS sau adresă), încadrăm o rază de 5 km în jurul utilizatorului,
+  // în zona vizibilă a hărții (ține cont de panou / bottom sheet).
   const framed = useRef(false);
   useEffect(() => {
     const m = app.mapRef.current;
-    if (!m || !dataReady || framed.current || visible.length === 0) return;
+    if (!m || !userPos || framed.current) return;
     framed.current = true;
-    const pts: [number, number][] = visible.flatMap((e) => (e.path ?? [e.location]).map((p) => [p.lat, p.lng] as [number, number]));
+    const bounds = L.latLng(userPos.lat, userPos.lng).toBounds(CONFIG.INITIAL_VIEW_RADIUS_M * 2);
     const { left, top, bottom } = app.mapInsets.current;
-    m.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [left + 40, top + 40], paddingBottomRight: [80, bottom + 90], maxZoom: 15, animate: false });
-  }, [dataReady, visible, app.mapRef, app.mapInsets]);
+    m.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [0, bottom], animate: false });
+  }, [userPos, dataReady, app.mapRef, app.mapInsets]);
 
   const isShown = (e: DerivedEvent) =>
     dataReady && (shown.has(e.id) || selected?.id === e.id) && !fadingCats[e.category];
@@ -61,7 +63,8 @@ export function MapView() {
             <Marker key={`place-${l.id}`} position={[l.location.lat, l.location.lng]} icon={placeIcon(l)} interactive={false} keyboard={false} zIndexOffset={-500} />
           ))}
 
-        {userPos && dataReady && <Marker position={[userPos.lat, userPos.lng]} icon={meIcon} interactive={false} keyboard={false} zIndexOffset={-400} />}
+        {userPos && dataReady && gps !== 'manual' && <Marker position={[userPos.lat, userPos.lng]} icon={meIcon} interactive={false} keyboard={false} zIndexOffset={-400} />}
+        {userPos && dataReady && gps === 'manual' && <ManualMarker />}
 
         {events.map((e) => (
           <EventMarker key={`marker-${e.id}`} e={e} show={isShown(e)} selected={selected?.id === e.id} onOpen={app.openEvent} />
@@ -77,6 +80,32 @@ export function MapView() {
       )}
       {loadState === 'loading' && <div className="map__loading" aria-hidden="true" />}
     </div>
+  );
+}
+
+/** Locația introdusă manual: se poate trage pentru precizie; clic = schimbă adresa. */
+function ManualMarker() {
+  const { userPos, manualPlace, setManualLocation, openLocationPicker } = useApp();
+  if (!userPos) return null;
+  return (
+    <Marker
+      position={[userPos.lat, userPos.lng]}
+      icon={meIcon}
+      draggable
+      title={`${manualPlace?.label ?? 'Locația ta'} — trage pentru a ajusta, clic pentru a schimba adresa`}
+      zIndexOffset={-400}
+      eventHandlers={{
+        click: openLocationPicker,
+        dragend: (ev) => {
+          const { lat, lng } = (ev.target as L.Marker).getLatLng();
+          const location = { lat, lng };
+          setManualLocation({ label: manualPlace?.label ?? 'Locație aleasă pe hartă', location }, { fly: false });
+          void reverseGeocode(location).then((r) => {
+            if (r) setManualLocation({ label: r.detail ? `${r.label}, ${r.detail}` : r.label, location }, { fly: false });
+          });
+        },
+      }}
+    />
   );
 }
 

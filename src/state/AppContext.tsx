@@ -6,12 +6,16 @@ import { ALL_CATEGORIES_ON, DEMO_LOCATIONS, DEMO_USER } from '@/data/mockUser';
 import { STREETS } from '@/data/streets';
 import { distanceToEvent, nearestStreet, segmentAround } from '@/lib/geo';
 import { deriveStatus, isClosed, isPublic } from '@/lib/status';
-import { load, save } from '@/lib/storage';
+import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
 import type {
   CategoryKey, DerivedEvent, LatLng, SavedLocation, Severity, SubtypeKey, Theme, UrbanEvent, User, Vote,
 } from '@/types';
+
+/** Crește la fiecare schimbare a setului de alerte demonstrative: voturile, ștergerile și raportările vechi se golesc. */
+const DATA_VERSION = '2026-09-real-streets';
+resetIfStale(DATA_VERSION, ['wip.userReports', 'wip.deleted', 'wip.votes']);
 
 export type PanelMode = 'list' | 'detail' | 'settings';
 /** Pozițiile bottom sheet-ului pe mobil. */
@@ -43,7 +47,13 @@ const emptyReport = (): ReportDraft => ({
 });
 
 type LoadState = 'loading' | 'ready' | 'error';
-type GpsState = 'demo' | 'pending' | 'granted' | 'denied' | 'unsupported';
+type GpsState = 'demo' | 'pending' | 'granted' | 'manual' | 'denied' | 'unsupported';
+
+/** Adresa introdusă manual când GPS-ul nu e disponibil (păstrată între vizite). */
+export interface ManualPlace {
+  label: string;
+  location: LatLng;
+}
 
 interface Session {
   user: User | null;
@@ -113,9 +123,24 @@ function useAppStore() {
     };
   }, []);
 
+  const [modal, setModal] = useState<null | 'report' | 'auth' | 'location'>(null);
+
   // ---------- locație ----------
   const [gps, setGps] = useState<GpsState>(USE_DEMO_LOCATION ? 'demo' : 'pending');
   const [userPos, setUserPos] = useState<LatLng | null>(USE_DEMO_LOCATION ? DEMO_USER_LOCATION : null);
+  const [manualPlace, setManualPlace] = useState<ManualPlace | null>(() => load<ManualPlace | null>('wip.manualPlace', null));
+  useEffect(() => save('wip.manualPlace', manualPlace), [manualPlace]);
+  /** Fără GPS: folosim adresa salvată sau cerem una (dialog obligatoriu). */
+  const fallBackToManual = useCallback((state: 'denied' | 'unsupported') => {
+    const saved = load<ManualPlace | null>('wip.manualPlace', null);
+    if (saved) {
+      setUserPos(saved.location);
+      setGps('manual');
+      return;
+    }
+    setGps(state);
+    setModal((m) => m ?? 'location');
+  }, []);
   const requestLocation = useCallback((): Promise<LatLng | null> => {
     if (USE_DEMO_LOCATION) return Promise.resolve(DEMO_USER_LOCATION);
     if (!('geolocation' in navigator)) {
@@ -128,19 +153,41 @@ function useAppStore() {
           const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
           setUserPos(pos);
           setGps('granted');
+          setModal((m) => (m === 'location' ? null : m));
           resolve(pos);
         },
         () => {
-          setGps('denied');
+          setGps((g) => (g === 'manual' ? g : 'denied'));
           resolve(null);
         },
         { enableHighAccuracy: true, timeout: 8000 },
       );
     });
   }, []);
+  // La pornire cerem locația live și o urmărim; dacă e refuzată, trecem la adresa introdusă manual.
   useEffect(() => {
-    if (!USE_DEMO_LOCATION) void requestLocation();
-  }, [requestLocation]);
+    if (USE_DEMO_LOCATION) return;
+    if (!('geolocation' in navigator)) {
+      fallBackToManual('unsupported');
+      return;
+    }
+    let hadFix = false;
+    const watchId = navigator.geolocation.watchPosition(
+      (p) => {
+        hadFix = true;
+        setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+        setGps('granted');
+      },
+      (err) => {
+        // Erorile trecătoare după un fix reușit nu schimbă nimic.
+        if (hadFix && err.code !== err.PERMISSION_DENIED) return;
+        navigator.geolocation.clearWatch(watchId);
+        fallBackToManual('denied');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [fallBackToManual]);
 
   // ---------- UI ----------
   const [cats, setCats] = useState<Record<CategoryKey, boolean>>({ ...ALL_CATEGORIES_ON });
@@ -154,7 +201,6 @@ function useAppStore() {
   const cycleSheet = useCallback(() => setSheetSnap((s) => SHEET_SNAPS[(SHEET_SNAPS.indexOf(s) + 1) % SHEET_SNAPS.length]), []);
   /** Înălțimea reală (px) a bottom sheet-ului, actualizată de BottomSheet prin ResizeObserver. */
   const sheetPx = useRef(92);
-  const [modal, setModal] = useState<null | 'report' | 'auth'>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [authAfter, setAuthAfter] = useState<AuthAfter>(null);
   const [report, setReport] = useState<ReportDraft>(emptyReport);
@@ -300,12 +346,26 @@ function useAppStore() {
   const locateMe = useCallback(async () => {
     const p = userPos ?? (await requestLocation());
     if (!p) {
-      setGpsNotice(true);
+      setModal('location');
       return;
     }
     setGpsNotice(false);
     flyTo(p, 15);
   }, [userPos, requestLocation, flyTo]);
+
+  const openLocationPicker = useCallback(() => setModal('location'), []);
+  /** Setează locația din adresa introdusă (sau din marcajul mutat pe hartă). */
+  const setManualLocation = useCallback(
+    (place: ManualPlace, opts: { fly?: boolean } = {}) => {
+      setManualPlace(place);
+      setUserPos(place.location);
+      setGps('manual');
+      setGpsNotice(false);
+      setModal((m) => (m === 'location' ? null : m));
+      if (opts.fly !== false) window.setTimeout(() => flyTo(place.location, 17), 50);
+    },
+    [flyTo],
+  );
 
   const vote = useCallback(
     (id: string, v: Vote) => {
@@ -493,7 +553,7 @@ function useAppStore() {
     user, locations, signUp, logIn, logOut, deleteAccount, addLocation, removeLocation,
     // date
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
-    userPos, gps, locateMe, gpsNotice, setGpsNotice,
+    userPos, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
     cats, fadingCats, toggleCategory, resetFilters, search, setSearch,
     // panou
