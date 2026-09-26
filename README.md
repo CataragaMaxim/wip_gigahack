@@ -59,6 +59,10 @@ Workflow-ul din `.github/workflows/ci.yml` verifică tipurile și build-ul la fi
 | `VITE_TILES_LIGHT` / `VITE_TILES_DARK` | CARTO Positron / Dark Matter | Stilul hărții. |
 | `VITE_FIREBASE_*` | — | Pregătite pentru conectarea la Firebase (vezi `src/services/README.md`). |
 
+## Telegram bot
+
+Botul Python din `telegram-bot/` folosește același proiect Firebase și schema de evenimente ca aplicația web. Instrucțiunile de configurare locală, autentificare/legare cont, rapoarte și publicarea funcției Firebase sunt în [telegram-bot/README.md](telegram-bot/README.md). Pagina web pentru asocierea contului este disponibilă la `/telegram-auth`. Păstrează `BOT_TOKEN` și cheia contului de serviciu numai în configurația privată de server, niciodată în variabilele `VITE_*`.
+
 ## Structura proiectului
 
 ```

@@ -21,6 +21,9 @@ coverage/
 .env
 .env.local
 .env.*.local
+telegram-bot/.env
+telegram-bot/service-account*.json
+telegram-bot/*service-account*.json
 # .env.example NU se ignoră — e template pentru colegi!
 
 # ---------- Deploy ----------
