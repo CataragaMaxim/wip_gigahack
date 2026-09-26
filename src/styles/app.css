@@ -484,6 +484,8 @@ textarea::placeholder {
 .facts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; padding: 16px; border-radius: var(--radius-m); border: 1px solid var(--border); }
 .facts dt { font-size: 12px; color: var(--text-2); }
 .facts dd { margin: 2px 0 0; font-weight: 600; }
+.facts--single { grid-template-columns: minmax(0, 1fr); }
+.facts--single dd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .streets { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .streets li { display: flex; align-items: center; gap: 8px; }
 .streets__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }

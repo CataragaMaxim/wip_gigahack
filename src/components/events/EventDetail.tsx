@@ -140,7 +140,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
         </>
       ) : (
         <>
-          <dl className="facts">
+          <dl className="facts facts--single">
             <div>
               <dt>{t('Raportat')}</dt>
               <dd>{e.reportedAt ? `${fmtAt(new Date(e.reportedAt))} (${fmtAgo(new Date(e.reportedAt))})` : '—'}</dd>
@@ -220,7 +220,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
   );
 }
 
-/** „Salvează / urmărește” și „Distribuie”. `short`: etichetă scurtă „Urmărește”, ca să încapă în subsolul mobil. */
+/** „Urmărește” și „Distribuie”. `short`: butoane mari, pentru subsolul mobil. */
 export function EventActions({ e, short = false }: { e: DerivedEvent; short?: boolean }) {
   const { following, toggleFollow, flash } = useApp();
   const share = async () => {
@@ -241,7 +241,7 @@ export function EventActions({ e, short = false }: { e: DerivedEvent; short?: bo
     <>
       <button type="button" className={`btn btn--secondary ${short ? 'btn--lg' : ''}`} aria-pressed={on} onClick={() => toggleFollow(e.id)}>
         <Icon name="bookmark" fill={on ? 'currentColor' : 'none'} />
-        {on ? t('Urmărești') : short ? t('Urmărește') : t('Salvează / urmărește')}
+        {on ? t('Urmărești') : t('Urmărește')}
       </button>
       <button type="button" className={`btn btn--secondary ${short ? 'btn--lg' : ''}`} onClick={() => void share()}>
         <Icon name="share" />

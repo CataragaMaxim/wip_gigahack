@@ -220,7 +220,6 @@ export const RU: Record<string, string> = {
   'Linkul evenimentului a fost copiat': 'Ссылка на событие скопирована',
   'Urmărești': 'Отслеживается',
   'Urmărește': 'Отслеживать',
-  'Salvează / urmărește': 'Сохранить / отслеживать',
   'Distribuie': 'Поделиться',
   'Confirmă ștergerea': 'Подтвердите удаление',
   'Ștergi raportarea?': 'Удалить сообщение?',

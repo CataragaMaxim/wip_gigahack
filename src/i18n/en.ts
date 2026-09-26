@@ -219,7 +219,6 @@ export const EN: Record<string, string> = {
   'Linkul evenimentului a fost copiat': 'Event link copied',
   'Urmărești': 'Following',
   'Urmărește': 'Follow',
-  'Salvează / urmărește': 'Save / follow',
   'Distribuie': 'Share',
   'Confirmă ștergerea': 'Confirm deletion',
   'Ștergi raportarea?': 'Delete the report?',
