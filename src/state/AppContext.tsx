@@ -490,16 +490,26 @@ function useAppStore() {
     setMode('list');
     flash('Ai ieșit din cont');
   }, [flash]);
-  const deleteAccount = useCallback(async () => {
-    if (!session.user) return;
-    await deleteUserAccount(session.user.id);
-    setSession({ user: null, locations: [] });
-    setFollowing({});
-    setUserReports([]);
-    setMode('list');
-    flash('Contul a fost șters');
-  }, [session.user, flash]);
 
+  const deleteAccount = useCallback(async (password: string) => {
+    if (!session.user) return;
+    try {
+      await deleteUserAccount(password);
+      setSession({ user: null, locations: [] });
+      setFollowing({});
+      setUserReports([]);
+      setMode('list');
+      flash('Contul a fost șters');
+    } catch (err) {
+      const code = (err as any)?.code ?? '';
+      let msg = 'Nu am putut șterge contul.';
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') msg = 'Parolă greșită.';
+      else if (code === 'auth/too-many-requests') msg = 'Prea multe încercări. Așteaptă puțin.';
+      else if (code === 'auth/requires-recent-login') msg = 'Sesiunea a expirat. Autentifică-te din nou.';
+      flash(msg, 'error');
+    }
+  }, [session.user, flash]);
+  
   const addLocation = useCallback(
     (kind: 'work' | 'person', name: string, streetId: string) => {
       const s = STREETS.find((x) => x.id === streetId)!;

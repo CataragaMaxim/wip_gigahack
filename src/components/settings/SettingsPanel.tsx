@@ -23,6 +23,7 @@ export function SettingsPanel() {
   const { userPos, fitRadius, setSheetSnap } = app;
   const isMobile = useIsMobile();
   const [confirmAccount, setConfirmAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   const [adding, setAdding] = useState<null | 'work' | 'person'>(null);
   const myReports = user ? events.filter((e) => e.authorId === user.id).sort((a, b) => (b.reportedAt ?? '').localeCompare(a.reportedAt ?? '')) : [];
 
@@ -169,14 +170,46 @@ export function SettingsPanel() {
               Ieși din cont
             </button>
             {confirmAccount ? (
-              <div className="danger-box fade-in" role="alertdialog" aria-label="Confirmă ștergerea contului">
+              <div className="danger-box" role="alertdialog" aria-label="Confirmă ștergerea contului">
                 <strong>Ștergi contul definitiv?</strong>
-                <span className="muted small">Se șterg adresele salvate și setările. Raportările trimise rămân anonime. Acțiunea nu poate fi anulată.</span>
+                <span className="muted small">
+                  Se șterg adresele salvate și setările. Raportările trimise rămân anonime. Acțiunea nu poate fi anulată.
+                </span>
+
+                <div className="field">
+                  <label className="field__label" htmlFor="delete-pw">
+                    Confirmă parola
+                  </label>
+                  <input
+                    id="delete-pw"
+                    type="password"
+                    className="input"
+                    autoComplete="current-password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                  />
+                </div>
+
                 <div className="grid-2">
-                  <button type="button" className="btn btn--secondary" onClick={() => setConfirmAccount(false)}>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => {
+                      setConfirmAccount(false);
+                      setDeletePassword('');
+                    }}
+                  >
                     Anulează
                   </button>
-                  <button type="button" className="btn btn--danger" onClick={deleteAccount}>
+                  <button
+                    type="button"
+                    className="btn btn--danger"
+                    disabled={!deletePassword}
+                    onClick={() => {
+                      deleteAccount(deletePassword);
+                      setDeletePassword('');
+                    }}
+                  >
                     Șterge definitiv
                   </button>
                 </div>
