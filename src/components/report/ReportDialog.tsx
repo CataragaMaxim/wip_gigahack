@@ -176,47 +176,6 @@ export function ReportDialog() {
             onChange={(e) => patchReport({ description: e.target.value.slice(0, CONFIG.DESCRIPTION_MAX) })}
           />
         </div>
-
-        {/* Fotografie ca URL — fără Firebase Storage */}
-        <div className="stack gap-8">
-          <span className="field__label">
-            {t('Fotografie')} <span className="muted normal">{t('(opțional)')}</span>
-          </span>
-          {r.photo ? (
-            <div className="card card--outline row gap-12">
-              <img
-                src={r.photo}
-                alt={t('Previzualizare')}
-                style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
-              />
-              <span className="stack grow min0">
-                <strong className="small">{t('Fotografie atașată')}</strong>
-                <span className="muted xsmall" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {r.photo}
-                </span>
-              </span>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => patchReport({ photo: null })}
-              >
-                {t('Elimină')}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn--dashed btn--lg"
-              onClick={() => {
-                const url = window.prompt(t('URL-ul imaginii (fără Firebase Storage pentru demo):'));
-                if (url && /^https?:\/\//i.test(url)) patchReport({ photo: url });
-              }}
-            >
-              <Icon name="camera" />
-              Adaugă o fotografie (URL)
-            </button>
-          )}
-        </div>
       </>
     );
     footer = (
@@ -242,7 +201,6 @@ export function ReportDialog() {
       [t('Locație'), r.street ? [r.street.label, r.street.district].filter(Boolean).join(', ') : t('Punct pe hartă, fără stradă în apropiere')],
       [t('Gravitate'), r.severity === 'total' ? t('Întrerupere totală') : t('Parțial — posibil afectat')],
       [t('Descriere'), r.description.trim() || t('Fără descriere')],
-      [t('Fotografie'), r.photo ? t('1 fotografie') : t('Fără fotografie')],
     ];
     body = (
       <>

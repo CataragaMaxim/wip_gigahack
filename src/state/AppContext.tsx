@@ -4,7 +4,7 @@ import { flushSync } from 'react-dom';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { ALL_TYPES_ON, SUBTYPE_TITLE_RO, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
-import { distanceToEvent } from '@/lib/geo';
+import { distance, distanceToEvent } from '@/lib/geo';
 import { activeOnDay, deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
 import { fromKey } from '@/lib/days';
 import { load, resetIfStale, save } from '@/lib/storage';
@@ -13,6 +13,7 @@ import { eventsService } from '@/services/eventsService';
 import { matchStreet, type StreetMatch } from '@/services/streetMatch';
 import type { GeoResult } from '@/services/geocoding';
 import { applyLang, getLang, t, type Lang } from '@/i18n';
+import { loadConsent, saveConsent, type Consent } from '@/lib/consent';
 import {
   watchAuth,
   logInWithEmail,
@@ -20,6 +21,7 @@ import {
   logInWithGoogle,
   completeGoogleRedirect,
   authErrorCode,
+  deleteAuthAccount,
   logOutUser,
 } from '@/services/authService';
 import {
@@ -59,7 +61,6 @@ export interface ReportDraft {
   noDuplicate: boolean;
   description: string;
   /** URL / dataURL; null = fără fotografie. */
-  photo: string | null;
   severity: Severity;
   resultId: string | null;
   confirmedDuplicate: boolean;
@@ -68,7 +69,7 @@ export interface ReportDraft {
 const emptyReport = (): ReportDraft => ({
   step: 1, category: null, subtype: null, pin: null, street: null, locating: false, pinChoice: null,
   duplicateId: null, duplicateDistanceM: null,
-  noDuplicate: false, description: '', photo: null, severity: 'total', resultId: null, confirmedDuplicate: false,
+  noDuplicate: false, description: '', severity: 'total', resultId: null, confirmedDuplicate: false,
 });
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -122,6 +123,11 @@ function useAppStore() {
   const [theme, setTheme] = useState<Theme>(() => load<Theme>('wip.theme', 'system'));
   const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false);
   const [radius, setRadius] = useState<RadiusOption>(() => load<RadiusOption>('wip.radius', 'all'));
+  // Consimțământul pentru cookie-uri / stocare: null = încă nu s-a ales (bannerul apare la prima deschidere).
+  const [consent, setConsentState] = useState<Consent | null>(loadConsent);
+  const [consentOpen, setConsentOpen] = useState(() => !loadConsent());
+  /** Politica afișată peste orice alt dialog (din banner, din Setări, din înregistrare). */
+  const [legal, setLegal] = useState<null | 'privacy' | 'cookies'>(null);
   // Limba: `t()` citește limba curentă din modulul i18n; schimbarea stării re-randează toată aplicația.
   const [lang, setLangState] = useState<Lang>(getLang);
   const setLang = useCallback((l: Lang) => {
@@ -268,8 +274,10 @@ function useAppStore() {
     const watchId = navigator.geolocation.watchPosition(
       (p) => {
         hadFix = true;
-        setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
-        setUserAccuracy(p.coords.accuracy ?? 0);
+        // Ignorăm tremurul GPS (< 5 m): altfel fiecare citire recalculează și redesenează toată harta.
+        const next = { lat: p.coords.latitude, lng: p.coords.longitude };
+        setUserPos((prev) => (prev && distance(prev, next) < 5 ? prev : next));
+        setUserAccuracy((a) => (Math.abs(a - (p.coords.accuracy ?? 0)) < 10 ? a : p.coords.accuracy ?? 0));
         setGps('granted');
       },
       (err) => {
@@ -290,13 +298,10 @@ function useAppStore() {
   const [search, setSearch] = useState('');
   /** Lista arată doar aceste evenimente (grupul de pe hartă cu mai multe evenimente în același loc). */
   const [focusIds, setFocusIds] = useState<string[] | null>(null);
-  /**
-   * Previzualizare din calendar: o zi (`days: 1`) sau o săptămână (`days: 7`, de luni) — harta arată evenimentele
-   * active în acel interval. `start` = „2026-09-28”.
-   */
-  const [preview, setPreviewState] = useState<{ start: string; days: 1 | 7 } | null>(null);
-  const setPreview = useCallback((p: { start: string; days: 1 | 7 } | null) => {
-    setPreviewState(p);
+  /** Previzualizarea unei zile din calendar („2026-09-28”): harta arată evenimentele active în acea zi. */
+  const [previewDay, setPreviewDayState] = useState<string | null>(null);
+  const setPreviewDay = useCallback((d: string | null) => {
+    setPreviewDayState(d);
     setFocusIds(null);
   }, []);
   const [mode, setMode] = useState<PanelMode>('list');
@@ -422,9 +427,9 @@ function useAppStore() {
     return events
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
-        if (preview) {
-          // Ziua / săptămâna aleasă din calendar: tot ce e programat sau raportat atunci (fără ce a fost rezolvat sau contestat).
-          if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(preview.start), preview.days)) return false;
+        if (previewDay) {
+          // Ziua aleasă din calendar: tot ce e programat sau raportat atunci (fără ce a fost rezolvat sau contestat).
+          if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(previewDay))) return false;
         } else {
           if (!isPublic(e)) return false;
           // Doar evenimentele în curs și cele din următoarele 24 h; restul apar la timpul lor (și în calendar).
@@ -446,7 +451,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search, focusIds, now, preview]);
+  }, [events, types, fadingTypes, user, radius, search, focusIds, now, previewDay]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -692,8 +697,18 @@ function useAppStore() {
 
   const deleteAccount = useCallback(async () => {
     if (!user) return;
+    // Întâi datele din Firestore (cât încă avem acces), apoi contul de autentificare însuși (GDPR: dreptul la ștergere).
     await deleteUserProfile(user.uid);
-    await logOutUser();
+    try {
+      await deleteAuthAccount();
+    } catch (e) {
+      if (authErrorCode(e) === 'auth/requires-recent-login') {
+        await logOutUser();
+        flash(t('Pentru siguranță, intră din nou în cont și repetă ștergerea.'));
+        return;
+      }
+      throw e;
+    }
     setUserReports([]);
     setMode('list');
     flash(t('Contul a fost șters'));
@@ -837,7 +852,6 @@ function useAppStore() {
       confirmations: 0,
       denials: 0,
       description: report.description.trim() || undefined,
-      photo: report.photo ?? undefined,
       location: report.pin,
       path: st && st.path.length > 1 ? st.path : [report.pin],
     };
@@ -864,9 +878,25 @@ function useAppStore() {
     if (id) window.setTimeout(() => openEvent(id), 0);
   }, [report.resultId, closeReport, openEvent]);
 
+  /** Salvează alegerea; la acceptarea preferințelor, păstrează imediat valorile curente. */
+  const setConsent = useCallback(
+    (preferences: boolean) => {
+      setConsentState(saveConsent(preferences));
+      setConsentOpen(false);
+      if (preferences) {
+        save('wip.theme', theme);
+        save('wip.radius', radius);
+        save('wip.lang', lang);
+        save('wip.manualPlace', manualPlace);
+      }
+    },
+    [theme, radius, lang, manualPlace],
+  );
+
   return {
     // preferințe
     theme, setTheme, isDark, radius, setRadius, lang, setLang,
+    consent, setConsent, consentOpen, setConsentOpen, legal, setLegal,
     // sesiune
     user, locations,
     signUp, logIn, logInGoogle,
@@ -875,7 +905,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, userAccuracy, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, preview, setPreview,
+    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount, laterCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,

@@ -6,8 +6,8 @@ import { useApp } from '@/state/AppContext';
 import type { DerivedEvent, SubtypeKey } from '@/types';
 import { SeverityBadge } from '@/components/events/EventBits';
 import { getLang, t } from '@/i18n';
-import { CAL, addDays, dayKey, fromKey, startOfDay, weekStart } from '@/lib/days';
-import { districtName, eventTitle } from '@/lib/status';
+import { CAL, addDays, dayKey, fromKey, startOfDay } from '@/lib/days';
+import { districtName, eventTitle, streetLine } from '@/lib/status';
 
 
 
@@ -73,9 +73,9 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
 
 export function OutageCalendar() {
   const cal = CAL[getLang()];
-  const { radius, anchors, gps, openSettings, openEvent, loadState, setPreview, backToList, setSheetSnap } = useApp();
-  const showOnMap = (start: string, days: 1 | 7) => {
-    setPreview({ start, days });
+  const { radius, anchors, gps, openSettings, openEvent, loadState, setPreviewDay, backToList, setSheetSnap } = useApp();
+  const showOnMap = (day: string) => {
+    setPreviewDay(day);
     backToList();
     setSheetSnap('mini');
   };
@@ -189,16 +189,10 @@ export function OutageCalendar() {
             {capitalize(cal.dayNames[selDate.getDay()])}, {selDate.getDate()} {cal.monthsOf[selDate.getMonth()]}
           </h3>
         </div>
-        <div className="grid-2">
-          <button type="button" className="btn btn--secondary btn--sm" onClick={() => showOnMap(selected, 1)}>
-            <Icon name="pin" size={16} />
-            {t('Harta zilei')}
-          </button>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={() => showOnMap(dayKey(weekStart(selDate)), 7)}>
-            <Icon name="calendar" size={16} />
-            {t('Harta săptămânii')}
-          </button>
-        </div>
+        <button type="button" className="btn btn--secondary btn--sm" onClick={() => showOnMap(selected)}>
+          <Icon name="pin" size={16} />
+          {t('Harta zilei')}
+        </button>
         {dayList.length === 0 ? (
           <div className="card card--sunk stack gap-8">
             <span className="small muted">{t('Nimic programat în această zi.')}</span>
@@ -222,7 +216,7 @@ export function OutageCalendar() {
                   </span>
                   <span className="stack gap-4 grow">
                     <strong className="small">{eventTitle(e)}</strong>
-                    <span className="small">{(e.allStreets ?? e.streets).join(' · ')}</span>
+                    <span className="small">{(e.allStreets ?? e.streets).map(streetLine).join(' · ')}</span>
                     <span className="xsmall muted">
                       {[districtName(e.district), e.source].filter(Boolean).join(' · ')}
                     </span>

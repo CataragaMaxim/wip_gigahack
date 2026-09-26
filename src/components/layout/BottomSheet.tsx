@@ -64,19 +64,30 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
     const el = ref.current;
     if (!el) return;
     const root = document.documentElement;
-    const apply = () => {
+    // Cel mult o actualizare pe cadru și doar când înălțimea chiar s-a schimbat: variabilele CSS de pe <html>
+    // recalculează stilurile întregii pagini, iar la tragerea foii observatorul se declanșează la fiecare pixel.
+    let frame = 0;
+    let last = -1;
+    const write = () => {
+      frame = 0;
       const h = Math.round(el.getBoundingClientRect().height);
+      if (h === last) return;
+      last = h;
       const H = (el.offsetParent as HTMLElement | null)?.clientHeight ?? window.innerHeight;
       sheetPx.current = h;
       mapInsets.current.bottom = h;
       root.style.setProperty('--sheet-px', `${h}px`);
       root.style.setProperty('--toast-b', `${h > H * 0.6 ? 96 : h + 20}px`);
     };
-    apply();
+    const apply = () => {
+      if (!frame) frame = requestAnimationFrame(write);
+    };
+    write();
     const ro = new ResizeObserver(apply);
     ro.observe(el);
     return () => {
       ro.disconnect();
+      cancelAnimationFrame(frame);
       root.style.removeProperty('--sheet-px');
       root.style.removeProperty('--toast-b');
     };

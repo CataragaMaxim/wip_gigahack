@@ -9,6 +9,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  deleteUser,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from './firebase';
@@ -88,6 +89,11 @@ export async function completeGoogleRedirect(): Promise<boolean> {
 // ---------- reset parolă / logout ----------
 
 export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email);
+
+/** Șterge contul din Firebase Authentication (emailul / legătura Google). Poate cere o autentificare recentă. */
+export async function deleteAuthAccount(): Promise<void> {
+  if (auth.currentUser) await deleteUser(auth.currentUser);
+}
 export const logOutUser = () => signOut(auth);
 
 // ---------- watchAuth ----------

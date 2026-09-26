@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { RESOLVED_HEX, SUBTYPES, TYPE_HEX } from '@/config/categories';
@@ -10,7 +10,6 @@ import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
 import { clusterIcon, eventIcon, meIcon, placeIcon } from './markerIcons';
 import { CLUSTER_MAX_ZOOM, clusterMarkers, type MarkerCluster } from './clusters';
-import { dayTag, fromKey, startOfDay } from '@/lib/days';
 import { plural } from '@/lib/format';
 import { getLang, t } from '@/i18n';
 
@@ -44,6 +43,20 @@ export function MapView() {
 
   const isShown = (e: DerivedEvent) =>
     dataReady && (shown.has(e.id) || selected?.id === e.id) && !fadingTypes[e.subtype];
+  const { setFocusIds, backToList, setPanelOpen, setSheetSnap } = app;
+  const mapEvents = useMemo(
+    () => events.filter((e) => shown.has(e.id) || selected?.id === e.id || fadingTypes[e.subtype]),
+    [events, shown, selected, fadingTypes],
+  );
+  const onSameSpot = useCallback(
+    (ids: string[]) => {
+      setFocusIds(ids);
+      backToList();
+      setPanelOpen(true);
+      setSheetSnap('mid');
+    },
+    [setFocusIds, backToList, setPanelOpen, setSheetSnap],
+  );
 
   return (
     <div className={`map ${pinMode ? 'map--pin' : ''}`}>
@@ -84,27 +97,14 @@ export function MapView() {
         {userPos && dataReady && gps === 'manual' && <ManualMarker />}
 
         <EventMarkers
-          events={events}
+          // Doar evenimentele vizibile (plus cele care se estompează la schimbarea filtrelor): pe telefon,
+          // sute de markere ascunse în pagină încetinesc harta.
+          events={mapEvents}
           isShown={isShown}
           selectedId={selected?.id}
           onOpen={app.openEvent}
           theme={theme}
-          dayLabel={
-            app.preview?.days === 7
-              ? (e) => {
-                  // Prima zi a evenimentului în săptămâna afișată.
-                  const monday = fromKey(app.preview!.start);
-                  const start = startOfDay(new Date(e.startAt ?? e.reportedAt ?? Date.now()));
-                  return dayTag(start < monday ? monday : start);
-                }
-              : undefined
-          }
-          onSameSpot={(ids) => {
-            app.setFocusIds(ids);
-            app.backToList();
-            app.setPanelOpen(true);
-            app.setSheetSnap('mid');
-          }}
+          onSameSpot={onSameSpot}
         />
       </MapContainer>
       {pinMode && (
@@ -162,7 +162,7 @@ function ManualMarker() {
 }
 
 /** Zona afectată: cercul care cuprinde toate adresele anunțului (sau o zonă implicită în jurul raportării). */
-function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'light' | 'dark'; show: boolean; selected: boolean }) {
+const EventShape = memo(function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'light' | 'dark'; show: boolean; selected: boolean }) {
   const color = isClosed(e.status) ? RESOLVED_HEX[theme] : TYPE_HEX[theme][e.subtype];
   const partial = e.severity === 'partial';
   const base = e.status === 'contestat' ? 0.35 : 1;
@@ -182,13 +182,14 @@ function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'lig
       }}
     />
   );
-}
+}, sameLook);
+
 
 /**
  * Markerele evenimentelor. Când zoomul e depărtat, markerele care se suprapun devin un grup mai mare,
  * cu numărul de evenimente în colțul din dreapta sus; clic pe grup = zoom până se separă.
  */
-function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot, dayLabel }: {
+function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot }: {
   events: DerivedEvent[];
   isShown: (e: DerivedEvent) => boolean;
   selectedId?: string;
@@ -196,8 +197,6 @@ function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot, 
   theme: 'light' | 'dark';
   /** Grup în care toate evenimentele sunt în același loc: le arătăm în listă. */
   onSameSpot: (ids: string[]) => void;
-  /** În previzualizarea unei săptămâni: eticheta zilei pe fiecare marker („Lu 28”). */
-  dayLabel?: (e: DerivedEvent) => string | undefined;
 }) {
   const map = useMap();
   const [zoom, setZoom] = useState(() => map.getZoom());
@@ -236,7 +235,6 @@ function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot, 
           show={isShown(e) && !inCluster.has(e.id)}
           selected={selectedId === e.id}
           onOpen={onOpen}
-          day={isShown(e) ? dayLabel?.(e) : undefined}
         />
       ))}
       {clusters.map((c) => (
@@ -253,8 +251,8 @@ function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot, 
   );
 }
 
-function EventMarker({ e, show, selected, onOpen, day }: { e: DerivedEvent; show: boolean; selected: boolean; onOpen: (id: string) => void; day?: string }) {
-  const icon = useMemo(() => eventIcon(e, selected, day), [e, selected, day]);
+const EventMarker = memo(function EventMarker({ e, show, selected, onOpen }: { e: DerivedEvent; show: boolean; selected: boolean; onOpen: (id: string) => void }) {
+  const icon = useMemo(() => eventIcon(e, selected), [e, selected]);
   const title = `${SUBTYPES[e.subtype].label}, ${statusBadge(e).label}: ${eventTitle(e)}`;
   return (
     <Marker
@@ -265,5 +263,21 @@ function EventMarker({ e, show, selected, onOpen, day }: { e: DerivedEvent; show
       zIndexOffset={selected ? 1000 : show ? (e.affects.length ? 200 : 100) : -1000}
       eventHandlers={{ click: () => show && onOpen(e.id) }}
     />
+  );
+}, sameLook);
+
+
+/**
+ * Un marker / cerc se redesenează doar când se schimbă ce afișează — nu la fiecare actualizare GPS
+ * (care recalculează distanțele tuturor evenimentelor). Esențial pentru fluiditate pe telefon.
+ */
+function sameLook(a: { e: DerivedEvent; show: boolean; selected: boolean; [k: string]: unknown }, b: typeof a): boolean {
+  const x = a.e;
+  const y = b.e;
+  return (
+    a.show === b.show && a.selected === b.selected && a.theme === b.theme && a.onOpen === b.onOpen &&
+    x.id === y.id && x.status === y.status && x.conf === y.conf && x.subtype === y.subtype && x.severity === y.severity &&
+    x.location.lat === y.location.lat && x.location.lng === y.location.lng && x.radiusM === y.radiusM &&
+    x.affects.length === y.affects.length && x.title === y.title
   );
 }

@@ -1,5 +1,4 @@
 import { getLang } from '@/i18n';
-import { monthShort } from '@/lib/format';
 
 /** Numele zilelor și lunilor pentru calendar și previzualizarea unei zile, în fiecare limbă. */
 export const CAL = {
@@ -37,19 +36,4 @@ export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMo
 export function fmtDayLong(d: Date): string {
   const c = CAL[getLang()];
   return `${c.dayNames[d.getDay()]}, ${d.getDate()} ${c.monthsOf[d.getMonth()]}`;
-}
-
-/** Lunea săptămânii care conține ziua dată. */
-export const weekStart = (d: Date) => addDays(startOfDay(d), -((d.getDay() + 6) % 7));
-
-/** Eticheta scurtă a zilei pe marker: „Lu 28” / „Пн 28” / „Mo 28”. */
-export function dayTag(d: Date): string {
-  return `${CAL[getLang()].weekdays[(d.getDay() + 6) % 7]} ${d.getDate()}`;
-}
-
-/** „28 sept. – 4 oct.” pentru o săptămână care începe luni. */
-export function fmtWeek(monday: Date): string {
-  const sunday = addDays(monday, 6);
-  const short = (x: Date) => `${x.getDate()} ${monthShort(x)}`;
-  return `${short(monday)} – ${short(sunday)}`;
 }

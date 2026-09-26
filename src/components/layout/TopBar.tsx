@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { initials } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
@@ -77,16 +78,57 @@ export function TopBar() {
   );
 }
 
-/** RO | RU — schimbă limba întregii aplicații (salvată pe dispozitiv). */
+/** Meniul de limbă (🌐 RO ▾): schimbă limba întregii aplicații; alegerea se păstrează pe dispozitiv. */
 export function LangSwitch() {
   const { lang, setLang } = useApp();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const current = LANGS.find((l) => l.key === lang) ?? LANGS[0];
   return (
-    <div className="lang-switch" role="group" aria-label={t('Limbă')}>
-      {LANGS.map((l) => (
-        <button key={l.key} type="button" lang={l.key} aria-pressed={lang === l.key} title={l.name} onClick={() => setLang(l.key)}>
-          {l.label}
-        </button>
-      ))}
+    <div className="lang-menu" ref={ref}>
+      <button
+        type="button"
+        className={`lang-menu__btn ${open ? 'is-open' : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`${t('Limbă')}: ${current.name}`}
+        onClick={() => setOpen(!open)}
+      >
+        <Icon name="globe" size={16} />
+        <span>{current.label}</span>
+        <Icon name="chevD" size={14} />
+      </button>
+      {open && (
+        <ul className="lang-menu__list" role="listbox" aria-label={t('Limbă')}>
+          {LANGS.map((l) => (
+            <li key={l.key} role="option" aria-selected={lang === l.key}>
+              <button
+                type="button"
+                lang={l.key}
+                onClick={() => {
+                  setOpen(false);
+                  if (l.key !== lang) setLang(l.key);
+                }}
+              >
+                <span className="lang-menu__code">{l.label}</span>
+                <span className="grow">{l.name}</span>
+                {lang === l.key && <Icon name="check" size={16} strokeWidth={2.4} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

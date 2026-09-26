@@ -37,7 +37,7 @@ export function AuthDialog() {
     if (!email.trim()) e.email = t('Introdu adresa de email.');
     else if (!EMAIL_RE.test(email.trim())) e.email = t('Adresa de email nu pare corectă.');
     if ((mode === 'signup' || mode === 'login') && password.length < 8) e.password = t('Parola trebuie să aibă cel puțin 8 caractere.');
-    if (mode === 'signup' && !terms) e.terms = t('Pentru a crea contul, acceptă termenii.');
+    if (mode === 'signup' && !terms) e.terms = t('Pentru a crea contul, confirmă că ai citit politica de confidențialitate.');
     return e;
   }, [mode, name, email, password, terms]);
 
@@ -213,7 +213,13 @@ export function AuthDialog() {
             <>
               <label className="check">
                 <input type="checkbox" checked={terms} onChange={() => setTerms(!terms)} />
-                <span>{t('Accept')} <a href="#termeni">{t('Termenii')}</a> {t('și')} <a href="#confidentialitate">{t('Politica de confidențialitate')}</a>.</span>
+                <span>
+                  {t('Am citit')}{' '}
+                  <button type="button" className="link" onClick={() => app.setLegal('privacy')}>
+                    {t('Politica de confidențialitate')}
+                  </button>
+                  .
+                </span>
               </label>
               {err('terms')}
               <label className="check">

@@ -16,7 +16,7 @@ const DISMISSED_KEY = 'wip.promptDismissed';
  * activă, pe care n-ai votat-o și n-ai închis-o. Una singură odată, cea mai apropiată.
  */
 export function ProximityPrompt() {
-  const { events, userPos, userAccuracy, votes, vote, user, online, modal, openEvent } = useApp();
+  const { events, userPos, userAccuracy, votes, vote, user, online, modal, openEvent, consentOpen } = useApp();
   const [dismissed, setDismissed] = useState<Record<string, true>>(() => load(DISMISSED_KEY, {}));
   useEffect(() => save(DISMISSED_KEY, dismissed), [dismissed]);
 
@@ -37,7 +37,7 @@ export function ProximityPrompt() {
     return best;
   }, [events, userPos, userAccuracy, votes, dismissed, user, online]);
 
-  if (!target || modal) return null;
+  if (!target || modal || consentOpen) return null;
   const sub = SUBTYPES[target.subtype];
   const close = () => setDismissed((d) => ({ ...d, [target.id]: true }));
 

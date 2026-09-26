@@ -18,7 +18,7 @@ export const CONFIG = {
   /** Raza în care căutăm raportări similare înainte de a crea una nouă. */
   DEDUP_RADIUS_M: 300,
   /** Pe hartă și în listă: evenimentele în curs și cele care încep în următoarele atâtea ore. Restul — în calendar. */
-  MAP_AHEAD_H: 24,
+  MAP_AHEAD_H: 48,
   /** O raportare neconfirmată expiră după atâtea ore. */
   REPORT_EXPIRY_H: 6,
   /** O raportare confirmată, fără activitate, expiră după atâtea ore. */

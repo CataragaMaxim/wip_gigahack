@@ -24,6 +24,24 @@ for (const p of files) {
 }
 
 let failed = 0;
+
+// Text românesc scris direct în JSX, fără t() — inclusiv amestecat cu expresii: „Expiră automat {data} dacă…”.
+for (const p of files.filter((f) => f.endsWith('.tsx'))) {
+  readFileSync(p, 'utf8').split('\n').forEach((line, i) => {
+    const st = line.trim();
+    if (/^(\/\/|\*|\/\*|\{\/\*|import )/.test(st)) return;
+    let x = line.replace(/\/\/.*$/, '');
+    x = x.replace(/\bt\(\s*'(?:[^'\\]|\\.)*'(?:\s*,\s*\{[^}]*\})?\)/g, '');
+    for (let k = 0; k < 3; k++) x = x.replace(/\{[^{}]*\}/g, '');
+    x = x.replace(/(['"`])(?:(?!\1).)*\1/g, '').replace(/<[^>]*>/g, '');
+    const words = x.match(/[A-Za-zĂÂÎȘȚăâîșțşţ]{2,}/g) ?? [];
+    const romanian = words.some((w) => /[ăâîșțşţĂÂÎȘȚ]/.test(w));
+    if (romanian && words.length >= 2 && !/(const|let|return|function|=>|===|type |interface )/.test(st)) {
+      console.error(`Text netradus (fără t()): ${p}:${i + 1}: ${st.slice(0, 120)}`);
+      failed++;
+    }
+  });
+}
 for (const [lang, file, pluralExport] of [['RU', 'src/i18n/ru.ts', 'RU_PLURALS'], ['EN', 'src/i18n/en.ts', 'EN_PLURALS']]) {
   const src = readFileSync(file, 'utf8');
   const [dictPart, pluralPart] = src.split(`export const ${pluralExport}`);

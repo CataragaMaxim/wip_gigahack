@@ -1,8 +1,8 @@
 import { CONFIG } from '@/config/constants';
 import { typeTint, typeVar } from '@/config/categories';
-import { fmtAgo, fmtAt, plural } from '@/lib/format';
+import { fmtAgo, fmtAt, initialsInScript, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { categoryLine, countdown, districtName, eventTitle, isClosed } from '@/lib/status';
+import { categoryLine, countdown, districtName, eventTitle, isClosed, streetLine } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent } from '@/types';
 import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits';
@@ -30,7 +30,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
 
   const hash = [...e.id].reduce((a, c) => a + c.charCodeAt(0), 0);
   const avatars = Array.from({ length: Math.min(3, e.conf) }, (_, i) =>
-    myVote === 'yes' && i === 0 ? 'Tu' : AVATAR_POOL[(hash + i * 3) % AVATAR_POOL.length],
+    myVote === 'yes' && i === 0 ? t('Tu') : initialsInScript(AVATAR_POOL[(hash + i * 3) % AVATAR_POOL.length]),
   );
 
   return (
@@ -56,7 +56,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
         <div className="affects">
           <Icon name="home" />
           <span>
-            Afectează locația ta: <strong>{e.affects.join(', ')}</strong>
+            {t('Afectează locația ta:')} <strong>{e.affects.join(', ')}</strong>
           </span>
         </div>
       )}
@@ -126,7 +126,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
               {e.streets.map((s) => (
                 <li key={s}>
                   <span className="streets__dot" style={{ background: typeVar(e.subtype) }} />
-                  {s}
+                  {streetLine(s)}
                 </li>
               ))}
             </ul>
@@ -134,7 +134,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
           {e.allStreets && (
             <section className="stack gap-8">
               <h3 className="h3">{t('Toate adresele din anunț')}</h3>
-              <p className="small muted">{e.allStreets.join(' · ')}</p>
+              <p className="small muted">{e.allStreets.map(streetLine).join(' · ')}</p>
             </section>
           )}
         </>
@@ -149,26 +149,22 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
           <div className="stack gap-8">
             <div className="row between small">
               <strong>
-                {plural(e.conf, 'vecin confirmă', 'vecini confirmă')} · {e.den} nu
+                {plural(e.conf, 'vecin confirmă', 'vecini confirmă')} · {t('{n} nu', { n: e.den })}
               </strong>
-              <span className="muted">Prag: {CONFIG.CONFIRM_THRESHOLD} confirmări</span>
+              <span className="muted">{t('Prag: {n} confirmări', { n: CONFIG.CONFIRM_THRESHOLD })}</span>
             </div>
             <div className="meter">
               <span style={{ width: `${Math.min(100, Math.round((e.conf / Math.max(CONFIG.CONFIRM_THRESHOLD, e.conf + e.den)) * 100))}%` }} />
             </div>
           </div>
           {e.description && <p className="body-text">{e.description}</p>}
-          {e.photo && (
-            <img
-              src={typeof e.photo === 'string' ? e.photo : ''}
-              alt={t('Fotografie atașată de autor')}
-              style={{ width: '100%', borderRadius: 12 }}
-            />
-          )}
           {e.status === 'raportat' && e.reportedAt && (
             <p className="muted small row gap-6">
               <Icon name="clock" size={14} />
-              Expiră automat {fmtAt(new Date(new Date(e.reportedAt).getTime() + CONFIG.REPORT_EXPIRY_H * 36e5))} dacă nu o confirmă {CONFIG.CONFIRM_THRESHOLD} vecini.
+              {t('Expiră automat {when} dacă nu o confirmă {n} vecini.', {
+                when: fmtAt(new Date(new Date(e.reportedAt).getTime() + CONFIG.REPORT_EXPIRY_H * 36e5)),
+                n: CONFIG.CONFIRM_THRESHOLD,
+              })}
             </p>
           )}
         </>

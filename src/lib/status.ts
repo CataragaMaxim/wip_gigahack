@@ -106,6 +106,12 @@ export function metaLine(e: DerivedEvent): string {
 
 export const categoryLine = (e: UrbanEvent) => SUBTYPES[e.subtype].label;
 
+/** Rândul „și încă 12 străzi / adrese” adăugat de fluxurile oficiale (în română în baza de date) → limba interfeței. */
+export const streetLine = (s: string) => {
+  const m = s.match(/^și încă (\d+) (străzi|adrese)$/);
+  return m ? t(m[2] === 'străzi' ? 'și încă {n} străzi' : 'și încă {n} adrese', { n: m[1] }) : s;
+};
+
 /** Titlul afișat: titlurile standard (ex. „Apă deconectată”) se traduc; textul liber rămâne cum e. */
 export const eventTitle = (e: Pick<UrbanEvent, 'title'>) => t(e.title);
 

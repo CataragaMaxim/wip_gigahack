@@ -40,7 +40,8 @@ const SEARCH_RADIUS_M = MAX_NEAR_M + HALF_SEGMENT_M + 100;
 const MAX_TURN_RAD = (60 * Math.PI) / 180;
 const TIMEOUT_MS = 7000;
 
-const OVERPASS = ['https://maps.mail.ru/osm/tools/overpass/api/interpreter', 'https://overpass-api.de/api/interpreter'];
+// Servere Overpass din UE (Germania): coordonatele pinului nu părăsesc spațiul UE (vezi politica de confidențialitate).
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 const HIGHWAYS = 'trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian|service|trunk_link|primary_link|secondary_link|tertiary_link';
 

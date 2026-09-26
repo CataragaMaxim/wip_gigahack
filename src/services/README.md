@@ -75,3 +75,11 @@ Textul din cod e în română; `t('…')` din `src/i18n` îl întoarce în limba
 ## Grupuri pe hartă
 
 La zoom depărtat, markerele care se suprapun (mai aproape de ~44 px pe ecran) devin un grup mai mare, în culoarea tipului dominant, cu inel pe tipuri și numărul de evenimente în colțul din dreapta sus (`src/components/map/clusters.ts`). Clic = zoom până se separă; evenimentele în același loc (≤ 10 m) rămân grupate și clicul le arată în listă („N evenimente în același loc · Arată toate”).
+
+
+## Cookie-uri, consimțământ și confidențialitate
+
+- La prima deschidere apare bannerul de cookie-uri (`src/components/legal/ConsentBanner.tsx`). „Necesare” sunt mereu active; „Preferințe” (limba, tema, raza, adresa introdusă, ghidul văzut, întrebările închise) se salvează pe dispozitiv **doar cu acord** — regula e aplicată în `src/lib/storage.ts` (`PREFERENCE_KEYS`). Orice cheie nouă din localStorage trebuie clasificată acolo și descrisă în politica de cookie-uri.
+- Politicile (confidențialitate + cookie-uri, RO/RU/EN) sunt în `src/legal/policies.ts` și descriu exact datele și serviciile folosite de cod. **La orice schimbare a datelor colectate sau a serviciilor externe, actualizați-le.**
+- ⚠️ Datele operatorului (denumire juridică, IDNO, adresă, email pentru protecția datelor) sunt în `src/config/legal.ts` și trebuie completate înainte de lansarea publică.
+- „Șterge contul” șterge profilul, adresele, istoricul **și** contul din Firebase Authentication (dreptul la ștergere).

@@ -161,7 +161,7 @@ function MobileSheet() {
         label={t('Setări')}
         pageKey="settings"
         header={{
-          title: 'Setări',
+          title: t('Setări'),
           subtitle: user?.name,
           onBack: () => {
             backToList();

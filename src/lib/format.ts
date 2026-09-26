@@ -51,13 +51,36 @@ export const plural = tp;
 export const normalize = (s: string) =>
   (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
+/** Prima literă, în alfabetul limbii interfeței (latin ↔ chirilic), pentru inițialele din avatar. */
+const TO_CYR: Record<string, string> = {
+  A: 'А', Ă: 'А', Â: 'Ы', B: 'Б', C: 'К', D: 'Д', E: 'Е', F: 'Ф', G: 'Г', H: 'Х', I: 'И', Î: 'Ы', J: 'Ж', K: 'К',
+  L: 'Л', M: 'М', N: 'Н', O: 'О', P: 'П', Q: 'К', R: 'Р', S: 'С', Ș: 'Ш', Ş: 'Ш', T: 'Т', Ț: 'Ц', Ţ: 'Ц', U: 'У',
+  V: 'В', W: 'В', X: 'Х', Y: 'Й', Z: 'З',
+};
+const TO_LAT: Record<string, string> = {
+  А: 'A', Б: 'B', В: 'V', Г: 'G', Д: 'D', Е: 'E', Ё: 'E', Ж: 'J', З: 'Z', И: 'I', Й: 'I', К: 'K', Л: 'L', М: 'M',
+  Н: 'N', О: 'O', П: 'P', Р: 'R', С: 'S', Т: 'T', У: 'U', Ф: 'F', Х: 'H', Ц: 'Ț', Ч: 'C', Ш: 'Ș', Щ: 'Ș', Ы: 'Î',
+  Э: 'E', Ю: 'I', Я: 'I',
+};
+const inScript = (ch: string) => {
+  const c = ch.toUpperCase();
+  if (getLang() === 'ru') return TO_CYR[c] ?? c;
+  const lat = TO_LAT[c] ?? c;
+  // În engleză, fără diacriticele românești.
+  return getLang() === 'en' ? lat.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : lat;
+};
+
+/** Inițialele numelui („Dumitru Frumosu” → „DF” / „ДФ”), în alfabetul limbii interfeței. */
 export const initials = (name: string) =>
   (name || '')
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
+    .map((w) => inScript(w[0]))
     .join('') || '?';
+
+/** Inițiale deja scrise („AM”) aduse în alfabetul limbii interfeței. */
+export const initialsInScript = (s: string) => [...s].map(inScript).join('');
 
 /** Data ISO relativă la momentul curent (pentru datele demonstrative). */
 export function relIso(hours: number): string {

@@ -27,7 +27,7 @@ const HISTORY_LABEL = { created: t('Ai raportat'), confirmed: t('Ai confirmat'),
 export function SettingsPanel() {
   const app = useApp();
   const {
-    user, theme, setTheme, lang, setLang, setModal, radius, setRadius, events, openAuth,
+    user, theme, setTheme, lang, setLang, setModal, consent, setConsentOpen, setLegal, radius, setRadius, events, openAuth,
     logOut, deleteAccount, openEvent, deleteAsk, setDeleteAsk, deleteEvent,
     anchors, fitRadius, setSheetSnap,
   } = app;
@@ -114,6 +114,28 @@ export function SettingsPanel() {
           </div>
         </div>
       )}
+
+      <section className="stack gap-8">
+        <h3 className="h3">{t('Cookie-uri și confidențialitate')}</h3>
+        <span className="muted small">
+          {consent?.preferences ? t('Preferințele se păstrează pe acest dispozitiv.') : t('Preferințele nu se păstrează pe acest dispozitiv.')}
+        </span>
+        <div className="stack gap-6">
+          <button type="button" className="btn btn--secondary" onClick={() => setConsentOpen(true)}>
+            <Icon name="shield" size={18} />
+            {t('Setări cookie-uri')}
+          </button>
+          <div className="row wrap gap-8 small">
+            <button type="button" className="link" onClick={() => setLegal('privacy')}>
+              {t('Politica de confidențialitate')}
+            </button>
+            <span className="muted">·</span>
+            <button type="button" className="link" onClick={() => setLegal('cookies')}>
+              {t('Politica de cookie-uri')}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <button type="button" className="btn btn--secondary" onClick={() => setModal('help')}>
         <Icon name="info" size={18} />

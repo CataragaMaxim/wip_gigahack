@@ -12,6 +12,8 @@ import { LocationDialog } from '@/components/location/LocationDialog';
 import { Splash } from '@/components/layout/Splash';
 import { ProximityPrompt } from '@/components/events/ProximityPrompt';
 import { ONBOARDED_KEY, Onboarding } from '@/components/help/Onboarding';
+import { ConsentBanner } from '@/components/legal/ConsentBanner';
+import { LegalDialog } from '@/components/legal/LegalDialog';
 import { load, save } from '@/lib/storage';
 import { t } from '@/i18n';
 
@@ -33,11 +35,12 @@ function Shell() {
 
   // Prima vizită: ghidul „cum funcționează” (o singură dată; se redeschide din Setări).
   useEffect(() => {
-    if (app.loadState !== 'ready' || modal || load(ONBOARDED_KEY, false)) return;
+    // Întâi alegerea privind cookie-urile (bannerul de la prima deschidere), apoi ghidul.
+    if (app.loadState !== 'ready' || modal || app.consentOpen || load(ONBOARDED_KEY, false)) return;
     save(ONBOARDED_KEY, true);
     app.setModal('help');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [app.loadState]);
+  }, [app.loadState, app.consentOpen]);
 
   // Deschide un eveniment din link (?e=id).
   useEffect(() => {
@@ -63,6 +66,8 @@ function Shell() {
       {modal === 'location' && <LocationDialog />}
       {modal === 'help' && <Onboarding />}
       <ProximityPrompt />
+      <ConsentBanner />
+      <LegalDialog />
       <Splash />
       <div className="toast-region" aria-live="polite">
         {toast && (
