@@ -30,6 +30,7 @@ import type { UserProfile, SavedLocationDoc } from '@/types/user';
 import type {
   CategoryKey, DerivedEvent, LatLng, Severity, SubtypeKey, Theme, UrbanEvent, Vote,
 } from '@/types';
+import { deleteHistoryEntry } from '@/services/userService';
 
 /** Crește la fiecare schimbare a setului de alerte demonstrative. */
 const DATA_VERSION = '2026-09-real-streets';
@@ -370,19 +371,19 @@ function useAppStore() {
     setSearch('');
   }, []);
 
-  const openEvent = useCallback(
-    (id: string, from: 'list' | 'calendar' = 'list') => {
-      setDetailFrom(from);
-      setSelectedId(id);
-      setMode('detail');
-      setPanelOpen(true);
-      setDeleteAsk(null);
-      setSheetSnap((s) => (s === 'mini' ? 'mid' : s));
-      const e = byId[id];
-      if (e) flyTo(e.location);
-    },
-    [byId, flyTo],
-  );
+  const openEvent = useCallback((id: string) => {
+    const e = byId[id];
+    if (!e) {
+      flash('Evenimentul nu mai există.');   // ← friendly toast
+      return;
+    }
+    setSelectedId(id);
+    setMode('detail');
+    setPanelOpen(true);
+    setDeleteAsk(null);
+    setSheetSnap((s) => (s === 'mini' ? 'mid' : s));
+    flyTo(e.location);
+  }, [byId, flyTo, flash]);
 
   const backToList = useCallback(() => {
     setMode('list');
@@ -628,18 +629,15 @@ function useAppStore() {
     [user, flash],
   );
 
-  const deleteEvent = useCallback(
-    async (id: string) => {
-      setDeletedIds((d) => ({ ...d, [id]: true }));
-      setUserReports((r) => r.filter((e) => e.id !== id));
-      await eventsService.remove(id);
-      if (user) await bumpUserStats(user.uid, { reports: -1 });
-      setDeleteAsk(null);
-      if (selectedId === id) backToList();
-      flash('Raportarea a fost ștearsă');
-    },
-    [selectedId, backToList, user, flash],
-  );
+  const deleteEvent = useCallback((id: string) => {
+    setDeletedIds((d) => ({ ...d, [id]: true }));
+    setUserReports((r) => r.filter((e) => e.id !== id));
+    void eventsService.remove(id);
+    if (user) void deleteHistoryEntry(user.uid, id);   // ← add this
+    setDeleteAsk(null);
+    if (selectedId === id) backToList();
+    flash('Raportarea a fost ștersă');
+  }, [selectedId, backToList, flash, user]);
 
   // ---------- raportare ----------
   const openReport = useCallback(() => {

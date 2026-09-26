@@ -152,3 +152,7 @@ export async function listUserReports(uid: string, max = 100) {
   );
   return getDocs(q);
 }
+
+export async function deleteHistoryEntry(uid: string, eventId: string): Promise<void> {
+  await deleteDoc(doc(db, USERS, uid, 'history', eventId));
+}
