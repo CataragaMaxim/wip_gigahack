@@ -736,13 +736,10 @@ textarea::placeholder {
   box-shadow: var(--shadow);
 }
 
-/* ---------- autentificare cu Google / Facebook ---------- */
-/* Culorile respectă ghidurile furnizorilor: Google neutru cu sigla color, Facebook albastru #1877F2 cu sigla albă. */
-.social-btn { width: 100%; gap: 10px; }
-.social-btn--google { border-color: var(--border-strong); background: var(--surface); color: var(--text); }
-.social-btn--google:hover:not(:disabled) { background: var(--hover); }
-.social-btn--facebook { border-color: #1877f2; background: #1877f2; color: #fff; }
-.social-btn--facebook:hover:not(:disabled) { background: #166fe5; border-color: #166fe5; }
+/* ---------- autentificare cu Google / telefon ---------- */
+/* Buton neutru, cu sigla Google color, conform ghidului Google; telefonul folosește același stil. */
+.social-btn { width: 100%; gap: 10px; border-color: var(--border-strong); background: var(--surface); color: var(--text); }
+.social-btn:hover:not(:disabled) { background: var(--hover); }
 /* Butonul în curs rămâne vizibil; celălalt se estompează. */
 .social-btn[aria-busy='true']:disabled { opacity: 1; }
 .spinner { width: 16px; height: 16px; flex-shrink: 0; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: wip-spin 0.7s linear infinite; }
@@ -751,6 +748,11 @@ textarea::placeholder {
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .social-profile { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius-m); background: var(--sunk); }
 .social-profile .avatar { position: relative; flex-shrink: 0; }
-.social-profile__badge { position: absolute; right: -4px; bottom: -4px; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 2px var(--sunk); }
-.social-profile__badge--facebook { background: #1877f2; color: #fff; }
+.social-profile__badge { position: absolute; right: -4px; bottom: -4px; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); color: var(--text); box-shadow: 0 0 0 2px var(--sunk); }
+.social-profile__badge--ok { background: var(--ink); color: var(--on-ink); }
+/* Telefon: prefixul țării lipit de câmp. */
+.phone-input { display: flex; align-items: stretch; }
+.phone-input__prefix { display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--border-strong); border-right: 0; border-radius: var(--radius-m) 0 0 var(--radius-m); background: var(--sunk); font-size: 15px; font-weight: 600; white-space: nowrap; }
+.phone-input .input { flex: 1; min-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.input--code { max-width: 220px; font-size: 22px; font-weight: 600; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
