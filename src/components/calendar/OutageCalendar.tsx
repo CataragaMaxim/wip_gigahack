@@ -3,6 +3,7 @@ import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
 import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import type { DerivedEvent, SubtypeKey } from '@/types';
 import { SeverityBadge } from '@/components/events/EventBits';
 import { getLang, t } from '@/i18n';
@@ -73,11 +74,13 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
 
 export function OutageCalendar() {
   const cal = CAL[getLang()];
-  const { radius, anchors, gps, openSettings, openEvent, loadState, setPreviewDay, backToList, setSheetSnap } = useApp();
-  const showOnMap = (day: string) => {
+  const { radius, anchors, gps, openSettings, openEvent, loadState, previewDay, setPreviewDay, setSheetSnap } = useApp();
+  const isMobile = useIsMobile();
+  /** Clic pe o zi = harta acelei zile, imediat (calendarul rămâne deschis; pe telefon foaia coboară la jumătate). */
+  const pickDay = (day: string) => {
+    setPicked(day);
     setPreviewDay(day);
-    backToList();
-    setSheetSnap('mini');
+    if (isMobile) setSheetSnap('mid');
   };
   const [kind, setKind] = useState<Kind>('all');
   const outages = useScheduledEvents(kind);
@@ -92,7 +95,8 @@ export function OutageCalendar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [byDay]);
   const [picked, setPicked] = useState<string | null>(null);
-  const selected = picked ?? firstDay;
+  // Ziua afișată pe hartă rămâne selectată și când redeschizi calendarul.
+  const selected = picked ?? previewDay ?? firstDay;
   const selDate = fromKey(selected);
   // Luna afișată: cea aleasă cu săgețile, altfel luna zilei selectate.
   const [shownMonth, setShownMonth] = useState<Date | null>(null);
@@ -174,7 +178,7 @@ export function OutageCalendar() {
               className={cls}
               aria-pressed={k === selected}
               aria-label={`${d.getDate()} ${cal.monthsOf[d.getMonth()]}${n ? `, ${plural(n, 'eveniment', 'evenimente')}` : ''}`}
-              onClick={() => setPicked(k)}
+              onClick={() => pickDay(k)}
             >
               <span>{d.getDate()}</span>
               {n > 0 && <span className="cal__dot">{n > 1 ? n : ''}</span>}
@@ -189,15 +193,12 @@ export function OutageCalendar() {
             {capitalize(cal.dayNames[selDate.getDay()])}, {selDate.getDate()} {cal.monthsOf[selDate.getMonth()]}
           </h3>
         </div>
-        <button type="button" className="btn btn--secondary btn--sm" onClick={() => showOnMap(selected)}>
-          <Icon name="pin" size={16} />
-          {t('Harta zilei')}
-        </button>
+
         {dayList.length === 0 ? (
           <div className="card card--sunk stack gap-8">
             <span className="small muted">{t('Nimic programat în această zi.')}</span>
             {next && (
-              <button type="button" className="btn btn--ghost btn--sm cal__next" onClick={() => setPicked(next)}>
+              <button type="button" className="btn btn--ghost btn--sm cal__next" onClick={() => pickDay(next)}>
                 {t('Următoarea: {date}', { date: `${fromKey(next).getDate()} ${cal.monthsOf[fromKey(next).getMonth()]}` })}
                 <Icon name="chevR" size={16} />
               </button>

@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { Icon } from '@/lib/icons';
 import { SHEET_SNAPS, useApp, type SheetSnap } from '@/state/AppContext';
 import { t } from '@/i18n';
@@ -34,9 +35,17 @@ const MINI_H = 92;
 const TAP_SLOP = 6;
 const FLING_V = 0.5; // px/ms
 
+/** Curba mișcării la eliberare / la schimbarea poziției (ușor „elastică” la final, ca foile native). */
+const SNAP_MS = 340;
+const SNAP_EASE = 'cubic-bezier(0.22, 0.9, 0.24, 1)';
+
 interface Drag {
   y0: number;
   h0: number;
+  /** Înălțimea completă a foii în timpul tragerii (se mută doar cu transform, fără relayout). */
+  full: number;
+  /** Înălțimea vizibilă curentă. */
+  h: number;
   moved: boolean;
   lastY: number;
   lastT: number;
@@ -50,6 +59,12 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
   const ref = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
+  /** În timpul tragerii / animației, observatorul de mărime nu scrie variabile CSS (ar face relayout la fiecare cadru). */
+  const busy = useRef(false);
+  /** Înălțimea în repaus (ultima poziție stabilă), punctul de plecare al animației la schimbarea poziției. */
+  const restH = useRef<number | null>(null);
+  /** Recalculează --sheet-px / mapInsets (setat de efectul de mai jos). */
+  const writeNow = useRef<() => void>(() => {});
   const [scrolled, setScrolled] = useState(false);
   const bodyId = useId();
 
@@ -70,7 +85,9 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
     let last = -1;
     const write = () => {
       frame = 0;
+      if (busy.current) return;
       const h = Math.round(el.getBoundingClientRect().height);
+      restH.current = h;
       if (h === last) return;
       last = h;
       const H = (el.offsetParent as HTMLElement | null)?.clientHeight ?? window.innerHeight;
@@ -82,6 +99,10 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
     const apply = () => {
       if (!frame) frame = requestAnimationFrame(write);
     };
+    writeNow.current = () => {
+      last = -1;
+      write();
+    };
     write();
     const ro = new ResizeObserver(apply);
     ro.observe(el);
@@ -92,6 +113,71 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
       root.style.removeProperty('--toast-b');
     };
   }, [sheetPx, mapInsets]);
+
+  /** Butoanele hărții (Locația mea, Raportează) urmăresc foaia doar prin transform, fără relayout. */
+  const moveFloating = (visibleH: number | null) => {
+    const base = restH.current ?? visibleH ?? 0;
+    document.querySelectorAll<HTMLElement>('.controls').forEach((c) => {
+      c.style.transform = visibleH == null ? '' : `translate3d(0, ${base - visibleH}px, 0)`;
+    });
+  };
+
+  /**
+   * Mișcă foaia de la înălțimea vizibilă `from` la `to` doar prin transform: foaia are pe durata mișcării
+   * înălțimea cea mai mare dintre cele două, iar partea în plus stă sub marginea ecranului. La final, `done`
+   * fixează poziția (clasa data-snap) și totul revine la stilurile normale — un singur relayout.
+   */
+  const glide = (from: number, to: number, done?: () => void) => {
+    const el = ref.current;
+    if (!el) return;
+    busy.current = true;
+    const full = Math.max(from, to);
+    el.style.transition = 'none';
+    el.style.height = `${full}px`;
+    el.style.transform = `translate3d(0, ${full - from}px, 0)`;
+    el.classList.add('is-moving');
+    void el.offsetHeight; // aplică poziția de start înainte de tranziție
+    el.style.transition = `transform ${SNAP_MS}ms ${SNAP_EASE}`;
+    el.style.transform = `translate3d(0, ${full - to}px, 0)`;
+    document.querySelectorAll<HTMLElement>('.controls').forEach((c) => {
+      c.style.transition = `transform ${SNAP_MS}ms ${SNAP_EASE}`;
+    });
+    moveFloating(to);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      el.removeEventListener('transitionend', onEnd);
+      done?.();
+      el.style.transition = '';
+      el.style.height = '';
+      el.style.transform = '';
+      el.classList.remove('is-moving');
+      document.querySelectorAll<HTMLElement>('.controls').forEach((c) => {
+        c.style.transition = '';
+        c.style.transform = '';
+      });
+      busy.current = false;
+      // --sheet-px / mapInsets pentru poziția nouă (observatorul nu se declanșează dacă înălțimea finală e aceeași).
+      writeNow.current();
+    };
+    const onEnd = (e: TransitionEvent) => e.target === el && e.propertyName === 'transform' && finish();
+    el.addEventListener('transitionend', onEnd);
+    window.setTimeout(finish, SNAP_MS + 80); // rezervă, dacă transitionend nu vine
+  };
+
+  // Schimbarea poziției din butoane (săgeată, „Restrânge”, deschiderea unui eveniment): aceeași mișcare lină.
+  const lastSnap = useRef(snap);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || lastSnap.current === snap) return;
+    lastSnap.current = snap;
+    const from = restH.current;
+    if (busy.current || from == null) return; // tragerea își face singură animația
+    const to = el.getBoundingClientRect().height; // noua clasă data-snap e deja aplicată
+    if (Math.abs(to - from) > 2) glide(from, to);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snap]);
 
   // În 'mini', corpul nu primește focus.
   useEffect(() => {
@@ -113,12 +199,13 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
     return () => window.removeEventListener('keydown', on);
   }, [snap, modal, setSheetSnap]);
 
-  // ---------- tragere (Pointer Events) ----------
+  // ---------- tragere (Pointer Events): doar transform, fără relayout la fiecare cadru ----------
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !ref.current) return;
+    if (e.button !== 0 || !ref.current || busy.current) return;
     const btn = (e.target as HTMLElement).closest('button');
     if (btn && !btn.hasAttribute('data-sheet-toggle')) return; // butoanele din antet (Înapoi, Restrânge) își păstrează click-ul
-    drag.current = { y0: e.clientY, h0: ref.current.getBoundingClientRect().height, moved: false, lastY: e.clientY, lastT: performance.now(), v: 0, toggle: !!btn };
+    const h0 = ref.current.getBoundingClientRect().height;
+    drag.current = { y0: e.clientY, h0, full: snapHeights().tall, h: h0, moved: false, lastY: e.clientY, lastT: performance.now(), v: 0, toggle: !!btn };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -126,13 +213,25 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
     const el = ref.current;
     if (!d || !el) return;
     const dy = d.y0 - e.clientY;
-    if (!d.moved && Math.abs(dy) < TAP_SLOP) return;
-    d.moved = true;
-    el.classList.add('is-dragging');
+    if (!d.moved) {
+      if (Math.abs(dy) < TAP_SLOP) return;
+      // Începutul tragerii: foaia primește o singură dată înălțimea maximă; de aici se mută doar cu transform.
+      d.moved = true;
+      busy.current = true;
+      restH.current = d.h0;
+      el.classList.add('is-dragging');
+      el.style.transition = 'none';
+      el.style.height = `${d.full}px`;
+    }
     const { mini, tall } = snapHeights();
-    el.style.height = `${Math.max(mini, Math.min(tall, d.h0 + dy))}px`;
+    // Peste capete: rezistență (ca pe iOS), nu oprire bruscă.
+    const raw = d.h0 + dy;
+    d.h = raw > tall ? tall + (raw - tall) * 0.2 : raw < mini ? mini - (mini - raw) * 0.2 : raw;
+    el.style.transform = `translate3d(0, ${d.full - d.h}px, 0)`;
+    moveFloating(Math.min(d.h, tall));
     const now = performance.now();
-    d.v = (d.lastY - e.clientY) / Math.max(1, now - d.lastT); // pozitiv = în sus
+    const v = (d.lastY - e.clientY) / Math.max(1, now - d.lastT); // pozitiv = în sus
+    d.v = d.v * 0.6 + v * 0.4; // netezit, ca un tremur de deget să nu decidă direcția
     d.lastY = e.clientY;
     d.lastT = now;
   };
@@ -145,10 +244,9 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
       if (!cancel && d.toggle) cycleSheet();
       return;
     }
-    const h = el.getBoundingClientRect().height;
     el.classList.remove('is-dragging');
-    el.style.removeProperty('height');
     const hs = snapHeights();
+    const h = Math.max(hs.mini, Math.min(hs.tall, d.h));
     const order = SHEET_SNAPS.map((s) => [s, hs[s]] as const).sort((a, b) => a[1] - b[1]);
     let target: SheetSnap;
     if (Math.abs(d.v) > FLING_V) {
@@ -158,7 +256,13 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
     } else {
       target = SHEET_SNAPS.reduce((best, s) => (Math.abs(hs[s] - h) < Math.abs(hs[best] - h) ? s : best), 'mini' as SheetSnap);
     }
-    setSheetSnap(target);
+    // Se continuă din poziția degetului; la final se fixează clasa (fără o a doua animație).
+    el.style.height = '';
+    el.style.transform = '';
+    glide(h, hs[target], () => {
+      lastSnap.current = target;
+      flushSync(() => setSheetSnap(target));
+    });
   };
   // Atingerea e tratată în pointerup; un click cu detail 0 vine de la tastatură (Enter / Space).
   const keyToggle = (e: ReactMouseEvent) => {

@@ -1,10 +1,11 @@
-import { hm } from '@/lib/format';
+import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { SearchBox } from '@/components/layout/SearchBox';
 import { t } from '@/i18n';
 import { addDays, dayKey, fmtDayLong, fromKey } from '@/lib/days';
+import { countOutages } from '@/lib/status';
 
 /** Stratul de deasupra hărții: căutarea (mobil), butonul „Listă”, avertismente. Filtrele sunt în panou. */
 export function MapOverlay() {
@@ -26,7 +27,7 @@ export function MapOverlay() {
         {!isMobile && !panelOpen && !pinMode && (
           <button type="button" className="btn btn--float panel-reopen" onClick={() => setPanelOpen(true)}>
             <Icon name="list" size={18} strokeWidth={1.8} />
-            Listă · {visible.length}
+            {t('Listă')} · {countOutages(visible)}
           </button>
         )}
       </div>
@@ -119,7 +120,7 @@ function DayPreviewBanner() {
         </button>
         <span className="stack grow day-preview__text">
           <span className="xsmall muted">
-            {t('Harta pentru')} · {t('{n} evenimente', { n: visible.length })}
+            {t('Harta pentru')} · {plural(countOutages(visible), 'eveniment', 'evenimente')}
           </span>
           <strong>{fmtDayLong(day).replace(/^./, (c) => c.toUpperCase())}</strong>
         </span>

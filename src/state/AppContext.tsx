@@ -5,7 +5,7 @@ import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from
 import { ALL_TYPES_ON, SUBTYPE_TITLE_RO, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
 import { distance, distanceToEvent } from '@/lib/geo';
-import { activeOnDay, deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
+import { activeOnDay, countOutages, deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
 import { fromKey } from '@/lib/days';
 import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
@@ -410,7 +410,7 @@ function useAppStore() {
   }, []);
 
   const cityActiveCount = useMemo(
-    () => events.filter((e) => (e.status === 'oficial' || e.status === 'confirmat') && isOnMapNow(e, now)).length,
+    () => countOutages(events.filter((e) => (e.status === 'oficial' || e.status === 'confirmat') && isOnMapNow(e, now))),
     [events, now],
   );
   /** Evenimentele programate mai târziu de 24 h (sunt doar în calendar). */

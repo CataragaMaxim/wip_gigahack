@@ -174,9 +174,9 @@ export const RU: Record<string, string> = {
   'apasă pentru a mări': 'нажмите, чтобы приблизить',
   '{n} în același loc': '{n} в одном месте',
   'Arată toate': 'Показать все',
+  'Listă': 'Список',
   'Harta pentru': 'Карта на',
   '{n} evenimente': 'событий: {n}',
-  'Harta zilei': 'Карта дня',
   'Ziua anterioară': 'Предыдущий день',
   'Ziua următoare': 'Следующий день',
   'Înapoi la acum': 'Вернуться к текущему',
@@ -522,4 +522,5 @@ export const RU_PLURALS: Record<string, [string, string, string]> = {
   'vecin confirmă|vecini confirmă': ['сосед подтверждает', 'соседа подтверждают', 'соседей подтверждают'],
   'alertă activă|alerte active': ['активное оповещение', 'активных оповещения', 'активных оповещений'],
   'alertă|alerte': ['оповещение', 'оповещения', 'оповещений'],
+  'adresă|adrese': ['адрес', 'адреса', 'адресов'],
 };

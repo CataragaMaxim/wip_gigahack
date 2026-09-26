@@ -2,7 +2,7 @@ import { CONFIG } from '@/config/constants';
 import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
 import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { categoryLine, eventTitle, metaLine } from '@/lib/status';
+import { categoryLine, countOutages, eventTitle, metaLine } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent } from '@/types';
 import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits';
@@ -10,11 +10,13 @@ import { t } from '@/i18n';
 
 export function EventListHeader() {
   const { visible, radius, search, loadState, online, syncedAt, gps, userPos } = useApp();
-  const count = visible.length;
+  // Evenimentele se numără pe anunț (ca în calendar); adresele (zonele de pe hartă) se arată separat.
+  const count = countOutages(visible);
   const scope = search.trim() ? t('pentru „{q}”', { q: search.trim() }) : radius === 'all' ? t('tot orașul') : t('rază {km} km', { km: radius / 1000 });
-  let summary = `${plural(count, 'eveniment', 'evenimente')} · ${scope}`;
+  const addresses = visible.length > count ? ` · ${plural(visible.length, 'adresă', 'adrese')}` : '';
+  let summary = `${plural(count, 'eveniment', 'evenimente')}${addresses} · ${scope}`;
   if (loadState === 'loading') summary = t('Se actualizează…');
-  if (loadState === 'error') summary = 'Date indisponibile';
+  if (loadState === 'error') summary = t('Date indisponibile');
   if (!online && syncedAt) summary += ` · ${t('date din {time}', { time: hm(syncedAt) })}`;
   return (
     <div className="panel__titles">
@@ -93,9 +95,10 @@ export function useSheetSummary() {
   const q = search.trim();
   const typesOff = Object.values(types).some((on) => !on);
   let scope = t('tot orașul');
-  if (q) scope = `${plural(visible.length, 'eveniment', 'evenimente')} ${t('pentru „{q}”', { q })}`;
-  else if (radius !== 'all' && !noGps) scope = `${plural(visible.length, 'eveniment', 'evenimente')} · ${t('rază {km} km', { km: radius / 1000 })}`;
-  else if (typesOff) scope = plural(visible.length, 'eveniment afișat', 'evenimente afișate');
+  const shownOutages = countOutages(visible);
+  if (q) scope = `${plural(shownOutages, 'eveniment', 'evenimente')} ${t('pentru „{q}”', { q })}`;
+  else if (radius !== 'all' && !noGps) scope = `${plural(shownOutages, 'eveniment', 'evenimente')} · ${t('rază {km} km', { km: radius / 1000 })}`;
+  else if (typesOff) scope = plural(shownOutages, 'eveniment afișat', 'evenimente afișate');
   const subtitle = noGps ? active : `${t('{active} în oraș', { active })} · ${scope}`;
   return { live: 'ok' as const, mini: boldCount(t('{active} în oraș', { active })), miniAria: `${t('Evenimente în zonă')}, ${t('{active} în oraș', { active })}`, subtitle };
 }

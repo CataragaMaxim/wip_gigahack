@@ -25,6 +25,12 @@ export const isClosed = (s: Status) => s === 'rezolvat' || s === 'expirat';
  * Pe harta publică: anunțurile oficiale active și raportările active (confirmate sau încă neconfirmate —
  * acestea trebuie văzute de vecini ca să poată fi confirmate). Cele contestate sau expirate nu apar.
  */
+/**
+ * Numărul de evenimente (anunțuri): un anunț cu mai multe adrese apare pe hartă ca mai multe zone,
+ * dar se numără o singură dată — la fel ca în calendar și în „încă N mai târziu”.
+ */
+export const countOutages = (list: { id: string; parentId?: string }[]) => new Set(list.map((e) => e.parentId ?? e.id)).size;
+
 /** Pe hartă acum: evenimentele în curs și cele care încep în următoarele CONFIG.MAP_AHEAD_H ore. */
 export const isOnMapNow = (e: Pick<UrbanEvent, 'startAt'>, now = Date.now()) =>
   !e.startAt || new Date(e.startAt).getTime() <= now + CONFIG.MAP_AHEAD_H * 36e5;

@@ -632,12 +632,15 @@ textarea::placeholder {
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.14);
     animation: wip-sheet 0.3s var(--ease) backwards;
-    transition: height 0.32s var(--ease), background-color 0.25s ease;
+    transition: background-color 0.25s ease;
+    will-change: transform;
+    backface-visibility: hidden;
   }
   .sheet[data-snap='mid'] { height: 46%; }
   .sheet[data-snap='tall'] { height: calc(100% - 8px); box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.16); }
   .sheet.is-dragging { transition: none; }
-  @keyframes wip-sheet { from { transform: translateY(40px); opacity: 0; } }
+  /* Intrarea folosește proprietatea `translate` (nu `transform`), ca să nu blocheze transform-ul din tragere. */
+  @keyframes wip-sheet { from { translate: 0 40px; opacity: 0; } }
 
   .sheet__top { flex-shrink: 0; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
   .sheet.is-dragging .sheet__top { cursor: grabbing; }
@@ -972,8 +975,10 @@ body { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
 button, a, .chip, .seg__btn, .cal__day { touch-action: manipulation; }   /* fără întârzierea dublu-tap */
 @media (min-width: 768px) { .dialog__box { max-height: calc(100dvh - 112px); } }
 @media (max-width: 767px) {
-  .sheet { will-change: height; contain: layout paint; }
-  .sheet.is-dragging { transition: none; }
+  /* Tragerea / mișcarea foii: conținutul e vizibil și în „mini”, iar controalele se mișcă pe GPU. */
+  .sheet.is-dragging .sheet__body, .sheet.is-moving .sheet__body { opacity: 1; }
+  .sheet.is-dragging, .sheet.is-dragging * { user-select: none; -webkit-user-select: none; }
+  .controls { will-change: transform; }
 }
 
 /* ---------- cookie-uri: bannerul de la prima deschidere ---------- */
@@ -1002,3 +1007,8 @@ button, a, .chip, .seg__btn, .cal__day { touch-action: manipulation; }   /* făr
 .legal h3 { margin: 4px 0 6px; font-size: 15px; }
 .legal p { margin: 0 0 6px; }
 .legal ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 767px) {
+  /* Bannerul zilei: data se rupe pe două rânduri în loc să fie tăiată. */
+  .day-preview__text strong { white-space: normal; overflow: visible; line-height: 1.2; }
+  .day-preview .btn--sm { padding: 0 10px; }
+}
