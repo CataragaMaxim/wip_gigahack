@@ -16,6 +16,7 @@ import { ConsentBanner } from '@/components/legal/ConsentBanner';
 import { LegalDialog } from '@/components/legal/LegalDialog';
 import { load, save } from '@/lib/storage';
 import { t } from '@/i18n';
+import { TelegramLinkPage } from '@/components/auth/TelegramLinkPage';
 
 function Shell() {
   const app = useApp();
@@ -82,6 +83,10 @@ function Shell() {
 }
 
 export default function App() {
+  if (window.location.pathname.replace(/\/$/, '') === '/telegram-auth') {
+    return <TelegramLinkPage />;
+  }
+
   return (
     <AppProvider>
       <Shell />

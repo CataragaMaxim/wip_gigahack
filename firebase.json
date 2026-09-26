@@ -1,4 +1,19 @@
 {
+  "functions": {
+    "source": "telegram-bot",
+    "codebase": "telegram-bot",
+    "runtime": "python312",
+    "ignore": [
+      "venv",
+      ".venv",
+      "__pycache__",
+      "*.pyc",
+      ".env",
+      ".env.*",
+      "service-account*.json",
+      "*service-account*.json"
+    ]
+  },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
