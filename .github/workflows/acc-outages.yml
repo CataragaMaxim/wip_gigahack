@@ -1,0 +1,47 @@
+name: Flux ACC — apă deconectată
+
+# Preia deconectările de apă de pe https://acc.md/disconnections și le scrie în Firestore (`events`, feed „live”).
+# Necesită secretul FIREBASE_SERVICE_ACCOUNT (JSON-ul unui cont de serviciu cu rol „Cloud Datastore User”).
+
+on:
+  schedule:
+    # O dată pe oră (la minutul 7, nu la :00, când GitHub e cel mai aglomerat și întârzie rulările).
+    - cron: '7 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Doar citire (nu scrie în Firestore)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: acc-outages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/acc_outages/requirements.txt
+      - run: pip install -r scripts/acc_outages/requirements.txt
+      - name: Sincronizare
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          python scripts/acc_outages/sync_acc.py --out acc-events.json ${{ inputs.dry_run && '--dry-run' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: acc-events
+          path: acc-events.json
+          retention-days: 3
+          if-no-files-found: ignore
