@@ -11,20 +11,19 @@ import { AuthDialog } from '@/components/auth/AuthDialog';
 
 function Shell() {
   const app = useApp();
-  const { modal, report, mode, panelOpen, sheetExpanded, mapInsets, toast } = app;
+  const { modal, report, panelOpen, sheetPx, mapInsets, toast } = app;
   const isMobile = useIsMobile();
   const pinMode = modal === 'report' && report.step === 2;
 
   // Zona hărții acoperită de interfață — folosită la centrarea pe evenimente și la pinul de raportare.
   useEffect(() => {
     if (isMobile) {
-      const vh = window.innerHeight;
-      const sheet = pinMode ? 330 : mode === 'list' ? (sheetExpanded ? vh : 330) : mode === 'detail' ? Math.round(vh * 0.62) : vh;
-      mapInsets.current = { left: 0, top: 110, bottom: pinMode ? 330 : sheet };
+      // Înălțimea sheet-ului vine din ResizeObserver (BottomSheet), care actualizează și mapInsets.bottom.
+      mapInsets.current = { left: 0, top: 110, bottom: pinMode ? 330 : sheetPx.current };
     } else {
       mapInsets.current = { left: panelOpen && !pinMode ? 432 : 0, top: 64, bottom: pinMode ? 360 : 0 };
     }
-  }, [isMobile, pinMode, mode, panelOpen, sheetExpanded, mapInsets]);
+  }, [isMobile, pinMode, panelOpen, sheetPx, mapInsets]);
 
   // Deschide un eveniment din link (?e=id).
   useEffect(() => {

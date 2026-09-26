@@ -7,7 +7,7 @@ import { SearchBox } from '@/components/layout/SearchBox';
 
 /** Stratul de deasupra hărții: căutarea (mobil), filtrele pe categorii, avertismente. */
 export function MapOverlay() {
-  const { cats, toggleCategory, online, syncedAt, gpsNotice, setGpsNotice, panelOpen, report, modal } = useApp();
+  const { cats, toggleCategory, online, syncedAt, gpsNotice, setGpsNotice, panelOpen, report, modal, sheetSnap } = useApp();
   const isMobile = useIsMobile();
   const pinMode = modal === 'report' && report.step === 2;
 
@@ -17,7 +17,8 @@ export function MapOverlay() {
   };
 
   return (
-    <div className={`overlay ${!isMobile && panelOpen && !pinMode ? 'overlay--beside-panel' : ''}`}>
+    <div
+      className={`overlay ${!isMobile && panelOpen && !pinMode ? 'overlay--beside-panel' : ''} ${isMobile && sheetSnap === 'tall' && !pinMode ? 'is-hidden' : ''}`}>
       {isMobile && <SearchBox className="overlay__search" />}
       <div className="chips" role="group" aria-label="Filtrează după categorie">
         {CATEGORIES.map((c) => {
@@ -38,7 +39,8 @@ export function MapOverlay() {
           );
         })}
       </div>
-      {!online && (
+      {/* Pe mobil, avizele stau în capul listei (vezi ListNotices). */}
+      {!isMobile && !online && (
         <div className="notice fade-in" role="status">
           <Icon name="wifiOff" size={18} />
           <span>
@@ -46,7 +48,7 @@ export function MapOverlay() {
           </span>
         </div>
       )}
-      {gpsNotice && (
+      {!isMobile && gpsNotice && (
         <div className="notice notice--card fade-in" role="status">
           <Icon name="locate" size={20} />
           <div className="notice__body">
@@ -69,14 +71,15 @@ export function MapOverlay() {
 
 /** Zoom, „Locația mea” și butonul principal „Raportează o problemă”. */
 export function MapControls() {
-  const { mapRef, locateMe, openReport, online, report, modal, mode, sheetExpanded } = useApp();
+  const { mapRef, locateMe, openReport, online, report, modal, sheetSnap } = useApp();
   const isMobile = useIsMobile();
   const pinMode = modal === 'report' && report.step === 2;
   if (pinMode) return null;
-  if (isMobile && (sheetExpanded || mode !== 'list')) return null;
+  // Pe mobil, controalele stau deasupra bottom sheet-ului în 'mini' și 'mid' și se ascund în 'tall'.
+  const hidden = isMobile && sheetSnap === 'tall';
   return (
     <>
-      <div className="controls">
+      <div className={`controls ${hidden ? 'is-hidden' : ''}`}>
         {!isMobile && (
           <div className="zoom">
             <button type="button" className="icon-btn" aria-label="Mărește harta" onClick={() => mapRef.current?.zoomIn()}>

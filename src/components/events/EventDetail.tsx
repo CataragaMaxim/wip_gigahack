@@ -9,8 +9,9 @@ import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits'
 
 const AVATAR_POOL = ['AM', 'IC', 'DR', 'VP', 'EL', 'NS', 'OT', 'MG', 'CB', 'LS'];
 
-export function EventDetail({ e }: { e: DerivedEvent }) {
-  const { votes, vote, online, userPos, following, toggleFollow, flash, user, deleteAsk, setDeleteAsk, deleteEvent } = useApp();
+/** @param showActions false când „Urmărește / Distribuie” stau în subsolul fix al bottom sheet-ului (mobil, starea 'tall'). */
+export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showActions?: boolean }) {
+  const { votes, vote, online, userPos, user, deleteAsk, setDeleteAsk, deleteEvent } = useApp();
   const official = e.sourceType === 'official';
   const closed = isClosed(e.status);
   const cd = countdown(e);
@@ -25,19 +26,6 @@ export function EventDetail({ e }: { e: DerivedEvent }) {
     else if (!near)
       voteBlocked = `Poți confirma doar dacă ești în apropiere (până la ${CONFIG.VOTE_RADIUS_M / 1000} km). Acum ești la ${fmtDistance(e.distanceM!)}.`;
   }
-
-  const share = async () => {
-    const url = `${window.location.origin}/?e=${encodeURIComponent(e.id)}`;
-    try {
-      if (navigator.share) await navigator.share({ title: e.title, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        flash('Linkul evenimentului a fost copiat');
-      }
-    } catch {
-      /* partajare anulată */
-    }
-  };
 
   const hash = [...e.id].reduce((a, c) => a + c.charCodeAt(0), 0);
   const avatars = Array.from({ length: Math.min(3, e.conf) }, (_, i) =>
@@ -220,16 +208,11 @@ export function EventDetail({ e }: { e: DerivedEvent }) {
         </section>
       )}
 
-      <div className="grid-2">
-        <button type="button" className="btn btn--secondary" aria-pressed={!!following[e.id]} onClick={() => toggleFollow(e.id)}>
-          <Icon name="bookmark" fill={following[e.id] ? 'currentColor' : 'none'} />
-          {following[e.id] ? 'Urmărești' : 'Salvează / urmărește'}
-        </button>
-        <button type="button" className="btn btn--secondary" onClick={() => void share()}>
-          <Icon name="share" />
-          Distribuie
-        </button>
-      </div>
+      {showActions && (
+        <div className="grid-2">
+          <EventActions e={e} />
+        </div>
+      )}
 
       {isMine &&
         (deleteAsk === e.id ? (
@@ -241,6 +224,37 @@ export function EventDetail({ e }: { e: DerivedEvent }) {
           </button>
         ))}
     </div>
+  );
+}
+
+/** „Salvează / urmărește” și „Distribuie”. `short`: etichetă scurtă „Urmărește”, ca să încapă în subsolul mobil. */
+export function EventActions({ e, short = false }: { e: DerivedEvent; short?: boolean }) {
+  const { following, toggleFollow, flash } = useApp();
+  const share = async () => {
+    const url = `${window.location.origin}/?e=${encodeURIComponent(e.id)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: e.title, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        flash('Linkul evenimentului a fost copiat');
+      }
+    } catch {
+      /* partajare anulată */
+    }
+  };
+
+  const on = !!following[e.id];
+  return (
+    <>
+      <button type="button" className={`btn btn--secondary ${short ? 'btn--lg' : ''}`} aria-pressed={on} onClick={() => toggleFollow(e.id)}>
+        <Icon name="bookmark" fill={on ? 'currentColor' : 'none'} />
+        {on ? 'Urmărești' : short ? 'Urmărește' : 'Salvează / urmărește'}
+      </button>
+      <button type="button" className={`btn btn--secondary ${short ? 'btn--lg' : ''}`} onClick={() => void share()}>
+        <Icon name="share" />
+        Distribuie
+      </button>
+    </>
   );
 }
 

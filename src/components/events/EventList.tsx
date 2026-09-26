@@ -1,6 +1,6 @@
 import { CONFIG } from '@/config/constants';
 import { catVar } from '@/config/categories';
-import { plural } from '@/lib/format';
+import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { categoryLine, metaLine } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
@@ -29,20 +29,101 @@ export function EventListHeader() {
   );
 }
 
+/** „12 alerte active” → <b>12</b> alerte active (numărul îngroșat). */
+function boldCount(text: string) {
+  const m = text.match(/^(\d+)(.*)$/);
+  return m ? (
+    <>
+      <b>{m[1]}</b>
+      {m[2]}
+    </>
+  ) : (
+    text
+  );
+}
+
+/**
+ * Textele barei bottom sheet-ului (mobil).
+ * `mini` / `miniAria`: numărul de alerte publice active din tot orașul (fără rază, căutare sau filtre).
+ * `subtitle`: antetul din stările 'mid' și 'tall', cu rezumatul listei filtrate.
+ */
+export function useSheetSummary() {
+  const { cityActiveCount: n, visible, radius, search, cats, loadState, online, syncedAt, gps, userPos } = useApp();
+  const noGps = !userPos && gps !== 'pending';
+  const synced = syncedAt ? hm(syncedAt) : null;
+  const active = plural(n, 'alertă activă', 'alerte active');
+
+  if (loadState === 'loading')
+    return { live: 'loading' as const, mini: 'Se încarcă alertele…', miniAria: 'Evenimente în zonă, se încarcă alertele', subtitle: 'Se încarcă alertele…' };
+  if (loadState === 'error')
+    return { live: 'error' as const, mini: 'Date indisponibile · Atinge pentru detalii', miniAria: 'Evenimente în zonă, date indisponibile', subtitle: 'Date indisponibile' };
+  if (n === 0)
+    return { live: online ? ('ok' as const) : ('offline' as const), mini: 'Nicio alertă activă în oraș', miniAria: 'Evenimente în zonă, nicio alertă activă în oraș', subtitle: 'Nicio alertă activă în oraș' };
+  if (!online) {
+    const t = `${plural(n, 'alertă', 'alerte')}${synced ? ` · date din ${synced}` : ''}`;
+    return { live: 'offline' as const, mini: boldCount(t), miniAria: `Evenimente în zonă, ${t}`, subtitle: t };
+  }
+
+  const q = search.trim();
+  const catsOff = Object.values(cats).some((on) => !on);
+  let scope = 'tot orașul';
+  if (q) scope = `${plural(visible.length, 'eveniment', 'evenimente')} pentru „${q}”`;
+  else if (radius !== 'all' && !noGps) scope = `${plural(visible.length, 'eveniment', 'evenimente')} · rază ${radius / 1000} km`;
+  else if (catsOff) scope = plural(visible.length, 'eveniment afișat', 'evenimente afișate');
+  const subtitle = noGps ? `${active} · fără distanțe` : `${active} în oraș · ${scope}`;
+  return { live: 'ok' as const, mini: boldCount(`${active} în oraș`), miniAria: `Evenimente în zonă, ${active} în oraș`, subtitle };
+}
+
+/** Avizele offline și „GPS refuzat”, în capul listei (mobil), ca să rămână vizibile și în starea 'tall'. */
+export function ListNotices({ onSearch }: { onSearch: () => void }) {
+  const { online, syncedAt, gps, userPos, gpsNotice } = useApp();
+  const noGps = (!userPos && gps !== 'pending') || gpsNotice;
+  return (
+    <>
+      {!online && (
+        <div className="notice notice--inlist" role="status">
+          <Icon name="wifiOff" size={18} />
+          <span>
+            <strong>Ești offline.</strong> {syncedAt ? `Afișăm datele salvate la ${hm(syncedAt)}.` : 'Afișăm datele salvate.'}
+          </span>
+        </div>
+      )}
+      {noGps && (
+        <div className="notice notice--inlist notice--top" role="status">
+          <Icon name="locate" size={20} />
+          <span className="stack gap-8">
+            <span>
+              <strong>Locația nu este disponibilă.</strong>{' '}
+              <span className="muted">Permite accesul din setările browserului sau caută o adresă.</span>
+            </span>
+            <button type="button" className="btn btn--primary btn--sm notice__action" onClick={onSearch}>
+              Caută o adresă
+            </button>
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function EventList() {
   const { visible, loadState, fetchEvents, fadingCats, openEvent, openReport, resetFilters, events } = useApp();
 
   if (loadState === 'loading') {
     return (
       <div className="list" aria-busy="true">
-        <p className="muted small list__note">Se încarcă evenimentele din zonă…</p>
-        {[1, 2, 3, 4, 5].map((i) => (
+        <p className="sr-only">Se încarcă evenimentele din zonă…</p>
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="skeleton-row">
             <span className="skel skel--tile" />
             <div className="skel-lines">
               <span className="skel" style={{ width: '40%' }} />
               <span className="skel skel--lg" style={{ width: '85%' }} />
               <span className="skel" style={{ width: '60%' }} />
+              <span className="skel-badges">
+                <span className="skel skel--pill" style={{ width: 70 }} />
+                <span className="skel skel--pill" style={{ width: 90 }} />
+              </span>
             </div>
           </div>
         ))}
@@ -52,12 +133,14 @@ export function EventList() {
 
   if (loadState === 'error') {
     return (
-      <div className="list">
-        <div className="state state--error" role="alert">
-          <Icon name="alert" size={24} />
+      <div className="list list--state">
+        <div className="state" role="alert">
+          <span className="state__icon is-crit">
+            <Icon name="alert" size={28} />
+          </span>
           <strong>Nu am putut încărca evenimentele</strong>
           <span className="muted">Serverul nu răspunde. Verifică conexiunea și încearcă din nou.</span>
-          <button type="button" className="btn btn--primary" onClick={() => void fetchEvents()}>
+          <button type="button" className="btn btn--primary btn--lg" onClick={() => void fetchEvents()}>
             <Icon name="refresh" size={16} />
             Reîncearcă
           </button>
@@ -69,21 +152,22 @@ export function EventList() {
   if (visible.length === 0) {
     const nothingAtAll = events.every((e) => e.status !== 'oficial' && e.status !== 'confirmat');
     return (
-      <div className="list">
+      <div className="list list--state">
         <div className="state">
           <span className="state__icon">
-            <Icon name="check" size={26} strokeWidth={1.8} />
+            <Icon name="check" size={30} strokeWidth={1.8} />
           </span>
           <strong>{nothingAtAll ? 'Nicio problemă raportată în zona ta' : 'Niciun eveniment pentru filtrele alese'}</strong>
           <span className="muted">
-            {nothingAtAll ? 'Totul funcționează normal.' : 'Încearcă alte categorii sau altă rază din Setări.'}
+            {nothingAtAll ? 'Totul funcționează normal. Te anunțăm dacă apare ceva la adresele tale.' : 'Încearcă alte categorii sau altă rază din Setări.'}
           </span>
           {nothingAtAll ? (
-            <button type="button" className="btn btn--secondary" onClick={openReport}>
+            <button type="button" className="btn btn--secondary btn--lg" onClick={openReport}>
+              <Icon name="plus" size={18} strokeWidth={2.2} />
               Raportează o problemă
             </button>
           ) : (
-            <button type="button" className="btn btn--secondary" onClick={resetFilters}>
+            <button type="button" className="btn btn--secondary btn--lg" onClick={resetFilters}>
               Resetează filtrele
             </button>
           )}

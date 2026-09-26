@@ -14,6 +14,9 @@ import type {
 } from '@/types';
 
 export type PanelMode = 'list' | 'detail' | 'settings';
+/** Pozițiile bottom sheet-ului pe mobil. */
+export type SheetSnap = 'mini' | 'mid' | 'tall';
+export const SHEET_SNAPS: SheetSnap[] = ['mini', 'mid', 'tall'];
 export type AuthMode = 'signup' | 'login' | 'forgot' | 'sent';
 export type AuthAfter = null | 'report' | { follow: string };
 export type ReportStep = 1 | 2 | 3 | 4 | 5 | 'done';
@@ -147,7 +150,10 @@ function useAppStore() {
   const [mode, setMode] = useState<PanelMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>('mini');
+  const cycleSheet = useCallback(() => setSheetSnap((s) => SHEET_SNAPS[(SHEET_SNAPS.indexOf(s) + 1) % SHEET_SNAPS.length]), []);
+  /** Înălțimea reală (px) a bottom sheet-ului, actualizată de BottomSheet prin ResizeObserver. */
+  const sheetPx = useRef(92);
   const [modal, setModal] = useState<null | 'report' | 'auth'>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [authAfter, setAuthAfter] = useState<AuthAfter>(null);
@@ -210,6 +216,9 @@ function useAppStore() {
       });
   }, [raw, userReports, deletedIds, votes, userPos, user, locations]);
 
+  /** Alertele publice active din tot orașul (oficiale + confirmate), fără rază, căutare sau filtre. */
+  const cityActiveCount = useMemo(() => events.filter((e) => e.status === 'oficial' || e.status === 'confirmat').length, [events]);
+
   const byId = useMemo(() => Object.fromEntries(events.map((e) => [e.id, e])), [events]);
   const selected = selectedId ? byId[selectedId] ?? null : null;
 
@@ -270,6 +279,7 @@ function useAppStore() {
       setMode('detail');
       setPanelOpen(true);
       setDeleteAsk(null);
+      setSheetSnap((s) => (s === 'mini' ? 'mid' : s));
       const e = byId[id];
       if (e) flyTo(e.location);
     },
@@ -284,6 +294,7 @@ function useAppStore() {
     setMode('settings');
     setSelectedId(null);
     setPanelOpen(true);
+    setSheetSnap('tall');
   }, []);
 
   const locateMe = useCallback(async () => {
@@ -420,7 +431,7 @@ function useAppStore() {
       return;
     }
     setReport(emptyReport());
-    setSheetExpanded(false);
+    setSheetSnap('mini');
     setModal('report');
   }, [online, user, openAuth, flash]);
   const closeReport = useCallback(() => {
@@ -486,7 +497,7 @@ function useAppStore() {
     // filtre & căutare
     cats, fadingCats, toggleCategory, resetFilters, search, setSearch,
     // panou
-    mode, openEvent, backToList, openSettings, panelOpen, setPanelOpen, sheetExpanded, setSheetExpanded,
+    mode, openEvent, backToList, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,
     // dialoguri
     modal, setModal, authMode, setAuthMode, authAfter, openAuth,

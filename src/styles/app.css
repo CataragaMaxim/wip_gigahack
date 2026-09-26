@@ -410,8 +410,6 @@ textarea::placeholder {
 .panel__title { font-size: 17px; font-weight: 700; }
 .panel__body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .panel__body--pad { padding: 20px; }
-.panel__handle { flex-shrink: 0; height: 22px; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; }
-.panel__handle span { width: 40px; height: 5px; border-radius: 3px; background: var(--border-strong); }
 
 /* ---------- listă ---------- */
 .list { margin: 0; padding: 8px; list-style: none; display: flex; flex-direction: column; gap: 2px; animation: wip-in 0.24s ease backwards; }
@@ -460,12 +458,14 @@ textarea::placeholder {
 .skel--tile { width: 40px; height: 40px; border-radius: var(--radius-m); flex-shrink: 0; }
 .skel--lg { height: 14px; }
 .skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.skel-badges { display: flex; gap: 6px; }
+.skel--pill { height: 20px; border-radius: 10px; }
 
-.state { margin: 24px 8px; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
-.state strong { font-size: 16px; }
-.state__icon { width: 56px; height: 56px; border-radius: 16px; background: var(--sunk); color: var(--text-2); display: flex; align-items: center; justify-content: center; }
-.state--error { align-items: flex-start; text-align: left; border-radius: 14px; background: var(--crit-t); }
-.state--error > svg { color: var(--crit); }
+.state { margin: 24px auto; padding: 20px 16px; max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.state strong { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.state__icon { width: 64px; height: 64px; border-radius: 18px; background: var(--sunk); color: var(--text-2); display: flex; align-items: center; justify-content: center; }
+.state__icon.is-crit { background: var(--crit-t); color: var(--crit); }
+.state .btn { margin-top: 4px; min-width: 200px; }
 
 /* ---------- detaliu ---------- */
 .detail { display: flex; flex-direction: column; gap: 18px; }
@@ -606,30 +606,83 @@ textarea::placeholder {
   .overlay__search .search__input { background: var(--surface); box-shadow: var(--shadow); }
   .chips { padding: 0 12px; }
   .notice { margin: 0 12px; }
-  .controls { right: 12px; bottom: calc(330px + 12px); }
   .btn--fab { height: 52px; font-size: 15px; }
 
-  .panel {
+  /* Controalele și filtrele urmăresc înălțimea sheet-ului (--sheet-px, setat de BottomSheet) și se ascund în 'tall'. */
+  .controls { right: 12px; bottom: calc(var(--sheet-px, 92px) + 12px); transition: opacity 0.2s ease, visibility 0s; }
+  .overlay { transition: opacity 0.25s ease, visibility 0s; }
+  .controls.is-hidden, .overlay.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease, visibility 0s 0.2s; }
+
+  /* ---------- bottom sheet: 3 stări ---------- */
+  .sheet {
+    position: absolute;
+    z-index: 10;
     left: 0;
     right: 0;
-    top: auto;
     bottom: 0;
-    width: auto;
-    height: 330px;
-    border-radius: 20px 20px 0 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 92px;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.14);
     animation: wip-sheet 0.3s var(--ease) backwards;
-    transition: height 0.3s var(--ease), background-color 0.25s ease;
+    transition: height 0.32s var(--ease), background-color 0.25s ease;
   }
-  .panel.is-full { height: 100%; }
-  .panel.is-detail { height: 62%; }
-  .panel__head { padding-top: 4px; }
+  .sheet[data-snap='mid'] { height: 46%; }
+  .sheet[data-snap='tall'] { height: calc(100% - 8px); box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.16); }
+  .sheet.is-dragging { transition: none; }
   @keyframes wip-sheet { from { transform: translateY(40px); opacity: 0; } }
+
+  .sheet__top { flex-shrink: 0; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+  .sheet.is-dragging .sheet__top { cursor: grabbing; }
+  .sheet__grip { width: 100%; height: 22px; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: inherit; }
+  .sheet__grip span { width: 40px; height: 5px; border-radius: 3px; background: var(--border-strong); }
+
+  /* bara mini */
+  .sheet__mini { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px 14px; border: 0; background: transparent; text-align: left; cursor: inherit; }
+  .sheet__count { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--text-2); min-width: 0; }
+  .sheet__count-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet__count b { color: var(--text); font-weight: 700; }
+  .sheet__chev { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: var(--sunk); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .live { position: relative; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 18%, transparent); }
+  .live--error { background: var(--crit); box-shadow: 0 0 0 3px color-mix(in srgb, var(--crit) 20%, transparent); }
+  .live--offline { background: var(--text-3); box-shadow: none; }
+  .live--loading::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--ink); animation: wip-pulse 1.2s ease-out infinite; }
+
+  /* antetul din 'mid' și 'tall' */
+  .sheet__head { display: flex; align-items: center; gap: 4px; min-height: 52px; padding: 0 8px 8px 16px; border-bottom: 1px solid transparent; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+  .sheet__head.has-back { padding-left: 6px; }
+  .sheet__head.is-scrolled { border-bottom-color: var(--border); box-shadow: 0 6px 12px -10px rgba(0, 0, 0, 0.25); }
+  .sheet__titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sheet__title { display: block; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet__sub { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheet__tag { flex-shrink: 0; padding: 0 4px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+  .sheet__collapse { width: 36px; height: 36px; flex-shrink: 0; margin-left: 4px; padding: 0; border-radius: 50%; background: var(--sunk); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .sheet__collapse:hover { background: var(--hover); }
+
+  /* corp + subsol */
+  .sheet__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding-bottom: env(safe-area-inset-bottom); transition: opacity 0.2s ease; }
+  .sheet[data-snap='mini'] .sheet__body { opacity: 0; pointer-events: none; }
+  .sheet__body .list { padding: 4px 8px 24px; }
+  .sheet__body--pad { padding: 4px 20px calc(24px + env(safe-area-inset-bottom)); }
+  .sheet__body--center { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px 28px 72px; }
+  .sheet__body--center .list { padding: 0; animation: none; }
+  .sheet__body--center .state { margin: 0; padding: 0; max-width: 300px; }
+  .sheet__foot { flex-shrink: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--surface); }
+
+  /* avizele din capul listei */
+  .notice.notice--inlist { margin: 4px 16px 8px; max-width: none; background: var(--sunk); box-shadow: none; font-size: 13px; }
+  .notice--top { align-items: flex-start; }
+  .notice__action { align-self: flex-start; }
 
   .dialog { padding: 0; }
   .dialog__box { width: 100%; height: 100%; max-height: none; border-radius: 0; border: 0; }
   .pin-card { left: 0; right: 0; bottom: 0; width: auto; margin: 0; border-radius: 20px 20px 0 0; }
   .center-pin { top: calc(50% + (110px - 330px) / 2); }
-  .toast-region { bottom: 350px; }
+  .toast-region { bottom: var(--toast-b, 350px); }
   .toast { white-space: normal; max-width: calc(100vw - 32px); }
 }
