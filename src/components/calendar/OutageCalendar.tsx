@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { SUBTYPES, TYPES, catTint, catVar } from '@/config/categories';
-import { fmtDistance, hm, plural } from '@/lib/format';
+import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
+import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent, SubtypeKey } from '@/types';
@@ -198,9 +198,9 @@ export function OutageCalendar() {
           <ul className="cal__agenda">
             {dayList.map((e) => (
               <li key={e.id}>
-                <button type="button" className="cal__item" style={{ borderLeftColor: catVar(e.category) }} onClick={() => openEvent(e.id, 'calendar')}>
+                <button type="button" className="cal__item" style={{ borderLeftColor: typeVar(e.subtype) }} onClick={() => openEvent(e.id, 'calendar')}>
                   <span className="stack gap-6 cal__when">
-                    <span className="cal__kind" style={{ background: catTint(e.category), color: catVar(e.category) }} title={SUBTYPES[e.subtype].label}>
+                    <span className="cal__kind" style={{ background: typeTint(e.subtype), color: typeVar(e.subtype) }} title={SUBTYPES[e.subtype].label}>
                       <Icon name={SUBTYPES[e.subtype].icon} size={16} />
                     </span>
                     <span className="cal__time">{hoursOnDay(e, selDate)}</span>
@@ -209,7 +209,7 @@ export function OutageCalendar() {
                     <strong className="small">{e.title}</strong>
                     <span className="small">{e.streets.join(' · ')}</span>
                     <span className="xsmall muted">
-                      {[e.district, e.distanceM != null ? fmtDistance(e.distanceM) : null, e.source].filter(Boolean).join(' · ')}
+                      {[e.district, e.source].filter(Boolean).join(' · ')}
                     </span>
                     <span className="badges">
                       <SeverityBadge e={e} />

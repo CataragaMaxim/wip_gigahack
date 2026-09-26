@@ -42,6 +42,8 @@ export interface UrbanEvent {
   authorId?: string;
   location: LatLng;
   path?: LatLng[];
+  /** Raza (m) zonei afectate în jurul lui `location`, care cuprinde toate adresele anunțului. */
+  radiusM?: number;
 }
 
 /** Eveniment îmbogățit pe client (status, distanță, locațiile afectate). */
@@ -56,7 +58,7 @@ export interface DerivedEvent extends UrbanEvent {
 /** Documentul `users/{uid}/locations/{id}` — formă veche păstrată pentru compatibilitate cu mockUser. */
 export interface SavedLocation {
   id: string;
-  kind: 'home' | 'work' | 'person';
+  kind: 'home' | 'work' | 'person' | 'other';
   name: string;
   address: string;
   location: LatLng;

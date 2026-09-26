@@ -1,7 +1,7 @@
 import { CONFIG } from '@/config/constants';
-import { CATEGORY, SUBTYPES, catTint, catVar } from '@/config/categories';
+import { SUBTYPES, typeTint, typeVar } from '@/config/categories';
 import type { DerivedEvent, Status, UrbanEvent } from '@/types';
-import { fmtAgo, fmtAt, fmtDistance } from './format';
+import { fmtAgo, fmtAt } from './format';
 import type { IconName } from './icons';
 
 /** Statusul unui eveniment, calculat din sursă, voturi și timp. */
@@ -20,10 +20,12 @@ export function deriveStatus(e: UrbanEvent, extraYes = 0, extraNo = 0, now = Dat
 
 export const isClosed = (s: Status) => s === 'rezolvat' || s === 'expirat';
 
-/** Pe harta publică: doar anunțuri oficiale active și raportări confirmate (plus raportările proprii). */
-export function isPublic(e: DerivedEvent, userId?: string): boolean {
-  if (e.status === 'oficial' || e.status === 'confirmat') return true;
-  return !!userId && e.authorId === userId && e.status === 'raportat';
+/**
+ * Pe harta publică: anunțurile oficiale active și raportările active (confirmate sau încă neconfirmate —
+ * acestea trebuie văzute de vecini ca să poată fi confirmate). Cele contestate sau expirate nu apar.
+ */
+export function isPublic(e: DerivedEvent): boolean {
+  return e.status === 'oficial' || e.status === 'confirmat' || e.status === 'raportat';
 }
 
 export interface BadgeStyle {
@@ -62,8 +64,8 @@ export function sourceLabel(e: UrbanEvent): { label: string; icon: IconName } {
 
 /** Aspectul markerului/plăcuței: culoarea = categoria, forma = statusul, umplerea = gravitatea. */
 export function tileStyle(e: DerivedEvent) {
-  const color = catVar(e.category);
-  const tint = catTint(e.category);
+  const color = typeVar(e.subtype);
+  const tint = typeTint(e.subtype);
   if (isClosed(e.status))
     return { bg: 'var(--resolved)', fg: 'var(--surface)', border: 'var(--resolved)', dashed: false, faded: false };
   if (e.status === 'raportat') return { bg: 'var(--surface)', fg: color, border: color, dashed: true, faded: false };
@@ -84,10 +86,10 @@ export function timeInfo(e: DerivedEvent): string {
 }
 
 export function metaLine(e: DerivedEvent): string {
-  return [e.district, e.distanceM != null ? fmtDistance(e.distanceM) : null, timeInfo(e)].filter(Boolean).join(' · ');
+  return [e.district, timeInfo(e)].filter(Boolean).join(' · ');
 }
 
-export const categoryLine = (e: UrbanEvent) => `${CATEGORY[e.category].short} · ${SUBTYPES[e.subtype].label}`;
+export const categoryLine = (e: UrbanEvent) => SUBTYPES[e.subtype].label;
 
 /** „Se reia în aproximativ 3 h” / „Începe mâine la 09:00”. */
 export function countdown(e: DerivedEvent): { title: string; sub: string } | null {

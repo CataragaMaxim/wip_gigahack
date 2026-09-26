@@ -25,14 +25,13 @@
 
   --c-utilitati: #1f5fc9;
   --c-utilitati-t: #e7eefa;
-  --c-telecom: #6b3fc4;
-  --c-telecom-t: #efeafa;
-  --c-drumuri: #a94f00;
-  --c-drumuri-t: #fbeee2;
-  --c-transport: #1c7340;
-  --c-transport-t: #e4f2ea;
-  --c-urban: #0b6b75;
-  --c-urban-t: #e1f1f2;
+  /* Tipurile de eveniment: apă = albastru, electricitate = galben, gaz = portocaliu. Alb pe culoare ≥ 4,9:1. */
+  --c-apa: #1f5fc9;
+  --c-apa-t: #e7eefa;
+  --c-electricitate: #a16207;
+  --c-electricitate-t: #fdf3d7;
+  --c-gaz: #c2410c;
+  --c-gaz-t: #fdebe1;
   --on-cat: #ffffff;
 
   --crit: #b42318;
@@ -69,14 +68,12 @@
 
   --c-utilitati: #7aa7ff;
   --c-utilitati-t: #1c2940;
-  --c-telecom: #b69cff;
-  --c-telecom-t: #28223f;
-  --c-drumuri: #f59a4a;
-  --c-drumuri-t: #35271b;
-  --c-transport: #5cc98a;
-  --c-transport-t: #18301f;
-  --c-urban: #4cc3cc;
-  --c-urban-t: #162f32;
+  --c-apa: #7aa7ff;
+  --c-apa-t: #1c2940;
+  --c-electricitate: #facc15;
+  --c-electricitate-t: #3a3113;
+  --c-gaz: #fb923c;
+  --c-gaz-t: #3b2417;
   --on-cat: #0f1216;
 
   --crit: #ff8a80;

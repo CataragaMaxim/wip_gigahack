@@ -1,13 +1,14 @@
 import { useEffect, useId, useState } from 'react';
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, catTint, catVar } from '@/config/categories';
+import { SUBTYPES, catTint, catVar, typeTint, typeVar } from '@/config/categories';
 import { fmtAt, initials } from '@/lib/format';
 import { Icon, type IconName } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import type { Theme } from '@/types';
 import { StatusBadge } from '@/components/events/EventBits';
 import { DeleteConfirm } from '@/components/events/EventDetail';
-import { StreetInput } from '@/components/ui/StreetInput';
+import { AddressInput } from '@/components/ui/AddressInput';
+import type { GeoResult } from '@/services/geocoding';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { roleLabel, type HistoryEntry } from '@/types/user';
 import { listUserHistory } from '@/services/userService';
@@ -17,20 +18,19 @@ const THEMES: { key: Theme; label: string; icon: IconName }[] = [
   { key: 'dark', label: 'Întunecată', icon: 'moon' },
   { key: 'system', label: 'Sistem', icon: 'monitor' },
 ];
-const KIND_ICON = { home: 'home', work: 'briefcase', person: 'user' } as const;
+const KIND_ICON = { home: 'home', work: 'briefcase', person: 'user', other: 'pin' } as const;
 const HISTORY_ICON = { created: 'plus', confirmed: 'check', denied: 'x' } as const;
 const HISTORY_LABEL = { created: 'Ai raportat', confirmed: 'Ai confirmat', denied: 'Ai negat' } as const;
 
 export function SettingsPanel() {
   const app = useApp();
   const {
-    user, theme, setTheme, radius, setRadius, locations, events, openAuth,
-    logOut, deleteAccount, removeLocation, openEvent, deleteAsk, setDeleteAsk, deleteEvent,
+    user, theme, setTheme, radius, setRadius, events, openAuth,
+    logOut, deleteAccount, openEvent, deleteAsk, setDeleteAsk, deleteEvent,
     userPos, fitRadius, setSheetSnap,
   } = app;
   const isMobile = useIsMobile();
   const [confirmAccount, setConfirmAccount] = useState(false);
-  const [adding, setAdding] = useState<null | 'work' | 'person'>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const myReports = user
@@ -95,43 +95,7 @@ export function SettingsPanel() {
               <h3 className="h3">Adresele mele</h3>
               <span className="muted small">Alertele care le afectează apar primele în listă.</span>
             </div>
-            {locations.map((l) => (
-              <div key={l.id} className="address-row">
-                <Icon name={KIND_ICON[l.kind]} />
-                <span className="stack grow">
-                  <span className="muted xsmall">
-                    {l.kind === 'home' ? 'Acasă' : l.kind === 'work' ? 'Serviciu' : `${l.name} · persoană dragă`}
-                  </span>
-                  <strong className="small">{l.address}</strong>
-                </span>
-                {l.kind !== 'home' && (
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--muted"
-                    aria-label={`Șterge adresa ${l.name}`}
-                    onClick={() => void removeLocation(l.id)}
-                  >
-                    <Icon name="trash" size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
-            {adding ? (
-              <AddAddressForm kind={adding} onDone={() => setAdding(null)} />
-            ) : (
-              <>
-                {!locations.some((l) => l.kind === 'work') && (
-                  <button type="button" className="btn btn--dashed" onClick={() => setAdding('work')}>
-                    <Icon name="briefcase" size={16} />
-                    Adaugă adresa de la serviciu
-                  </button>
-                )}
-                <button type="button" className="btn btn--dashed" onClick={() => setAdding('person')}>
-                  <Icon name="user" size={16} />
-                  Adaugă adresa unei persoane dragi
-                </button>
-              </>
-            )}
+            <AddressBook />
           </section>
         </>
       ) : (
@@ -203,7 +167,7 @@ export function SettingsPanel() {
                   <button type="button" className="report-row" onClick={() => openEvent(e.id)}>
                     <span
                       className="tile tile--sm"
-                      style={{ background: catTint(e.category), color: catVar(e.category), borderColor: 'transparent' }}
+                      style={{ background: typeTint(e.subtype), color: typeVar(e.subtype), borderColor: 'transparent' }}
                     >
                       <Icon name={SUBTYPES[e.subtype].icon} size={18} />
                     </span>
@@ -293,25 +257,93 @@ export function SettingsPanel() {
   );
 }
 
-function AddAddressForm({ kind, onDone }: { kind: 'work' | 'person'; onDone: () => void }) {
-  const { addLocation } = useApp();
+/** „Acasă” + până la CONFIG.MAX_EXTRA_ADDRESSES adrese suplimentare, cu nume date de utilizator. */
+function AddressBook() {
+  const { locations, removeLocation } = useApp();
+  const [editing, setEditing] = useState<null | 'home' | 'extra'>(null);
+  const home = locations.find((l) => l.kind === 'home');
+  const extras = locations.filter((l) => l.kind !== 'home');
+  const full = extras.length >= CONFIG.MAX_EXTRA_ADDRESSES;
+
+  return (
+    <>
+      {editing === 'home' ? (
+        <AddressForm kind="home" onDone={() => setEditing(null)} />
+      ) : home ? (
+        <div className="address-row">
+          <Icon name="home" />
+          <span className="stack grow min0">
+            <span className="muted xsmall">Acasă</span>
+            <strong className="small">{home.address}</strong>
+          </span>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditing('home')}>
+            Schimbă
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn btn--dashed" onClick={() => setEditing('home')}>
+          <Icon name="home" size={16} />
+          Setează adresa de acasă
+        </button>
+      )}
+
+      {extras.map((l) => (
+        <div key={l.id} className="address-row">
+          <Icon name={KIND_ICON[l.kind]} />
+          <span className="stack grow min0">
+            <span className="muted xsmall">{l.name}</span>
+            <strong className="small">{l.address}</strong>
+          </span>
+          <button
+            type="button"
+            className="icon-btn icon-btn--muted"
+            aria-label={`Șterge adresa ${l.name}`}
+            onClick={() => void removeLocation(l.id)}
+          >
+            <Icon name="trash" size={16} />
+          </button>
+        </div>
+      ))}
+
+      {editing === 'extra' ? (
+        <AddressForm kind="extra" onDone={() => setEditing(null)} />
+      ) : (
+        <button type="button" className="btn btn--dashed" disabled={full} onClick={() => setEditing('extra')}>
+          <Icon name="plus" size={16} />
+          {full ? `Ai salvat ${CONFIG.MAX_EXTRA_ADDRESSES} adrese (maximum)` : `Adaugă o adresă (${extras.length} din ${CONFIG.MAX_EXTRA_ADDRESSES})`}
+        </button>
+      )}
+    </>
+  );
+}
+
+function AddressForm({ kind, onDone }: { kind: 'home' | 'extra'; onDone: () => void }) {
+  const { addLocation, setHomeLocation } = useApp();
   const [name, setName] = useState('');
-  const [addr, setAddr] = useState('');
-  const [streetId, setStreetId] = useState<string | null>(null);
+  const [place, setPlace] = useState<GeoResult | null>(null);
+  const [saving, setSaving] = useState(false);
   const id = useId();
-  const ok = !!streetId && (kind === 'work' || name.trim().length > 0);
+  const ok = !!place && (kind === 'home' || name.trim().length > 0);
+  const save = async () => {
+    if (!place || !ok) return;
+    setSaving(true);
+    await (kind === 'home' ? setHomeLocation(place) : addLocation(name, place));
+    setSaving(false);
+    onDone();
+  };
   return (
     <div className="card card--outline stack gap-12 fade-in">
-      <strong className="small">{kind === 'work' ? 'Adresa de la serviciu' : 'Adresa unei persoane dragi'}</strong>
-      {kind === 'person' && (
+      <strong className="small">{kind === 'home' ? 'Adresa de acasă' : 'Adresă nouă'}</strong>
+      {kind === 'extra' && (
         <div className="field">
           <label htmlFor={`${id}-n`} className="field__label">
-            Cine locuiește aici?
+            Cum o numești?
           </label>
           <input
             id={`${id}-n`}
             className="input"
-            placeholder="ex.: Mama, Bunicii"
+            placeholder="ex.: Serviciu, Părinți, Grădinița"
+            maxLength={30}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -321,31 +353,15 @@ function AddAddressForm({ kind, onDone }: { kind: 'work' | 'person'; onDone: () 
         <label htmlFor={`${id}-a`} className="field__label">
           Adresă
         </label>
-        <StreetInput
-          id={`${id}-a`}
-          value={addr}
-          streetId={streetId}
-          onChange={(t, s) => {
-            setAddr(t);
-            setStreetId(s);
-          }}
-        />
+        <AddressInput id={`${id}-a`} value={place} onChange={setPlace} autoFocus={kind === 'home'} />
+        <span className="field__hint">Alege adresa din sugestii.</span>
       </div>
       <div className="grid-2">
         <button type="button" className="btn btn--secondary" onClick={onDone}>
           Anulează
         </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={!ok}
-          onClick={() => {
-            if (!streetId) return;
-            void addLocation(kind, name, streetId);
-            onDone();
-          }}
-        >
-          Salvează
+        <button type="button" className="btn btn--primary" disabled={!ok || saving} onClick={() => void save()}>
+          {saving ? 'Se salvează…' : 'Salvează'}
         </button>
       </div>
     </div>

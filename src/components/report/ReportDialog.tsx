@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { CONFIG } from '@/config/constants';
-import { CATEGORY, SUBTYPES, TYPES, catTint, catVar } from '@/config/categories';
+import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
 import { fmtAt } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { categoryLine, metaLine, statusBadge } from '@/lib/status';
@@ -51,7 +51,7 @@ export function ReportDialog() {
                 key={k}
                 type="button"
                 className={`cat-tile ${on ? 'is-on' : ''}`}
-                style={{ ['--cat' as string]: catVar('utilitati'), ['--cat-t' as string]: catTint('utilitati') }}
+                style={{ ['--cat' as string]: typeVar(k), ['--cat-t' as string]: typeTint(k) }}
                 aria-pressed={on}
                 onClick={() => patchReport({ category: 'utilitati', subtype: k })}
               >
@@ -97,7 +97,7 @@ export function ReportDialog() {
         <div className="card card--outline row gap-12 align-start">
           <EventTile e={dup} />
           <span className="stack gap-4 min0">
-            <span className="xsmall strong" style={{ color: catVar(dup.category) }}>
+            <span className="xsmall strong" style={{ color: typeVar(dup.subtype) }}>
               {categoryLine(dup)}
             </span>
             <strong>{dup.title}</strong>
@@ -237,7 +237,7 @@ export function ReportDialog() {
   // ---------- Pas 5: Review + trimite ----------
   if (r.step === 5 && r.category && r.subtype) {
     const rows: [string, string][] = [
-      ['Categorie', `${CATEGORY[r.category].label} · ${SUBTYPES[r.subtype].label}`],
+      ['Tip', SUBTYPES[r.subtype].label],
       ['Locație', r.street ? [r.street.label, r.street.district].filter(Boolean).join(', ') : 'Punct pe hartă, fără stradă în apropiere'],
       ['Gravitate', r.severity === 'total' ? 'Întrerupere totală' : 'Parțial — posibil afectat'],
       ['Descriere', r.description.trim() || 'Fără descriere'],

@@ -34,11 +34,15 @@ export function distanceToPath(p: LatLng, path: LatLng[]): number {
   return d;
 }
 
-/** Distanța de la un punct la zona afectată a evenimentului (traseu sau punct). */
-export function distanceToEvent(p: LatLng, e: Pick<UrbanEvent, 'location' | 'path'>): number {
-  const d = distance(p, e.location);
+/** Distanța de la un punct la zona afectată a evenimentului (0 = în interiorul cercului). */
+export function distanceToEvent(p: LatLng, e: Pick<UrbanEvent, 'location' | 'path' | 'radiusM'>): number {
+  const d = Math.max(0, distance(p, e.location) - areaRadius(e));
   return e.path ? Math.min(d, distanceToPath(p, e.path)) : d;
 }
+
+export const DEFAULT_AREA_M = 150;
+/** Raza zonei afectate: calculată de fluxurile oficiale, altfel o zonă implicită în jurul punctului. */
+export const areaRadius = (e: Pick<UrbanEvent, 'radiusM'>) => e.radiusM ?? DEFAULT_AREA_M;
 
 export function nearestStreet(p: LatLng, streets: Street[]): { street: Street; distanceM: number } | null {
   let best: Street | null = null;

@@ -39,17 +39,16 @@ export const ALL_TYPES_ON: Record<SubtypeKey, boolean> = { apa: true, gaz: true,
 /** Documentele vechi din Firestore pot avea tipuri care nu mai există (telecom, drumuri etc.): nu le afișăm. */
 export const isKnownType = (subtype: string): subtype is SubtypeKey => subtype in SUBTYPES;
 
-/**
- * Culorile categoriilor ca valori concrete (Leaflet desenează liniile ca atribute SVG,
- * unde variabilele CSS nu funcționează). Aceleași valori ca în src/styles/tokens.css.
- * Contrast verificat WCAG AA: alb pe culoare ≥ 5,5:1 (luminos), icon închis pe culoare ≥ 7,8:1 (întunecat).
- */
-export const CATEGORY_HEX: Record<'light' | 'dark', Record<CategoryKey, string>> = {
-  light: { utilitati: '#1F5FC9' },
-  dark: { utilitati: '#7AA7FF' },
+/** Culorile tipurilor ca valori concrete (Leaflet desenează ca atribute SVG, unde variabilele CSS nu funcționează). Aceleași valori ca în src/styles/tokens.css. */
+export const TYPE_HEX: Record<'light' | 'dark', Record<SubtypeKey, string>> = {
+  light: { apa: '#1F5FC9', electricitate: '#A16207', gaz: '#C2410C' },
+  dark: { apa: '#7AA7FF', electricitate: '#FACC15', gaz: '#FB923C' },
 };
 export const RESOLVED_HEX = { light: '#7A7F86', dark: '#8E959F' };
 
 /** Variabilele CSS pentru HTML (markere, liste). */
 export const catVar = (k: CategoryKey) => `var(--c-${k})`;
 export const catTint = (k: CategoryKey) => `var(--c-${k}-t)`;
+/** Culoarea fiecărui tip (apă, electricitate, gaz) — folosită peste tot pentru evenimente. */
+export const typeVar = (k: SubtypeKey) => `var(--c-${k})`;
+export const typeTint = (k: SubtypeKey) => `var(--c-${k}-t)`;

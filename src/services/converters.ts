@@ -36,6 +36,7 @@ export function fromFirestore(id: string, d: any): UrbanEvent {
     photo: d.photo ?? false,
     authorId: d.authorId ?? undefined,
     location: gpToLatLng(d.location)!,
+    radiusM: typeof d.radiusM === 'number' ? d.radiusM : undefined,
     path: Array.isArray(d.path) ? (d.path.map(gpToLatLng).filter(Boolean) as LatLng[]) : undefined,
   };
 }
@@ -63,6 +64,7 @@ export function toFirestore(e: Omit<UrbanEvent, 'id'>) {
     photo: e.photo ?? false,
     authorId: e.authorId ?? null,
     location: latLngToGp(e.location),
+    radiusM: e.radiusM ?? null,
     path: e.path?.map(latLngToGp) ?? null,
     createdAt: Timestamp.now(),
   };

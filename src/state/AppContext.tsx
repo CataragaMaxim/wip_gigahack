@@ -3,13 +3,13 @@ import L, { type Map as LeafletMap } from 'leaflet';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { ALL_TYPES_ON, SUBTYPES, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
-import { STREETS } from '@/data/streets';
 import { distanceToEvent } from '@/lib/geo';
 import { deriveStatus, isClosed, isPublic } from '@/lib/status';
 import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
 import { matchStreet, type StreetMatch } from '@/services/streetMatch';
+import type { GeoResult } from '@/services/geocoding';
 import {
   watchAuth,
   logInWithEmail,
@@ -79,6 +79,17 @@ export interface ManualPlace {
 interface Session {
   user: UserProfile | null;
   locations: SavedLocationDoc[];
+}
+
+/** Documentul unei adrese salvate, dintr-o adresă aleasă din căutare. */
+function placeDoc(kind: SavedLocationDoc['kind'], name: string, p: GeoResult): Omit<SavedLocationDoc, 'id'> {
+  return {
+    kind,
+    name,
+    address: p.detail ? `${p.label}, ${p.detail}` : p.label,
+    location: p.location,
+    prefs: { ...ALL_CATEGORIES_ON },
+  };
 }
 
 function useAppStore() {
@@ -284,8 +295,10 @@ function useAppStore() {
 
   // ---------- evenimente derivate ----------
   const events: DerivedEvent[] = useMemo(() => {
+    // Raportările proprii rămân local până le aduce și lista din Firestore (fără dubluri după reîncărcare).
+    const rawIds = new Set(raw.map((e) => e.id));
     return raw
-      .concat(userReports)
+      .concat(userReports.filter((e) => !rawIds.has(e.id)))
       .filter((e) => !deletedIds[e.id] && isKnownType(e.subtype))
       .map((e) => {
         const v = votes[e.id];
@@ -322,7 +335,7 @@ function useAppStore() {
     return events
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
-        if (!isPublic(e, user?.uid)) return false;
+        if (!isPublic(e)) return false;
         if (radius !== 'all' && e.distanceM != null && e.distanceM > radius) return false;
         if (q && !normalize(`${e.title} ${e.district} ${e.streets.join(' ')}`).includes(q)) return false;
         return true;
@@ -480,19 +493,13 @@ function useAppStore() {
   );
 
   const signUp = useCallback(
-    async (name: string, email: string, password: string, streetId: string, number: string) => {
+    async (name: string, email: string, password: string, home: GeoResult | null) => {
       try {
         const profile = await signUpWithEmail(name, email, password);
-        const s = STREETS.find((x) => x.id === streetId);
-        if (s) {
-          const home: Omit<SavedLocationDoc, 'id'> = {
-            kind: 'home',
-            name: 'Acasă',
-            address: `${s.name}${number.trim() ? ` ${number.trim()}` : ''}, ${s.district}`,
-            location: s.path[Math.floor(s.path.length / 2)],
-            prefs: { ...ALL_CATEGORIES_ON },
-          };
-          await upsertUserLocation(profile.uid, 'acasa', home);
+        if (home) {
+          const doc = placeDoc('home', 'Acasă', home);
+          await upsertUserLocation(profile.uid, 'acasa', doc);
+          setSession((ss) => ({ ...ss, locations: [{ ...doc, id: 'acasa' }, ...ss.locations.filter((l) => l.id !== 'acasa')] }));
         }
         setModal(null);
         if (authAfter === 'report') {
@@ -598,26 +605,33 @@ function useAppStore() {
     flash('Contul a fost șters');
   }, [user, flash]);
 
-  const addLocation = useCallback(
-    async (kind: 'work' | 'person', name: string, streetId: string) => {
+  /** Setează sau schimbă adresa „Acasă”. */
+  const setHomeLocation = useCallback(
+    async (place: GeoResult) => {
       if (!user) return;
-      const s = STREETS.find((x) => x.id === streetId);
-      if (!s) return;
-      const locId = kind === 'work' ? 'serviciu' : `l-${Date.now()}`;
-      const loc: Omit<SavedLocationDoc, 'id'> = {
-        kind,
-        name: kind === 'work' ? 'Serviciu' : name.trim(),
-        address: `${s.name}, ${s.district}`,
-        location: s.path[Math.floor(s.path.length / 2)],
-        prefs: { ...ALL_CATEGORIES_ON },
-      };
-      await upsertUserLocation(user.uid, locId, loc);
-      setSession((ss) => ({ ...ss, locations: [...ss.locations, { ...loc, id: locId }] }));
-      flash(`Adresa „${loc.name}” a fost salvată`);
+      const doc = placeDoc('home', 'Acasă', place);
+      await upsertUserLocation(user.uid, 'acasa', doc);
+      setSession((ss) => ({ ...ss, locations: [{ ...doc, id: 'acasa' }, ...ss.locations.filter((l) => l.kind !== 'home')] }));
+      flash('Adresa de acasă a fost salvată');
     },
     [user, flash],
   );
-
+  /** Adaugă o adresă suplimentară (max. CONFIG.MAX_EXTRA_ADDRESSES pe lângă „Acasă”). */
+  const addLocation = useCallback(
+    async (name: string, place: GeoResult) => {
+      if (!user) return;
+      if (locations.filter((l) => l.kind !== 'home').length >= CONFIG.MAX_EXTRA_ADDRESSES) {
+        flash(`Poți salva cel mult ${CONFIG.MAX_EXTRA_ADDRESSES} adrese pe lângă „Acasă”.`);
+        return;
+      }
+      const locId = `l-${Date.now()}`;
+      const doc = placeDoc('other', name.trim(), place);
+      await upsertUserLocation(user.uid, locId, doc);
+      setSession((ss) => ({ ...ss, locations: [...ss.locations, { ...doc, id: locId }] }));
+      flash(`Adresa „${doc.name}” a fost salvată`);
+    },
+    [user, locations, flash],
+  );
   const removeLocation = useCallback(
     async (id: string) => {
       if (!user) return;
@@ -762,7 +776,7 @@ function useAppStore() {
     // sesiune
     user, locations,
     signUp, logIn, logInGoogle, requestPhoneCode, verifyPhoneCode,
-    logOut, deleteAccount, addLocation, removeLocation,
+    logOut, deleteAccount, addLocation, setHomeLocation, removeLocation,
     // date
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,

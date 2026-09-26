@@ -10,6 +10,7 @@ import { PinCard, ReportDialog } from '@/components/report/ReportDialog';
 import { AuthDialog } from '@/components/auth/AuthDialog';
 import { LocationDialog } from '@/components/location/LocationDialog';
 import { Splash } from '@/components/layout/Splash';
+import { ProximityPrompt } from '@/components/events/ProximityPrompt';
 
 function Shell() {
   const app = useApp();
@@ -49,6 +50,7 @@ function Shell() {
       {modal === 'report' && <ReportDialog />}
       {modal === 'auth' && <AuthDialog />}
       {modal === 'location' && <LocationDialog />}
+      <ProximityPrompt />
       <Splash />
       <div className="toast-region" aria-live="polite">
         {toast && (

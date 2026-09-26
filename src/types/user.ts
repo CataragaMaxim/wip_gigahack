@@ -38,7 +38,8 @@ export interface UserProfile {
 /** Documentul `users/{uid}/locations/{id}`. */
 export interface SavedLocationDoc {
   id: string;
-  kind: 'home' | 'work' | 'person';
+  /** 'home' = Acasă (una singură); 'other' = adresele suplimentare (max. MAX_EXTRA_ADDRESSES). 'work'/'person' = conturi vechi. */
+  kind: 'home' | 'work' | 'person' | 'other';
   name: string;
   address: string;
   location: LatLng;

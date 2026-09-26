@@ -67,4 +67,4 @@ pip-log.txt
 .pytest_cache/
 
 # ---------- Diverse ----------
-*.tgz
+*.tgz.geocache/

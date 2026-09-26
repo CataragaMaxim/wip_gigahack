@@ -34,9 +34,19 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
+      // Un vot (oricine, ca votul din `votes`): doar confirmations/denials, cu cel mult +1 fiecare.
+      function isVoteBump() {
+        let d = request.resource.data;
+        let o = resource.data;
+        return d.diff(o).affectedKeys().hasOnly(['confirmations', 'denials'])
+          && d.confirmations is int && d.denials is int
+          && d.confirmations >= o.confirmations && d.confirmations <= o.confirmations + 1
+          && d.denials >= o.denials && d.denials <= o.denials + 1;
+      }
+
       allow read: if true;
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (resource.data.authorId == uid() || isManager());
+      allow update: if (isSignedIn() && (resource.data.authorId == uid() || isManager())) || isVoteBump();
       allow delete: if isSignedIn() && resource.data.authorId == uid();
 
       match /votes/{deviceId} {

@@ -17,6 +17,7 @@ Local, fără Firestore:
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -25,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 from sync_acc import (
-    BROWSER_UA, SECTORS, TZ, Outage, ascii_fold, clean, cli_args, fix_diacritics, house_query, html_lines, publish, stable_id,
+    BROWSER_UA, TZ, Outage, address_targets, ascii_fold, clean, cli_args, fix_diacritics, html_lines, publish, stable_id,
 )
 
 BASE = 'https://www.premierenergydistribution.md'
@@ -166,11 +167,9 @@ def parse_day(page: str, day: date) -> tuple[list[Outage], list[str]]:
             if len(labels) > MAX_STREETS_SHOWN:
                 desc.append('Toate adresele: ' + ', '.join(labels))
 
-            loc0, name0, nums0 = streets[0]
-            queries = house_query(f'str. {name0}', nums0[0] if nums0 else '')
-            locality = loc0 or heading_locality
-            if locality and ascii_fold(locality) not in SECTORS:
-                queries = [f'{q}, {locality}' for q in queries]
+            # Toate adresele rândului (inclusiv cele nelistate în aplicație) intră în zona afectată.
+            targets = [t for loc, name, nums in streets
+                       for t in address_targets([(f'str. {name}', nums[0] if nums else '')], loc or heading_locality)]
 
             out.append(Outage(
                 id=f'ped-{day}-{stable_id(m.group("addr"), m.group("t0"), m.group("t1"))}',
@@ -182,7 +181,7 @@ def parse_day(page: str, day: date) -> tuple[list[Outage], list[str]]:
                 end=t1,
                 updated=posted,
                 description=' '.join(desc)[:900],
-                geo_queries=queries,
+                geo_targets=targets,
                 planned=True,
                 subtype='electricitate',
                 source=SOURCE,
@@ -217,7 +216,8 @@ def main() -> int:
         print(f'  {day}: {len(found)} rânduri în Chișinău')
         outages += found
 
-    return publish(outages, args, SOURCE, tuple(failed))
+    # Rândurile Premier au zeci de străzi: mai multe căutări pe rulare (restul, la rulările următoare).
+    return publish(outages, args, SOURCE, tuple(failed), geo_budget=int(os.environ.get('GEO_BUDGET', 700)))
 
 
 def _try_fetch(url: str) -> str | None:

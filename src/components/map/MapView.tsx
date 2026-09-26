@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
-import { Circle, MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
-import { CATEGORY_HEX, RESOLVED_HEX, CATEGORY } from '@/config/categories';
+import { Circle, MapContainer, Marker, TileLayer } from 'react-leaflet';
+import { RESOLVED_HEX, SUBTYPES, TYPE_HEX } from '@/config/categories';
 import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
 import { isClosed, statusBadge } from '@/lib/status';
-import { STREETS } from '@/data/streets';
-import { segmentAround } from '@/lib/geo';
+import { areaRadius } from '@/lib/geo';
 import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
 import { eventIcon, meIcon, placeIcon } from './markerIcons';
@@ -135,36 +134,32 @@ function ManualMarker() {
   );
 }
 
+/** Zona afectată: cercul care cuprinde toate adresele anunțului (sau o zonă implicită în jurul raportării). */
 function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'light' | 'dark'; show: boolean; selected: boolean }) {
-  // Fără traseu: segment aproximativ. Cu traseu dintr-un singur punct (raportare departe de stradă): doar markerul.
-  const path = useMemo(() => e.path ?? segmentAround(e.location, STREETS), [e.path, e.location]);
-  if (path.length < 2) return null;
-  const color = isClosed(e.status) ? RESOLVED_HEX[theme] : CATEGORY_HEX[theme][e.category];
+  const color = isClosed(e.status) ? RESOLVED_HEX[theme] : TYPE_HEX[theme][e.subtype];
   const partial = e.severity === 'partial';
   const base = e.status === 'contestat' ? 0.35 : 1;
-  const positions = path.map((p) => [p.lat, p.lng] as [number, number]);
   return (
-    <>
-      <Polyline
-        positions={positions}
-        interactive={false}
-        pathOptions={{ color, weight: 18, opacity: show ? (selected ? 0.35 : partial ? 0.14 : 0.22) * base : 0, lineCap: 'round', lineJoin: 'round', className: 'wip-line' }}
-      />
-      <Polyline
-        positions={positions}
-        interactive={false}
-        pathOptions={{
-          color, weight: 5, opacity: show ? base : 0, lineCap: 'round', lineJoin: 'round',
-          dashArray: e.status === 'raportat' ? '1 10' : partial ? '12 8' : undefined, className: 'wip-line',
-        }}
-      />
-    </>
+    <Circle
+      center={[e.location.lat, e.location.lng]}
+      radius={areaRadius(e)}
+      interactive={false}
+      pathOptions={{
+        color,
+        weight: selected ? 3 : 2,
+        opacity: show ? base : 0,
+        fillColor: color,
+        fillOpacity: show ? (selected ? 0.22 : partial ? 0.08 : 0.14) * base : 0,
+        dashArray: e.status === 'raportat' ? '2 8' : partial ? '10 6' : undefined,
+        className: 'wip-line',
+      }}
+    />
   );
 }
 
 function EventMarker({ e, show, selected, onOpen }: { e: DerivedEvent; show: boolean; selected: boolean; onOpen: (id: string) => void }) {
   const icon = useMemo(() => eventIcon(e, selected), [e, selected]);
-  const title = `${CATEGORY[e.category].short}, ${statusBadge(e).label}: ${e.title}`;
+  const title = `${SUBTYPES[e.subtype].label}, ${statusBadge(e).label}: ${e.title}`;
   return (
     <Marker
       position={[e.location.lat, e.location.lng]}

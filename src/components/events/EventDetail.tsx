@@ -1,6 +1,6 @@
 import { CONFIG } from '@/config/constants';
-import { catTint, catVar } from '@/config/categories';
-import { fmtAgo, fmtAt, fmtDistance, plural } from '@/lib/format';
+import { typeTint, typeVar } from '@/config/categories';
+import { fmtAgo, fmtAt, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { categoryLine, countdown, isClosed } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
@@ -24,7 +24,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
     if (!online) voteBlocked = 'Confirmarea necesită conexiune la internet.';
     else if (!userPos) voteBlocked = 'Poți confirma doar dacă ești în apropiere. Activează locația pentru a vota.';
     else if (!near)
-      voteBlocked = `Poți confirma doar dacă ești în apropiere (până la ${CONFIG.VOTE_RADIUS_M / 1000} km). Acum ești la ${fmtDistance(e.distanceM!)}.`;
+      voteBlocked = `Poți confirma doar dacă ești în apropiere (până la ${CONFIG.VOTE_RADIUS_M / 1000} km).`;
   }
 
   const hash = [...e.id].reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -37,14 +37,11 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
       <div className="detail__head">
         <EventTile e={e} size={52} />
         <div className="stack gap-4">
-          <span className="detail__cat" style={{ color: catVar(e.category) }}>
+          <span className="detail__cat" style={{ color: typeVar(e.subtype) }}>
             {categoryLine(e)}
           </span>
           <h2 className="detail__title">{e.title}</h2>
-          <span className="muted small">
-            {e.district}
-            {e.distanceM != null ? ` · la ${fmtDistance(e.distanceM)} de tine` : ''}
-          </span>
+          {e.district && <span className="muted small">{e.district}</span>}
         </div>
       </div>
 
@@ -64,8 +61,8 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
       )}
 
       {cd && (
-        <div className="countdown" style={{ background: catTint(e.category) }}>
-          <span style={{ color: catVar(e.category) }}>
+        <div className="countdown" style={{ background: typeTint(e.subtype) }}>
+          <span style={{ color: typeVar(e.subtype) }}>
             <Icon name="clock" size={22} />
           </span>
           <span className="stack">
@@ -127,16 +124,12 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
             <ul className="streets">
               {e.streets.map((s) => (
                 <li key={s}>
-                  <span className="streets__dot" style={{ background: catVar(e.category) }} />
+                  <span className="streets__dot" style={{ background: typeVar(e.subtype) }} />
                   {s}
                 </li>
               ))}
             </ul>
           </section>
-          <a className="link" href="#anunt-original" onClick={(ev) => ev.preventDefault()}>
-            Vezi anunțul original
-            <Icon name="external" size={14} />
-          </a>
         </>
       ) : (
         <>
@@ -144,10 +137,6 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
             <div>
               <dt>Raportat</dt>
               <dd>{e.reportedAt ? `${fmtAt(new Date(e.reportedAt))} (${fmtAgo(new Date(e.reportedAt))})` : '—'}</dd>
-            </div>
-            <div>
-              <dt>Distanța față de tine</dt>
-              <dd>{e.distanceM != null ? fmtDistance(e.distanceM) : 'Locație indisponibilă'}</dd>
             </div>
           </dl>
           <div className="stack gap-8">

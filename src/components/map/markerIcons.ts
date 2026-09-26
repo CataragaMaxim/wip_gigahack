@@ -27,7 +27,7 @@ export function eventIcon(e: DerivedEvent, selected: boolean): L.DivIcon {
   });
 }
 
-const PLACE_ICON = { home: 'home', work: 'briefcase', person: 'user' } as const;
+const PLACE_ICON = { home: 'home', work: 'briefcase', person: 'user', other: 'pin' } as const;
 
 /** Adresele salvate: punct + etichetă „Acasă · Bd. Dacia 27”. */
 export function placeIcon(l: SavedLocation): L.DivIcon {

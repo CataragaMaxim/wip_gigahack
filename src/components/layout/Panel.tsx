@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import { EventList, EventListHeader, ListNotices, useSheetSummary } from '@/components/events/EventList';
+import { EventList, EventListHeader, ListNotices, TypeFilter, useSheetSummary } from '@/components/events/EventList';
 import { EventActions, EventDetail } from '@/components/events/EventDetail';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { OutageCalendar } from '@/components/calendar/OutageCalendar';
@@ -35,6 +35,9 @@ function DesktopPanel() {
             <button type="button" className="icon-btn" aria-label="Ascunde lista" onClick={() => setPanelOpen(false)}>
               <Icon name="panel" strokeWidth={1.8} />
             </button>
+          </div>
+          <div className="panel__filters">
+            <TypeFilter />
           </div>
           <div className="panel__body">
             <EventList />
@@ -182,6 +185,9 @@ function MobileSheet() {
       live={summary.live}
       centerBody={center}
     >
+      <div className="panel__filters panel__filters--sheet">
+        <TypeFilter />
+      </div>
       <ListNotices onSearch={focusSearch} />
       <EventList />
     </BottomSheet>

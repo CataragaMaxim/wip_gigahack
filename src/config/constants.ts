@@ -8,12 +8,16 @@ export const CONFIG = {
   CONTEST_MIN_DENIALS: 3,
   /** Poți vota doar dacă ești la cel mult atâția metri. */
   VOTE_RADIUS_M: 1000,
+  /** La atâția metri de o raportare a vecinilor apare întrebarea „Ai și tu problema asta?”. */
+  PROMPT_RADIUS_M: 50,
   /** Raza în care căutăm raportări similare înainte de a crea una nouă. */
   DEDUP_RADIUS_M: 300,
   /** O raportare neconfirmată expiră după atâtea ore. */
   REPORT_EXPIRY_H: 6,
   /** O raportare confirmată, fără activitate, expiră după atâtea ore. */
   CONFIRMED_EXPIRY_H: 24,
+  /** Pe lângă „Acasă”, câte adrese suplimentare poate salva un utilizator. */
+  MAX_EXTRA_ADDRESSES: 5,
   /** Limita de caractere a descrierii. */
   DESCRIPTION_MAX: 280,
   /** O adresă salvată e „afectată” dacă e la cel mult atâția metri de eveniment. */

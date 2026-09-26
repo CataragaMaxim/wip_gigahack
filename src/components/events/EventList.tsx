@@ -1,5 +1,5 @@
 import { CONFIG } from '@/config/constants';
-import { catVar } from '@/config/categories';
+import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
 import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { categoryLine, metaLine } from '@/lib/status';
@@ -25,6 +25,32 @@ export function EventListHeader() {
           Locația e dezactivată: nu afișăm distanțe.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Filtrele pe tip (electricitate, apă, gaz), în capul listei. */
+export function TypeFilter() {
+  const { types, toggleType } = useApp();
+  return (
+    <div className="chips type-filter" role="group" aria-label="Filtrează după tip">
+      {TYPES.map((k) => {
+        const on = types[k];
+        return (
+          <button
+            key={k}
+            type="button"
+            className={`chip ${on ? 'is-on' : ''}`}
+            style={{ ['--cat' as string]: typeVar(k), ['--cat-t' as string]: typeTint(k) }}
+            aria-pressed={on}
+            onClick={() => toggleType(k)}
+          >
+            <Icon name={SUBTYPES[k].icon} size={18} />
+            {SUBTYPES[k].label}
+            {on && <Icon name="check" size={14} strokeWidth={2.6} />}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -193,7 +219,7 @@ function EventRow({ e, fading, onOpen }: { e: DerivedEvent; fading: boolean; onO
       <EventTile e={e} />
       <span className="event-row__body">
         <span className="event-row__top">
-          <span className="event-row__cat" style={{ color: catVar(e.category) }}>
+          <span className="event-row__cat" style={{ color: typeVar(e.subtype) }}>
             {categoryLine(e)}
           </span>
           {e.affects.length > 0 && (

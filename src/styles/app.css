@@ -798,3 +798,50 @@ textarea::placeholder {
   .cal__when { width: 100%; flex-direction: row; align-items: center; }
 }
 .seg--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* ---------- filtrele pe tip, în panou ---------- */
+.panel__filters { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.panel__filters--sheet { padding: 0 8px 10px; border-bottom: 0; }
+.type-filter { flex-wrap: wrap; overflow: visible; }
+.type-filter .chip { box-shadow: none; }
+
+/* ---------- „Ai și tu problema asta?” (raportare la ≤ 50 m) ---------- */
+.nearby {
+  position: fixed; z-index: 55; right: 16px; top: calc(var(--top) + 16px); width: min(400px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  border-radius: var(--radius-l); background: var(--surface-2); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  animation: wip-nearby 0.45s cubic-bezier(0.2, 1.3, 0.3, 1) backwards;
+}
+.nearby__head { display: flex; align-items: flex-start; gap: 12px; }
+.nearby__icon { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; }
+.nearby__pulse { position: absolute; top: 14px; left: 14px; width: 44px; height: 44px; border-radius: 12px; opacity: 0; animation: wip-pulse 1.8s ease-out 0.4s 3; pointer-events: none; }
+.nearby__more { align-self: center; background: none; border: 0; }
+@keyframes wip-nearby { from { opacity: 0; transform: translateY(-24px) scale(0.92); } }
+@keyframes wip-nearby-up { from { opacity: 0; transform: translateY(32px) scale(0.92); } }
+@media (max-width: 767px) {
+  .nearby { top: auto; right: 16px; left: 16px; width: auto; bottom: 110px; animation-name: wip-nearby-up; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nearby, .nearby__pulse { animation: none; }
+}
+
+/* ---------- autentificare: alegerea metodei (email / telefon) ---------- */
+.method { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.method__card {
+  position: relative; display: flex; align-items: center; gap: 10px; padding: 12px; text-align: left;
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius-m); background: var(--surface); color: var(--text);
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.method__card:hover { background: var(--hover); }
+.method__card.is-on { border: 2px solid var(--ink); padding: 11.5px; background: var(--sunk); box-shadow: 0 0 0 3px var(--hover); }
+.method__icon { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--sunk); color: var(--text-2); }
+.method__card.is-on .method__icon { background: var(--ink); color: var(--on-ink); }
+.method__check {
+  position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 999px; border: 1.5px solid var(--border-strong);
+}
+.method__card.is-on .method__check { border-color: var(--ink); background: var(--ink); color: var(--on-ink); }
+/* Cadrul cu câmpurile metodei alese, legat vizual de card. */
+.method__panel { padding: 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-m); background: var(--surface); }
+.address-input__ok { color: var(--text-2); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.street-input__menu li.is-active { background: var(--hover); }

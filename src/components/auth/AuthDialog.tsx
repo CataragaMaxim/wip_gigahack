@@ -2,12 +2,18 @@ import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { Dialog } from '@/components/ui/Dialog';
-import { StreetInput } from '@/components/ui/StreetInput';
+import { AddressInput } from '@/components/ui/AddressInput';
+import type { GeoResult } from '@/services/geocoding';
+import { GoogleIcon } from './ProviderIcons';
 
-type Field = 'name' | 'email' | 'password' | 'address' | 'terms' | 'phone' | 'code';
+type Field = 'name' | 'email' | 'password' | 'terms' | 'phone' | 'code';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 type AuthTab = 'email' | 'phone';
+const METHODS: { key: AuthTab; label: string; hint: string; icon: 'mail' | 'phone' }[] = [
+  { key: 'email', label: 'Email', hint: 'cu parolă', icon: 'mail' },
+  { key: 'phone', label: 'Telefon', hint: 'cod prin SMS', icon: 'phone' },
+];
 
 export function AuthDialog() {
   const app = useApp();
@@ -22,9 +28,8 @@ export function AuthDialog() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [address, setAddress] = useState('');
-  const [streetId, setStreetId] = useState<string | null>(null);
-  const [number, setNumber] = useState('');
+  /** Adresa „Acasă” (opțională la înregistrare; se poate seta și din Setări). */
+  const [home, setHome] = useState<GeoResult | null>(null);
   const [terms, setTerms] = useState(false);
   const [notify, setNotify] = useState(true);
   const [phone, setPhone] = useState('+373');
@@ -46,13 +51,9 @@ export function AuthDialog() {
       if (!/^\+\d{10,15}$/.test(phone.replace(/\s/g, ''))) e.phone = 'Introdu numărul în format internațional, ex. +37369123456.';
       if (codeSent && !/^\d{4,8}$/.test(code)) e.code = 'Introdu codul din SMS.';
     }
-    if (mode === 'signup' && tab === 'email') {
-      if (!address.trim()) e.address = 'Alege adresa ta din listă.';
-      else if (!streetId) e.address = 'Alege strada din sugestii.';
-      if (!terms) e.terms = 'Pentru a crea contul, acceptă termenii.';
-    }
+    if (mode === 'signup' && !terms) e.terms = 'Pentru a crea contul, acceptă termenii.';
     return e;
-  }, [mode, tab, name, email, password, address, streetId, terms, phone, code, codeSent]);
+  }, [mode, tab, name, email, password, terms, phone, code, codeSent]);
 
   const show = (f: Field) => (submitted || touched[f] ? errors[f] : undefined);
   const touch = (f: Field) => setTouched((t) => ({ ...t, [f]: true }));
@@ -72,7 +73,7 @@ export function AuthDialog() {
     if (mode === 'forgot') return switchMode('sent');
 
     if (tab === 'email') {
-      if (mode === 'signup' && streetId) await signUp(name, email, password, streetId, number);
+      if (mode === 'signup') await signUp(name, email, password, home);
       if (mode === 'login') await logIn(email, password);
       return;
     }
@@ -109,9 +110,34 @@ export function AuthDialog() {
       onClose={() => setModal(null)}
       onBack={mode === 'forgot' || mode === 'sent' ? () => switchMode('login') : undefined}
       width={480}
+      footer={
+        mode === 'sent' ? undefined : (
+          <div className="stack gap-4 grow">
+            <button type="submit" form={`${id}-form`} className="btn btn--primary btn--xl">
+              {tab === 'phone' && mode !== 'forgot'
+                ? codeSent ? 'Verifică codul' : 'Trimite codul SMS'
+                : mode === 'signup'
+                  ? 'Creează cont'
+                  : mode === 'login'
+                    ? 'Intră în cont'
+                    : 'Trimite linkul de resetare'}
+            </button>
+            {mode === 'signup' && (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => switchMode('login')}>
+                Am deja cont
+              </button>
+            )}
+            {mode === 'login' && (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => switchMode('signup')}>
+                Nu ai cont? Creează unul
+              </button>
+            )}
+          </div>
+        )
+      }
     >
       {/* Container pentru Recaptcha invizibil (phone) */}
-      <div id={`${id}-recaptcha`} ref={recaptchaRef} />
+      <div id={`${id}-recaptcha`} ref={recaptchaRef} style={{ position: 'absolute' }} />
 
       {mode === 'sent' ? (
         <div className="stack gap-10" role="status">
@@ -125,181 +151,188 @@ export function AuthDialog() {
           </button>
         </div>
       ) : (
-        <form className="stack gap-16" onSubmit={onSubmit} noValidate>
-          {/* Tab-uri email / phone */}
-          {(mode === 'signup' || mode === 'login') && (
-            <div className="seg seg--2" role="tablist" aria-label="Metodă de autentificare">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === 'email'}
-                className="seg__btn"
-                onClick={() => { setTab('email'); setSubmitted(false); setCodeSent(false); }}
-              >
-                <Icon name="user" size={16} />
-                Email
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === 'phone'}
-                className="seg__btn"
-                onClick={() => { setTab('phone'); setSubmitted(false); setCodeSent(false); }}
-              >
-                <Icon name="phone" size={16} />
-                Telefon
-              </button>
-            </div>
-          )}
-
+        <form id={`${id}-form`} className="stack gap-12" onSubmit={onSubmit} noValidate>
           {/* Google — doar signup/login, nu forgot */}
           {(mode === 'signup' || mode === 'login') && (
-            <button type="button" className="btn btn--secondary btn--lg" onClick={() => void logInGoogle()}>
-              <Icon name="external" size={18} />
-              Continuă cu Google
-            </button>
-          )}
-
-          {tab === 'email' && (
             <>
-              {mode === 'signup' && (
-                <div className="field">
-                  <label htmlFor={`${id}-name`} className="field__label">Nume</label>
-                  <input
-                    id={`${id}-name`}
-                    className={`input ${show('name') ? 'is-invalid' : ''}`}
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onBlur={() => touch('name')}
-                  />
-                  {err('name')}
-                </div>
-              )}
-
-              <div className="field">
-                <label htmlFor={`${id}-email`} className="field__label">Email</label>
-                <input
-                  id={`${id}-email`}
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  placeholder="nume@exemplu.md"
-                  className={`input ${show('email') ? 'is-invalid' : ''}`}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => touch('email')}
-                />
-                {err('email')}
+              <button type="button" className="btn btn--secondary btn--lg" onClick={() => void logInGoogle()}>
+                <GoogleIcon size={18} />
+                Continuă cu Google
+              </button>
+              <div className="divider" role="separator">
+                sau {mode === 'signup' ? 'creează contul cu' : 'intră cu'}
               </div>
-
-              {(mode === 'signup' || mode === 'login') && (
-                <div className="field">
-                  <div className="row between">
-                    <label htmlFor={`${id}-pw`} className="field__label">Parolă</label>
-                    {mode === 'login' && (
-                      <button type="button" className="link small" onClick={() => switchMode('forgot')}>
-                        Am uitat parola
-                      </button>
-                    )}
-                  </div>
-                  <div className="input-wrap">
-                    <input
-                      id={`${id}-pw`}
-                      type={showPw ? 'text' : 'password'}
-                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                      className={`input ${show('password') ? 'is-invalid' : ''}`}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onBlur={() => touch('password')}
-                    />
+              {/* Metoda: două carduri, cel ales e marcat clar; câmpurile lui stau în cadrul de dedesubt. */}
+              <div className="method" role="tablist" aria-label="Metodă de autentificare">
+                {METHODS.map((m) => {
+                  const on = tab === m.key;
+                  return (
                     <button
+                      key={m.key}
+                      id={`${id}-tab-${m.key}`}
                       type="button"
-                      className="icon-btn input-wrap__btn"
-                      aria-label={showPw ? 'Ascunde parola' : 'Arată parola'}
-                      onClick={() => setShowPw(!showPw)}
+                      role="tab"
+                      aria-selected={on}
+                      aria-controls={`${id}-panel`}
+                      className={`method__card ${on ? 'is-on' : ''}`}
+                      onClick={() => {
+                        setTab(m.key);
+                        setSubmitted(false);
+                        setCodeSent(false);
+                      }}
                     >
-                      <Icon name={showPw ? 'eyeOff' : 'eye'} />
+                      <span className="method__icon">
+                        <Icon name={m.icon} size={18} />
+                      </span>
+                      <span className="stack">
+                        <strong>{m.label}</strong>
+                        <span className="xsmall muted">{m.hint}</span>
+                      </span>
+                      <span className="method__check" aria-hidden="true">
+                        {on && <Icon name="check" size={14} strokeWidth={3} />}
+                      </span>
                     </button>
-                  </div>
-                  {err('password') ?? (mode === 'signup' && <span className="field__hint">Minimum 8 caractere.</span>)}
-                </div>
-              )}
-
-              {mode === 'signup' && (
-                <>
-                  <div className="field">
-                    <label htmlFor={`${id}-addr`} className="field__label">
-                      Adresă <span className="muted normal">— devine locația „Acasă”</span>
-                    </label>
-                    <div className="row gap-8 align-start">
-                      <div className="grow min0">
-                        <StreetInput
-                          id={`${id}-addr`}
-                          value={address}
-                          streetId={streetId}
-                          invalid={!!show('address')}
-                          onChange={(t, s) => { setAddress(t); setStreetId(s); }}
-                          onBlur={() => touch('address')}
-                        />
-                      </div>
-                      <input
-                        className="input input--nr"
-                        placeholder="Nr."
-                        inputMode="numeric"
-                        value={number}
-                        onChange={(e) => setNumber(e.target.value)}
-                      />
-                    </div>
-                    {err('address')}
-                  </div>
-                  <label className="check">
-                    <input type="checkbox" checked={terms} onChange={() => setTerms(!terms)} />
-                    <span>Accept <a href="#termeni">Termenii</a> și <a href="#confidentialitate">Politica de confidențialitate</a>.</span>
-                  </label>
-                  {err('terms')}
-                  <label className="check">
-                    <input type="checkbox" checked={notify} onChange={() => setNotify(!notify)} />
-                    <span>Vreau notificări când apare o problemă la adresele mele.</span>
-                  </label>
-                </>
-              )}
+                  );
+                })}
+              </div>
             </>
           )}
 
-          {tab === 'phone' && (
-            <>
-              <div className="field">
-                <label htmlFor={`${id}-phone`} className="field__label">Număr de telefon</label>
-                <input
-                  id={`${id}-phone`}
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="+37369123456"
-                  className={`input ${show('phone') ? 'is-invalid' : ''}`}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onBlur={() => touch('phone')}
-                  disabled={codeSent}
-                />
-                {err('phone')}
-              </div>
-              {codeSent && (
+          <div
+            id={`${id}-panel`}
+            className={mode === 'signup' || mode === 'login' ? 'method__panel stack gap-12' : 'stack gap-12'}
+            role={mode === 'signup' || mode === 'login' ? 'tabpanel' : undefined}
+            aria-labelledby={mode === 'signup' || mode === 'login' ? `${id}-tab-${tab}` : undefined}
+          >
+            {tab === 'email' && (
+              <>
+                {mode === 'signup' && (
+                  <div className="field">
+                    <label htmlFor={`${id}-name`} className="field__label">Nume</label>
+                    <input
+                      id={`${id}-name`}
+                      className={`input ${show('name') ? 'is-invalid' : ''}`}
+                      autoComplete="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onBlur={() => touch('name')}
+                    />
+                    {err('name')}
+                  </div>
+                )}
+
                 <div className="field">
-                  <label htmlFor={`${id}-code`} className="field__label">Cod SMS</label>
+                  <label htmlFor={`${id}-email`} className="field__label">Email</label>
                   <input
-                    id={`${id}-code`}
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    className={`input ${show('code') ? 'is-invalid' : ''}`}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                    onBlur={() => touch('code')}
+                    id={`${id}-email`}
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="nume@exemplu.md"
+                    className={`input ${show('email') ? 'is-invalid' : ''}`}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => touch('email')}
                   />
-                  {err('code')}
+                  {err('email')}
                 </div>
-              )}
+
+                {(mode === 'signup' || mode === 'login') && (
+                  <div className="field">
+                    <div className="row between">
+                      <label htmlFor={`${id}-pw`} className="field__label">Parolă</label>
+                      {mode === 'login' && (
+                        <button type="button" className="link small" onClick={() => switchMode('forgot')}>
+                          Am uitat parola
+                        </button>
+                      )}
+                    </div>
+                    <div className="input-wrap">
+                      <input
+                        id={`${id}-pw`}
+                        type={showPw ? 'text' : 'password'}
+                        autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                        className={`input ${show('password') ? 'is-invalid' : ''}`}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onBlur={() => touch('password')}
+                      />
+                      <button
+                        type="button"
+                        className="icon-btn input-wrap__btn"
+                        aria-label={showPw ? 'Ascunde parola' : 'Arată parola'}
+                        onClick={() => setShowPw(!showPw)}
+                      >
+                        <Icon name={showPw ? 'eyeOff' : 'eye'} />
+                      </button>
+                    </div>
+                    {err('password') ?? (mode === 'signup' && <span className="field__hint">Minimum 8 caractere.</span>)}
+                  </div>
+                )}
+
+                {mode === 'signup' && (
+                  <div className="field">
+                    <label htmlFor={`${id}-addr`} className="field__label">
+                      Adresa de acasă <span className="muted normal">— opțional</span>
+                    </label>
+                    <AddressInput id={`${id}-addr`} value={home} onChange={setHome} />
+                    <span className="field__hint">Te anunțăm când apare o problemă aici. Mai poți adăuga 5 adrese din Setări.</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {tab === 'phone' && (
+              <>
+                <div className="field">
+                  <label htmlFor={`${id}-phone`} className="field__label">Număr de telefon</label>
+                  <input
+                    id={`${id}-phone`}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="+37369123456"
+                    className={`input ${show('phone') ? 'is-invalid' : ''}`}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    onBlur={() => touch('phone')}
+                    disabled={codeSent}
+                  />
+                  {err('phone') ?? <span className="field__hint">Îți trimitem un cod prin SMS.</span>}
+                </div>
+                {codeSent && (
+                  <div className="field">
+                    <label htmlFor={`${id}-code`} className="field__label">Cod SMS</label>
+                    <input
+                      id={`${id}-code`}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      className={`input ${show('code') ? 'is-invalid' : ''}`}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                      onBlur={() => touch('code')}
+                    />
+                    {err('code')}
+                  </div>
+                )}
+                {mode === 'signup' && (
+                  <span className="field__hint">Adresa de acasă și încă 5 adrese le poți seta după, din Setări.</span>
+                )}
+              </>
+            )}
+          </div>
+
+          {mode === 'signup' && (
+            <>
+              <label className="check">
+                <input type="checkbox" checked={terms} onChange={() => setTerms(!terms)} />
+                <span>Accept <a href="#termeni">Termenii</a> și <a href="#confidentialitate">Politica de confidențialitate</a>.</span>
+              </label>
+              {err('terms')}
+              <label className="check">
+                <input type="checkbox" checked={notify} onChange={() => setNotify(!notify)} />
+                <span>Vreau notificări când apare o problemă la adresele mele.</span>
+              </label>
             </>
           )}
 
@@ -307,27 +340,6 @@ export function AuthDialog() {
             <p className="text-crit small strong" role="alert">
               Verifică câmpurile marcate.
             </p>
-          )}
-
-          <button type="submit" className="btn btn--primary btn--xl">
-            {tab === 'phone'
-              ? codeSent ? 'Verifică codul' : 'Trimite codul SMS'
-              : mode === 'signup'
-                ? 'Creează cont'
-                : mode === 'login'
-                  ? 'Intră în cont'
-                  : 'Trimite linkul de resetare'}
-          </button>
-
-          {mode === 'signup' && (
-            <button type="button" className="btn btn--ghost" onClick={() => switchMode('login')}>
-              Am deja cont
-            </button>
-          )}
-          {mode === 'login' && (
-            <button type="button" className="btn btn--ghost" onClick={() => switchMode('signup')}>
-              Nu ai cont? Creează unul
-            </button>
           )}
         </form>
       )}

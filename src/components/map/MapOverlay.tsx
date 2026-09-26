@@ -1,13 +1,12 @@
-import { SUBTYPES, TYPES, catTint, catVar } from '@/config/categories';
 import { hm } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { SearchBox } from '@/components/layout/SearchBox';
 
-/** Stratul de deasupra hărții: căutarea (mobil), filtrele pe categorii, avertismente. */
+/** Stratul de deasupra hărții: căutarea (mobil), butonul „Listă”, avertismente. Filtrele sunt în panou. */
 export function MapOverlay() {
-  const { types, toggleType, online, syncedAt, gpsNotice, setGpsNotice, panelOpen, setPanelOpen, visible, report, modal, sheetSnap } = useApp();
+  const { online, syncedAt, gpsNotice, setGpsNotice, panelOpen, setPanelOpen, visible, report, modal, sheetSnap } = useApp();
   const isMobile = useIsMobile();
   const pinMode = modal === 'report' && report.step === 2;
 
@@ -27,25 +26,6 @@ export function MapOverlay() {
             Listă · {visible.length}
           </button>
         )}
-        <div className="chips" role="group" aria-label="Filtrează după tip">
-          {TYPES.map((k) => {
-            const on = types[k];
-            return (
-              <button
-                key={k}
-                type="button"
-                className={`chip ${on ? 'is-on' : ''}`}
-                style={{ ['--cat' as string]: catVar('utilitati'), ['--cat-t' as string]: catTint('utilitati') }}
-                aria-pressed={on}
-                onClick={() => toggleType(k)}
-              >
-                <Icon name={SUBTYPES[k].icon} size={18} />
-                {SUBTYPES[k].label}
-                {on && <Icon name="check" size={14} strokeWidth={2.6} />}
-              </button>
-            );
-          })}
-        </div>
       </div>
       {/* Pe mobil, avizele stau în capul listei (vezi ListNotices). */}
       {!isMobile && !online && (

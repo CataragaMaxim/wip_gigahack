@@ -231,7 +231,8 @@ class Outage:
     end: datetime | None
     updated: datetime | None
     description: str
-    geo_queries: list[str] = field(default_factory=list)
+    # Variantele de căutare pentru fiecare adresă afectată (prima = adresa principală).
+    geo_targets: list[list[str]] = field(default_factory=list)
     # Din „Sistări planificate” (afișate și în calendarul aplicației).
     planned: bool = False
     subtype: str = 'apa'
@@ -311,11 +312,9 @@ def table_outage(district, ticket, street, number, fault, affected, off, on, tan
     if tank:
         desc.append(f'Cisterna: {tank}.')
     desc.append('Ora reconectării este estimativă.')
-    geo_queries = house_query(street, number)
+    # Suburbie (ex. „Cruzești (Ciocana)”): căutăm în localitate, nu pe o stradă omonimă din oraș.
     locality = re.sub(r'\s*\(.*$', '', fix_diacritics(district))
-    if ascii_fold(locality) not in SECTORS:
-        # Suburbie (ex. „Cruzești (Ciocana)”): căutăm în localitate, nu pe o stradă omonimă din oraș.
-        geo_queries = [f'{q}, {locality}' for q in geo_queries]
+    targets = address_targets([(street, number), *affected_addresses(affected, street)], locality)
     return Outage(
         id=f'acc-{ticket}',
         title=TITLE,
@@ -326,8 +325,28 @@ def table_outage(district, ticket, street, number, fault, affected, off, on, tan
         end=parse_dmy_hm(on),
         updated=updated,
         description=' '.join(desc),
-        geo_queries=geo_queries,
+        geo_targets=targets,
     )
+
+
+def affected_addresses(affected: str, main_street: str) -> list[tuple[str, str]]:
+    """
+    Coloana „Străzi afectate”: „Lupu, Cornului 24, Ghioceilor 1-3,Vovinteni”, „Grenoble 161/...,163/...”.
+    Păstrăm doar intrările cu număr (stradă + casă); numele de sectoare sau „Toti Cu Apa” ar lărgi zona fără sens.
+    """
+    out: list[tuple[str, str]] = []
+    prev = re.sub(r'^\S+\.?\s+', '', clean(main_street))
+    for tok in (t.strip(' .') for t in re.split(r'[;,]', affected)):
+        if not tok:
+            continue
+        if re.match(r'^\d', tok):
+            out.append((prev, tok))
+            continue
+        m = re.match(r'^(.*?\D)\s+(\d.*)$', tok)
+        if m:
+            prev = m.group(1).strip()
+            out.append((prev, m.group(2)))
+    return out
 
 
 DATE_WORDS = re.compile(r'(\d{1,2})\s+(' + '|'.join(MONTHS) + r')\b(?:\s*,?\s*(\d{4}))?')
@@ -388,9 +407,8 @@ def parse_planned(sections: dict[str, str]) -> tuple[list[Outage], list[str]]:
             continue
         low = is_low_pressure(text)
         intro = ' '.join(l for l in rest if not ADDRESS_START.match(ascii_fold(l)) and 'Ne cerem scuze' not in l)
-        first = addresses[0]
-        m = re.match(r'^(.*?)\s+(\d.*)$', first)
-        street, number = (m.group(1), m.group(2)) if m else (first, '')
+        split = [re.match(r'^(.*?)\s+(\d.*)$', a) for a in addresses]
+        pairs = [(m.group(1), m.group(2)) if m else (a, '') for a, m in zip(addresses, split)]
         out.append(Outage(
             id=f'acc-plan-{stable_id(lines[0], *addresses)}',
             title=TITLE,
@@ -401,7 +419,7 @@ def parse_planned(sections: dict[str, str]) -> tuple[list[Outage], list[str]]:
             end=end,
             updated=posted,
             description=('Sistare planificată. ' + ('Apă cu presiune joasă. ' if low else '') + intro)[:500],
-            geo_queries=house_query(street, number),
+            geo_targets=address_targets(pairs),
             planned=True,
         ))
     return out, warnings
@@ -428,7 +446,7 @@ def _get_json(service: str, url: str) -> object | None:
         _last_request[service] = time.monotonic()
 
 
-def _nominatim(q: str) -> tuple[dict, str] | None:
+def _nominatim(q: str) -> dict | None:
     params = urllib.parse.urlencode({
         'q': f'{q}, Chișinău', 'format': 'jsonv2', 'addressdetails': '1', 'limit': '1',
         'countrycodes': 'md', 'viewbox': CHISINAU_VIEWBOX, 'bounded': '1', 'accept-language': 'ro',
@@ -438,11 +456,15 @@ def _nominatim(q: str) -> tuple[dict, str] | None:
         return None
     it = items[0]  # type: ignore[index]
     a = it.get('address', {})
-    district = re.sub(r'^Sectorul\s+', '', a.get('city_district') or a.get('suburb') or '')
-    return {'lat': float(it['lat']), 'lng': float(it['lon'])}, district
+    bb = it.get('boundingbox')  # [lat_min, lat_max, lng_min, lng_max]
+    return {
+        'lat': float(it['lat']), 'lng': float(it['lon']),
+        'district': re.sub(r'^Sectorul\s+', '', a.get('city_district') or a.get('suburb') or ''),
+        'bbox': [float(bb[0]), float(bb[2]), float(bb[1]), float(bb[3])] if bb else None,
+    }
 
 
-def _photon(q: str) -> tuple[dict, str] | None:
+def _photon(q: str) -> dict | None:
     """Rezervă (tot OpenStreetMap, altă infrastructură), dacă Nominatim refuză IP-urile runner-ului."""
     params = urllib.parse.urlencode({'q': f'{q}, Chișinău', 'bbox': CHISINAU_BBOX, 'limit': '1'})
     data = _get_json('photon', f'{PHOTON}?{params}')
@@ -451,18 +473,126 @@ def _photon(q: str) -> tuple[dict, str] | None:
         return None
     lng, lat = feats[0]['geometry']['coordinates']
     p = feats[0].get('properties', {})
-    district = re.sub(r'^Sectorul\s+', '', p.get('district') or p.get('locality') or '')
-    return {'lat': float(lat), 'lng': float(lng)}, district
+    # Photon caută „aproximativ”: acceptăm rezultatul doar dacă numele străzii din căutare apare în el.
+    words = [w for w in re.findall(r'[a-z]{4,}', ascii_fold(q.split(',')[0]))]
+    found_name = ascii_fold(' '.join(str(p.get(k) or '') for k in ('name', 'street')))
+    if words and not any(w in found_name for w in words):
+        return None
+    ext = p.get('extent')  # [lng_min, lat_max, lng_max, lat_min]
+    return {
+        'lat': float(lat), 'lng': float(lng),
+        'district': re.sub(r'^Sectorul\s+', '', p.get('district') or p.get('locality') or ''),
+        'bbox': [float(ext[3]), float(ext[0]), float(ext[1]), float(ext[2])] if ext else None,
+    }
 
 
-def geocode(queries: list[str]) -> tuple[dict, str] | None:
-    """Prima variantă găsită în Chișinău → ({lat, lng}, sector). Nominatim, apoi Photon."""
+def has_house_number(q: str) -> bool:
+    """„Ion Neculce 10” → da, „Ion Neculce” / „Ion Neculce, Codru” → nu."""
+    return bool(re.search(r'\s\d+\S*$', q.split(',')[0].strip()))
+
+
+def geocode(queries: list[str]) -> dict | None:
+    """
+    Prima variantă găsită în Chișinău → {lat, lng, district, bbox}. Nominatim, apoi Photon.
+    `bbox` [lat_min, lng_min, lat_max, lng_max] se păstrează doar când s-a găsit strada întreagă (fără număr):
+    atunci toată strada e afectată și intră în zona evenimentului.
+    """
     for lookup in (_nominatim, _photon):
         for q in queries:
             found = lookup(q)
             if found:
+                if has_house_number(q):
+                    found['bbox'] = None
                 return found
     return None
+
+
+class GeoCache:
+    """
+    Rezultatele geocodării, păstrate între rulări într-un fișier JSON (în GitHub Actions: actions/cache),
+    ca fiecare adresă să fie căutată o singură dată. Adresele negăsite se reîncearcă după MISS_RETRY.
+    `budget` limitează căutările noi pe rulare; restul se fac la rulările următoare.
+    """
+
+    MISS_RETRY = timedelta(days=7)
+    PENDING = {'pending': True}
+
+    def __init__(self, path: str, budget: int) -> None:
+        self.path = path
+        self.budget = budget
+        self.looked_up = 0
+        self.pending = 0
+        try:
+            with open(path, encoding='utf-8') as f:
+                self.data: dict[str, dict] = json.load(f)
+        except (OSError, ValueError):
+            self.data = {}
+
+    def get(self, queries: list[str]) -> dict | None:
+        key = ascii_fold(queries[0])
+        hit = self.data.get(key)
+        if hit and (not hit.get('miss') or datetime.now(timezone.utc) - datetime.fromisoformat(hit['at']) < self.MISS_RETRY):
+            return None if hit.get('miss') else hit
+        if self.looked_up >= self.budget:
+            self.pending += 1
+            return self.PENDING
+        self.looked_up += 1
+        found = geocode(queries)
+        now = datetime.now(timezone.utc).isoformat()
+        self.data[key] = {**found, 'at': now} if found else {'miss': True, 'at': now}
+        return found
+
+    def save(self) -> None:
+        os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
+        with open(self.path, 'w', encoding='utf-8') as f:
+            json.dump(self.data, f, ensure_ascii=False)
+
+
+def _meters(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Distanța haversine (m) între (lat, lng)."""
+    import math
+    la1, lo1, la2, lo2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6371000 * math.asin(math.sqrt(h))
+
+
+# Zona afectată: cercul care cuprinde toate adresele găsite, cu o margine pentru clădirile din jurul punctului.
+AREA_PAD_M = 100
+AREA_MIN_M = 150
+AREA_MAX_M = 4000
+# O adresă la peste atât de mediana celorlalte e, cel mai probabil, o stradă omonimă găsită greșit.
+OUTLIER_M = 3000
+
+
+def covering_circle(found: list[dict]) -> tuple[dict, int]:
+    """Centrul și raza (m) cercului care acoperă toate adresele (și străzile întregi, prin colțurile bbox)."""
+    import statistics
+    mlat = statistics.median(f['lat'] for f in found)
+    mlng = statistics.median(f['lng'] for f in found)
+    kept = [f for f in found if _meters((f['lat'], f['lng']), (mlat, mlng)) <= OUTLIER_M] or found[:1]
+    pts: list[tuple[float, float]] = []
+    for f in kept:
+        pts.append((f['lat'], f['lng']))
+        if f.get('bbox'):
+            la0, lo0, la1, lo1 = f['bbox']
+            pts += [(la0, lo0), (la1, lo1), (la0, lo1), (la1, lo0)]
+    c = ((min(p[0] for p in pts) + max(p[0] for p in pts)) / 2, (min(p[1] for p in pts) + max(p[1] for p in pts)) / 2)
+    r = max(_meters(c, p) for p in pts) + AREA_PAD_M
+    return {'lat': round(c[0], 7), 'lng': round(c[1], 7)}, int(min(AREA_MAX_M, max(AREA_MIN_M, r)))
+
+
+def address_targets(addresses: list[tuple[str, str]], locality: str = '') -> list[list[str]]:
+    """[(stradă, număr), …] → variantele de căutare pentru fiecare adresă (în localitate, dacă e o suburbie)."""
+    out = []
+    for street, number in addresses:
+        if re.search(r'/|\btraseu\b', ascii_fold(street)):
+            continue  # cod de conductă (ex. „San/Traseu Tr1”), nu o adresă
+        qs = house_query(street, number)
+        if locality and ascii_fold(locality) not in SECTORS:
+            qs = [f'{q}, {locality}' for q in qs]
+        if qs:
+            out.append(qs)
+    return out
 
 
 # ---------- Firestore ----------
@@ -525,10 +655,10 @@ def sync_firestore(events: list[dict], source: str = SOURCE, keep_prefixes: tupl
         live_ids.add(e['id'])
         ref = col.document(e['id'])
         doc = {
-            **{k: v for k, v in e.items() if k not in ('id', 'location', 'geoKey')},
+            **{k: v for k, v in e.items() if k not in ('id', 'location')},
             'startAt': ts(e['startAt']), 'endAt': ts(e['endAt']), 'updatedAt': ts(e['updatedAt']),
             'location': GeoPoint(e['location']['lat'], e['location']['lng']),
-            'geohash': e['geohash'], 'geoKey': e['geoKey'],
+            'geohash': e['geohash'],
             'resolvedAt': None, 'path': None,
         }
         if doc.pop('_exists'):
@@ -564,7 +694,7 @@ def sync_firestore(events: list[dict], source: str = SOURCE, keep_prefixes: tupl
 
 
 def existing_locations(ids: list[str]) -> dict[str, dict]:
-    """Locația și cheia de geocodare din documentele existente, ca să nu geocodăm din nou."""
+    """Zona (centru, rază) și sectorul din documentele existente — rezervă când geocodarea nu are rezultate."""
     db = firestore_client()
     refs = [db.collection('events').document(i) for i in ids]
     out = {}
@@ -573,7 +703,7 @@ def existing_locations(ids: list[str]) -> dict[str, dict]:
             d = snap.to_dict()
             loc = d.get('location')
             out[snap.id] = {
-                'geoKey': d.get('geoKey'),
+                'radiusM': d.get('radiusM'),
                 'location': {'lat': loc.latitude, 'lng': loc.longitude} if loc else None,
                 'district': d.get('district') or '',
             }
@@ -621,34 +751,56 @@ def main() -> int:
     return publish(outages, args, SOURCE)
 
 
-def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_prefixes: tuple[str, ...] = ()) -> int:
-    """Geocodare (cu locațiile existente refolosite) → JSON opțional → Firestore."""
+def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_prefixes: tuple[str, ...] = (),
+            geo_budget: int = 300) -> int:
+    """Geocodarea tuturor adreselor (cu cache) → zona afectată (cerc) → JSON opțional → Firestore."""
     known = {} if args.dry_run else existing_locations([o.id for o in outages])
+    cache = GeoCache(os.environ.get('GEOCACHE_PATH', '.geocache/geocache.json'), geo_budget)
+    # Întâi adresa principală a fiecărui anunț (ca toate să apară pe hartă din prima rulare), apoi celelalte.
+    found_by: dict[str, list[dict]] = {o.id: [] for o in outages}
+    deferred: set[str] = set()
+    if not args.no_geocode:
+        for targets_of in (lambda o: o.geo_targets[:1], lambda o: o.geo_targets[1:]):
+            for o in outages:
+                for t in targets_of(o):
+                    r = cache.get(t)
+                    if r is GeoCache.PENDING:
+                        deferred.add(o.id)
+                    elif r:
+                        found_by[o.id].append(r)
+
     events: list[dict] = []
     for o in outages:
         e = o.to_event()
-        geo_key = '|'.join(o.geo_queries)
         prev = known.get(o.id)
-        if prev and prev['geoKey'] == geo_key and prev['location']:
-            loc, district = prev['location'], prev['district']
+        found = found_by[o.id]
+        if found:
+            loc, radius = covering_circle(found)
+            district = next((f['district'] for f in found if f.get('district')), '')
+        elif prev and prev['location']:
+            # Cache-ul s-a pierdut sau bugetul s-a terminat: păstrăm zona calculată anterior.
+            loc, radius, district = prev['location'], prev['radiusM'], prev['district']
         elif args.no_geocode:
-            loc, district = None, ''
+            loc, radius, district = None, None, ''
+        elif o.id in deferred:
+            print(f'Amânat (bugetul de geocodare s-a terminat): {o.id}')
+            continue
         else:
-            found = geocode(o.geo_queries)
-            loc, district = found if found else (None, '')
-        if not loc and not args.no_geocode:
             print(f'::warning::Adresă negăsită, anunț omis: {o.id} {o.streets[0]}')
             continue
         e['district'] = e['district'] or district
         e['location'] = loc
-        e['geoKey'] = geo_key
+        e['radiusM'] = radius
         e['_exists'] = o.id in known
         if loc:
             e['geohash'] = encode_geohash(loc['lat'], loc['lng'])
         events.append(e)
+    if not args.no_geocode:
+        cache.save()
 
     skipped = len(outages) - len(events)
-    summary(f'**{source}**: {len(outages)} anunțuri citite, {len(events)} localizate, {skipped} omise (adresă negăsită).')
+    summary(f'**{source}**: {len(outages)} anunțuri citite, {len(events)} localizate, {skipped} omise (adresă negăsită). '
+            f'Geocodare: {cache.looked_up} căutări noi, {cache.pending} amânate pentru rularea următoare.')
     if outages and not events:
         # Nimic localizat = geocodarea nu merge (ex. serviciu blocat), nu „nicio deconectare”: nu scriem nimic.
         print('Nicio adresă nu a putut fi localizată (Nominatim și Photon). Opresc sincronizarea.', file=sys.stderr)

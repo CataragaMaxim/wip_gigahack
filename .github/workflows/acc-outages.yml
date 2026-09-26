@@ -36,9 +36,16 @@ jobs:
           cache: pip
           cache-dependency-path: scripts/acc_outages/requirements.txt
       - run: pip install -r scripts/acc_outages/requirements.txt
+      # Geocodarea fiecărei adrese se păstrează între rulări: doar adresele noi se caută.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .geocache
+          key: geocache-acc-${{ github.run_id }}
+          restore-keys: geocache-acc-
       - name: Sincronizare
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEOCACHE_PATH: .geocache/geocache.json
         run: |
           python scripts/acc_outages/sync_acc.py --out acc-events.json ${{ inputs.dry_run && '--dry-run' || '' }}
       - uses: actions/upload-artifact@v4
@@ -48,12 +55,17 @@ jobs:
           path: acc-events.json
           retention-days: 3
           if-no-files-found: ignore
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .geocache
+          key: geocache-acc-${{ github.run_id }}
 
   premier:
     name: Energie electrică (Premier Energy Distribution)
     runs-on: ubuntu-latest
-    # Site-ul răspunde în 20–60 s pe pagină; prima rulare geocodează și toate adresele.
-    timeout-minutes: 25
+    # Site-ul răspunde în 20–60 s pe pagină; prima rulare geocodează ~600 de adrese (max. 700/rulare, restul la următoarele).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,9 +74,16 @@ jobs:
           cache: pip
           cache-dependency-path: scripts/acc_outages/requirements.txt
       - run: pip install -r scripts/acc_outages/requirements.txt
+      # Geocodarea fiecărei adrese se păstrează între rulări: doar adresele noi se caută.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .geocache
+          key: geocache-premier-${{ github.run_id }}
+          restore-keys: geocache-premier-
       - name: Sincronizare
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEOCACHE_PATH: .geocache/geocache.json
         run: |
           python scripts/acc_outages/sync_premier.py --out premier-events.json ${{ inputs.dry_run && '--dry-run' || '' }}
       - uses: actions/upload-artifact@v4
@@ -74,3 +93,8 @@ jobs:
           path: premier-events.json
           retention-days: 3
           if-no-files-found: ignore
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .geocache
+          key: geocache-premier-${{ github.run_id }}
