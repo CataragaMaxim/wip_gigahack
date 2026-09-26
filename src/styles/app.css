@@ -899,3 +899,4 @@ textarea::placeholder {
   font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
 }
 .focus-banner { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 4px 4px 4px 12px; border-radius: var(--radius-m); background: var(--sunk); border: 1px solid var(--border); font-size: 13px; font-weight: 600; }
+.later-note { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 4px 4px 4px 12px; border-radius: var(--radius-m); color: var(--text-2); font-size: 12px; font-weight: 500; border: 1px dashed var(--border-strong); }

@@ -4,7 +4,7 @@ import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from
 import { ALL_TYPES_ON, SUBTYPE_TITLE_RO, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
 import { distanceToEvent } from '@/lib/geo';
-import { deriveStatus, isClosed, isPublic } from '@/lib/status';
+import { deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
 import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
@@ -363,9 +363,21 @@ function useAppStore() {
       });
   }, [raw, userReports, deletedIds, votes, userPos, anchors, user, locations]);
 
+  // Ceasul pentru fereastra hărții: un eveniment programat apare singur pe hartă când intră în următoarele 24 h.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const cityActiveCount = useMemo(
-    () => events.filter((e) => e.status === 'oficial' || e.status === 'confirmat').length,
-    [events],
+    () => events.filter((e) => (e.status === 'oficial' || e.status === 'confirmat') && isOnMapNow(e, now)).length,
+    [events, now],
+  );
+  /** Evenimentele programate mai târziu de 24 h (sunt doar în calendar). */
+  const laterCount = useMemo(
+    () => new Set(events.filter((e) => isPublic(e) && !isOnMapNow(e, now)).map((e) => e.parentId ?? e.id)).size,
+    [events, now],
   );
 
   const byId = useMemo(() => Object.fromEntries(events.map((e) => [e.id, e])), [events]);
@@ -377,6 +389,8 @@ function useAppStore() {
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
         if (!isPublic(e)) return false;
+        // Doar evenimentele în curs și cele din următoarele 24 h; restul apar la timpul lor (și în calendar).
+        if (!isOnMapNow(e, now)) return false;
         if (focusIds && !focusIds.includes(e.id)) return false;
         // Raza se aplică în jurul locației curente și al fiecărei adrese salvate (Acasă + celelalte).
         if (radius !== 'all' && e.nearM != null && e.nearM > radius) return false;
@@ -393,7 +407,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search, focusIds]);
+  }, [events, types, fadingTypes, user, radius, search, focusIds, now]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -826,7 +840,7 @@ function useAppStore() {
     // filtre & căutare
     types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds,
     // panou
-    mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount,
+    mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount, laterCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,
     // dialoguri
     modal, setModal, authMode, setAuthMode, authAfter, openAuth,

@@ -173,6 +173,8 @@ export const RU: Record<string, string> = {
   'apasă pentru a mări': 'нажмите, чтобы приблизить',
   '{n} în același loc': '{n} в одном месте',
   'Arată toate': 'Показать все',
+  'Pe hartă: acum și următoarele 24 h. Încă {n} mai târziu.': 'На карте: сейчас и ближайшие 24 ч. Ещё {n} позже.',
+  'Calendar': 'Календарь',
   'Micșorează harta': 'Уменьшить карту',
   'Locația mea': 'Моё местоположение',
   'Locația ta': 'Ваше местоположение',

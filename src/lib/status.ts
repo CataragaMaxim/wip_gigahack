@@ -25,6 +25,10 @@ export const isClosed = (s: Status) => s === 'rezolvat' || s === 'expirat';
  * Pe harta publică: anunțurile oficiale active și raportările active (confirmate sau încă neconfirmate —
  * acestea trebuie văzute de vecini ca să poată fi confirmate). Cele contestate sau expirate nu apar.
  */
+/** Pe hartă acum: evenimentele în curs și cele care încep în următoarele CONFIG.MAP_AHEAD_H ore. */
+export const isOnMapNow = (e: Pick<UrbanEvent, 'startAt'>, now = Date.now()) =>
+  !e.startAt || new Date(e.startAt).getTime() <= now + CONFIG.MAP_AHEAD_H * 36e5;
+
 export function isPublic(e: DerivedEvent): boolean {
   return e.status === 'oficial' || e.status === 'confirmat' || e.status === 'raportat';
 }

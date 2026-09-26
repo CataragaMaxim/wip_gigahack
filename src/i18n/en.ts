@@ -172,6 +172,8 @@ export const EN: Record<string, string> = {
   'apasă pentru a mări': 'tap to zoom in',
   '{n} în același loc': '{n} at the same place',
   'Arată toate': 'Show all',
+  'Pe hartă: acum și următoarele 24 h. Încă {n} mai târziu.': 'On the map: now and the next 24 h. {n} later.',
+  'Calendar': 'Calendar',
   'Micșorează harta': 'Zoom out',
   'Locația mea': 'My location',
   'Locația ta': 'Your location',

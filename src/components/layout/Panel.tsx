@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import { EventList, EventListHeader, FocusBanner, ListNotices, TypeFilter, useSheetSummary } from '@/components/events/EventList';
+import { EventList, EventListHeader, FocusBanner, LaterNote, ListNotices, TypeFilter, useSheetSummary } from '@/components/events/EventList';
 import { EventActions, EventDetail } from '@/components/events/EventDetail';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { OutageCalendar } from '@/components/calendar/OutageCalendar';
@@ -41,6 +41,7 @@ function DesktopPanel() {
           <div className="panel__filters">
             <TypeFilter />
             <FocusBanner />
+            <LaterNote />
           </div>
           <div className="panel__body">
             <EventList />
@@ -191,6 +192,7 @@ function MobileSheet() {
       <div className="panel__filters panel__filters--sheet">
         <TypeFilter />
         <FocusBanner />
+        <LaterNote />
       </div>
       <ListNotices onSearch={focusSearch} />
       <EventList />

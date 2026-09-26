@@ -133,6 +133,21 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
   );
 }
 
+/** „3 deconectări programate mai târziu · Calendar” — ce nu e încă pe hartă. */
+export function LaterNote() {
+  const { laterCount, openCalendar, focusIds } = useApp();
+  if (!laterCount || focusIds) return null;
+  return (
+    <div className="later-note">
+      <Icon name="calendar" size={16} />
+      <span className="grow">{t('Pe hartă: acum și următoarele 24 h. Încă {n} mai târziu.', { n: plural(laterCount, 'eveniment programat', 'evenimente programate') })}</span>
+      <button type="button" className="btn btn--ghost btn--sm" onClick={openCalendar}>
+        {t('Calendar')}
+      </button>
+    </div>
+  );
+}
+
 /** „13 evenimente în același loc · Arată toate” — lista filtrată de un grup de pe hartă. */
 export function FocusBanner() {
   const { focusIds, setFocusIds } = useApp();
