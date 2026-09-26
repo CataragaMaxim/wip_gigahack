@@ -199,7 +199,7 @@ function segmentAlong(p: XY, lines: Line[], name: string, to: (l: LatLng) => XY,
   const walk = (from: XY, next: XY, remaining: number): XY[] => {
     const out: XY[] = [];
     const seen = new Set<string>([key(from)]);
-    let cur = from;
+    let cur: XY = from;
     let nxt: XY | null = next;
     while (nxt && remaining > 0) {
       const d = len(sub(nxt, cur));
@@ -211,12 +211,13 @@ function segmentAlong(p: XY, lines: Line[], name: string, to: (l: LatLng) => XY,
       remaining -= d;
       seen.add(key(nxt));
       const dir = sub(nxt, cur);
-      const prev = nxt;
+      const prev: XY = nxt;
       let cand: XY | null = null;
       let bestTurn = MAX_TURN_RAD;
-      for (const k of adj.get(key(prev)) ?? []) {
+      const neighbours: Set<string> = adj.get(key(prev)) ?? new Set<string>();
+      for (const k of neighbours) {
         if (seen.has(k)) continue;
-        const n = nodes.get(k)!;
+        const n: XY = nodes.get(k)!;
         const turn = angleBetween(dir, sub(n, prev));
         if (turn <= bestTurn) {
           bestTurn = turn;
