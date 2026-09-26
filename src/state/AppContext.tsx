@@ -350,7 +350,7 @@ function useAppStore() {
       return;
     }
     setGpsNotice(false);
-    flyTo(p, 15);
+    flyTo(p, CONFIG.LOCATE_ZOOM);
   }, [userPos, requestLocation, flyTo]);
 
   const openLocationPicker = useCallback(() => setModal('location'), []);

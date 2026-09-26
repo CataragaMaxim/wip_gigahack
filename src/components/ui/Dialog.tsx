@@ -16,16 +16,21 @@ interface Props {
 /** Dialog modal: centrat pe desktop, ecran complet pe mobil. Escape închide, focusul intră în dialog. */
 export function Dialog({ title, subtitle, onClose, onBack, width = 580, header, footer, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  // onClose vine adesea ca funcție inline (nouă la fiecare randare); o ținem într-un ref,
+  // ca focusul să fie mutat în dialog o singură dată, la deschidere — altfel câmpurile pierd focusul după fiecare literă.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    ref.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose?.();
+    // Nu furăm focusul de la un câmp cu autoFocus din dialog.
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current?.();
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="dialog">

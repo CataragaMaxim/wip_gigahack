@@ -47,7 +47,7 @@ export function LocationDialog() {
 
   const choose = (r: GeoResult) => {
     const label = r.detail ? `${r.label}, ${r.detail}` : r.label;
-    // La prima alegere, harta încadrează raza inițială de 5 km (MapView); la schimbare, zburăm la adresă.
+    // La prima alegere, MapView deschide harta pe adresă; la schimbare, zburăm la ea.
     setManualLocation({ label, location: r.location }, { fly: !required });
   };
 

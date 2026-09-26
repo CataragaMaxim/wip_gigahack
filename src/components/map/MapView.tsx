@@ -24,16 +24,17 @@ export function MapView() {
   const pinMode = modal === 'report' && report.step === 2;
   const dataReady = loadState === 'ready';
 
-  // Prima dată când aflăm locația (GPS sau adresă), încadrăm o rază de 5 km în jurul utilizatorului,
-  // în zona vizibilă a hărții (ține cont de panou / bottom sheet).
+  // Prima dată când aflăm locația (GPS sau adresă), harta se deschide pe utilizator cu același zoom ca „Locația mea”,
+  // centrată în zona vizibilă (ține cont de panou / bottom sheet).
   const framed = useRef(false);
   useEffect(() => {
     const m = app.mapRef.current;
     if (!m || !userPos || framed.current) return;
     framed.current = true;
-    const bounds = L.latLng(userPos.lat, userPos.lng).toBounds(CONFIG.INITIAL_VIEW_RADIUS_M * 2);
+    const z = CONFIG.LOCATE_ZOOM;
     const { left, top, bottom } = app.mapInsets.current;
-    m.fitBounds(bounds, { paddingTopLeft: [left, top], paddingBottomRight: [0, bottom], animate: false });
+    const pt = m.project([userPos.lat, userPos.lng], z).subtract([left / 2, (top - bottom) / 2]);
+    m.setView(m.unproject(pt, z), z, { animate: false });
   }, [userPos, dataReady, app.mapRef, app.mapInsets]);
 
   const isShown = (e: DerivedEvent) =>

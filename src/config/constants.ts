@@ -18,8 +18,8 @@ export const CONFIG = {
   DESCRIPTION_MAX: 280,
   /** O adresă salvată e „afectată” dacă e la cel mult atâția metri de eveniment. */
   IMPACT_RADIUS_M: 250,
-  /** La deschidere, harta arată o rază de atâția metri în jurul utilizatorului. */
-  INITIAL_VIEW_RADIUS_M: 5000,
+  /** Zoomul hărții pe locația utilizatorului (la deschidere și la „Locația mea”). */
+  LOCATE_ZOOM: 15,
   /** Opțiunile de rază din Setări (metri; 'all' = tot orașul). */
   RADIUS_OPTIONS: ['all', 1000, 2000, 5000] as const,
   /** Durata animației de estompare la filtrare (ms). */
