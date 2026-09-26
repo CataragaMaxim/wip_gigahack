@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const app = initializeApp({
@@ -14,5 +14,11 @@ const app = initializeApp({
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+// Doar pentru dezvoltare: VITE_FIRESTORE_EMULATOR=127.0.0.1:8085 folosește emulatorul local în loc de baza reală.
+const emulator = import.meta.env.VITE_FIRESTORE_EMULATOR as string | undefined;
+if (import.meta.env.DEV && emulator) {
+  const [host, port] = emulator.split(':');
+  connectFirestoreEmulator(db, host, Number(port));
+}
 export const storage = getStorage(app);
 export default app;

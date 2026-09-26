@@ -181,20 +181,23 @@ function useAppStore() {
   useEffect(() => save('wip.deleted', deletedIds), [deletedIds]);
   useEffect(() => save('wip.votes', votes), [votes]);
 
+  // Evenimentele în timp real: o raportare nouă a unui vecin (și întrebarea „Ai și tu problema asta?”)
+  // apare imediat, fără reîncărcarea paginii. `fetchEvents` (butonul „Reîncearcă”) repornește ascultarea.
+  const [subscription, setSubscription] = useState(0);
   const fetchEvents = useCallback(async () => {
     setLoadState('loading');
-    try {
-      const list = await eventsService.list();
-      setRaw(list);
-      setSyncedAt(new Date());
-      setLoadState('ready');
-    } catch {
-      setLoadState('error');
-    }
+    setSubscription((n) => n + 1);
   }, []);
   useEffect(() => {
-    void fetchEvents();
-  }, [fetchEvents]);
+    return eventsService.subscribe(
+      (list) => {
+        setRaw(list);
+        setSyncedAt(new Date());
+        setLoadState('ready');
+      },
+      () => setLoadState('error'),
+    );
+  }, [subscription]);
 
   // ---------- conexiune ----------
   const [online, setOnline] = useState(() => navigator.onLine);

@@ -1,7 +1,7 @@
 import {
   collection, doc, getDocs, addDoc, deleteDoc,
   setDoc, getDoc, updateDoc, increment,
-  query, orderBy, limit, serverTimestamp,
+  query, orderBy, limit, serverTimestamp, onSnapshot,
 } from 'firebase/firestore';
 import { geohashForLocation } from 'geofire-common';
 import { db, auth } from './firebase';
@@ -25,6 +25,12 @@ export const firebaseEventsService: EventsService = {
     const q = query(collection(db, EVENTS), orderBy('createdAt', 'desc'), limit(500));
     const snap = await getDocs(q);
     return snap.docs.map((d) => fromFirestore(d.id, d.data()));
+  },
+
+  subscribe(onData, onError) {
+    // Ascultare live (onSnapshot): o singură citire completă la pornire, apoi doar documentele schimbate.
+    const q = query(collection(db, EVENTS), orderBy('createdAt', 'desc'), limit(500));
+    return onSnapshot(q, (snap) => onData(snap.docs.map((d) => fromFirestore(d.id, d.data()))), onError);
   },
 
   async create(event) {
