@@ -218,13 +218,11 @@ export function SettingsPanel() {
 
           {history.length > 0 && (
             <section className="stack gap-8">
-              <h3 className="h3">{t('Istoricul meu')}</h3>
+              <h3 className="h3">Istoricul meu</h3>
               {history.map((h) => (
-                <button
+                <div
                   key={`${h.eventId}-${h.kind}`}
-                  type="button"
                   className="report-row"
-                  onClick={() => openEvent(h.eventId)}
                 >
                   <span
                     className="tile tile--sm"
@@ -235,10 +233,10 @@ export function SettingsPanel() {
                   <span className="stack grow min0">
                     <strong className="small">{h.title}</strong>
                     <span className="muted xsmall">
-                      {t(HISTORY_LABEL[h.kind])} · {h.at ? fmtAt(h.at.toDate()) : ''}
+                      {HISTORY_LABEL[h.kind]} · {h.at ? fmtAt(h.at.toDate()) : ''}
                     </span>
                   </span>
-                </button>
+                </div>
               ))}
             </section>
           )}
