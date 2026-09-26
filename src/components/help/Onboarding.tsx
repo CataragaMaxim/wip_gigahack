@@ -134,7 +134,7 @@ function HowToHelp() {
     { icon: 'check', title: 'Confirmă ce vezi', text: 'Când ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.', vars: { m: CONFIG.PROMPT_RADIUS_M } },
     { icon: 'calendar', title: 'Calendarul', text: 'Butonul calendar din bara de sus arată deconectările planificate, pe zile.' },
     { icon: 'home', title: 'Adresele tale', text: 'În Setări salvezi adresa de acasă și încă 5 adrese; alertele care le ating apar primele.' },
-    { icon: 'settings', title: 'Limba și tema', text: 'Română sau rusă, temă luminoasă sau întunecată, din bara de sus sau din Setări.' },
+    { icon: 'settings', title: 'Limba și tema', text: 'Română, rusă sau engleză, temă luminoasă sau întunecată, din bara de sus sau din Setări.' },
   ];
   return (
     <ul className="onb__list">

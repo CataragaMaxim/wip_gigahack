@@ -122,7 +122,7 @@ export function SettingsPanel() {
 
       <section className="stack gap-8">
         <h3 className="h3">{t('Limbă')}</h3>
-        <div className="seg seg--2" role="group" aria-label={t('Limbă')}>
+        <div className="seg seg--3" role="group" aria-label={t('Limbă')}>
           {LANGS.map((l) => (
             <button key={l.key} type="button" lang={l.key} className="seg__btn" aria-pressed={lang === l.key} onClick={() => setLang(l.key)}>
               {l.name}

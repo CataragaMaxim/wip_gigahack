@@ -133,6 +133,21 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
   );
 }
 
+/** „13 evenimente în același loc · Arată toate” — lista filtrată de un grup de pe hartă. */
+export function FocusBanner() {
+  const { focusIds, setFocusIds } = useApp();
+  if (!focusIds) return null;
+  return (
+    <div className="focus-banner" role="status">
+      <Icon name="pin" size={16} />
+      <span className="grow">{t('{n} în același loc', { n: plural(focusIds.length, 'eveniment', 'evenimente') })}</span>
+      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFocusIds(null)}>
+        {t('Arată toate')}
+      </button>
+    </div>
+  );
+}
+
 export function EventList() {
   const { visible, loadState, fetchEvents, fadingTypes, openEvent, openReport, resetFilters, events } = useApp();
 

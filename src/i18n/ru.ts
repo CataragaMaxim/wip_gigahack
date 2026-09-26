@@ -170,6 +170,9 @@ export const RU: Record<string, string> = {
   'Căutăm locația ta…': 'Определяем ваше местоположение…',
   'Se încarcă harta Chișinăului…': 'Загрузка карты Кишинёва…',
   'Mărește harta': 'Увеличить карту',
+  'apasă pentru a mări': 'нажмите, чтобы приблизить',
+  '{n} în același loc': '{n} в одном месте',
+  'Arată toate': 'Показать все',
   'Micșorează harta': 'Уменьшить карту',
   'Locația mea': 'Моё местоположение',
   'Locația ta': 'Ваше местоположение',
@@ -455,7 +458,7 @@ export const RU: Record<string, string> = {
   'Adresele tale': 'Ваши адреса',
   'În Setări salvezi adresa de acasă și încă 5 adrese; alertele care le ating apar primele.': 'В Настройках можно сохранить домашний адрес и ещё 5 адресов; оповещения, которые их касаются, показываются первыми.',
   'Limba și tema': 'Язык и тема',
-  'Română sau rusă, temă luminoasă sau întunecată, din bara de sus sau din Setări.': 'Румынский или русский, светлая или тёмная тема — в верхней панели или в Настройках.',
+  'Română, rusă sau engleză, temă luminoasă sau întunecată, din bara de sus sau din Setări.': 'Румынский, русский или английский, светлая или тёмная тема — в верхней панели или в Настройках.',
 
   // ---------- notificări (toast) ----------
   'Mulțumim! Răspunsul tău a fost înregistrat.': 'Спасибо! Ваш ответ учтён.',

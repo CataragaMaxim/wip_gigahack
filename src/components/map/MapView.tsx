@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Circle, MapContainer, Marker, TileLayer } from 'react-leaflet';
+import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { RESOLVED_HEX, SUBTYPES, TYPE_HEX } from '@/config/categories';
 import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
@@ -8,7 +8,9 @@ import { eventTitle, isClosed, statusBadge } from '@/lib/status';
 import { areaRadius } from '@/lib/geo';
 import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
-import { eventIcon, meIcon, placeIcon } from './markerIcons';
+import { clusterIcon, eventIcon, meIcon, placeIcon } from './markerIcons';
+import { CLUSTER_MAX_ZOOM, clusterMarkers, type MarkerCluster } from './clusters';
+import { plural } from '@/lib/format';
 import { getLang, t } from '@/i18n';
 
 /**
@@ -71,9 +73,6 @@ export function MapView() {
         {/* Raza se aplică în jurul locației curente și al fiecărei adrese salvate: câte un cerc pentru fiecare. */}
         {showRadius && typeof radius === 'number' && app.anchors.map((p, i) => <RadiusCircle key={`r-${i}`} center={p} radiusM={radius} />)}
 
-        {events.map((e) => (
-          <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e)} selected={selected?.id === e.id} />
-        ))}
 
         {user &&
           locations.map((l) => (
@@ -83,9 +82,19 @@ export function MapView() {
         {userPos && dataReady && gps !== 'manual' && <Marker position={[userPos.lat, userPos.lng]} icon={meIcon} interactive={false} keyboard={false} zIndexOffset={-400} />}
         {userPos && dataReady && gps === 'manual' && <ManualMarker />}
 
-        {events.map((e) => (
-          <EventMarker key={`marker-${e.id}`} e={e} show={isShown(e)} selected={selected?.id === e.id} onOpen={app.openEvent} />
-        ))}
+        <EventMarkers
+          events={events}
+          isShown={isShown}
+          selectedId={selected?.id}
+          onOpen={app.openEvent}
+          theme={theme}
+          onSameSpot={(ids) => {
+            app.setFocusIds(ids);
+            app.backToList();
+            app.setPanelOpen(true);
+            app.setSheetSnap('mid');
+          }}
+        />
       </MapContainer>
       {pinMode && (
         <div className="center-pin" aria-hidden="true">
@@ -161,6 +170,66 @@ function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'lig
         className: 'wip-line',
       }}
     />
+  );
+}
+
+/**
+ * Markerele evenimentelor. Când zoomul e depărtat, markerele care se suprapun devin un grup mai mare,
+ * cu numărul de evenimente în colțul din dreapta sus; clic pe grup = zoom până se separă.
+ */
+function EventMarkers({ events, isShown, selectedId, onOpen, theme, onSameSpot }: {
+  events: DerivedEvent[];
+  isShown: (e: DerivedEvent) => boolean;
+  selectedId?: string;
+  onOpen: (id: string) => void;
+  theme: 'light' | 'dark';
+  /** Grup în care toate evenimentele sunt în același loc: le arătăm în listă. */
+  onSameSpot: (ids: string[]) => void;
+}) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  const shownEvents = events.filter(isShown);
+  const shownKey = shownEvents.map((e) => e.id).join('|');
+  const clusters = useMemo(
+    () => clusterMarkers(map, shownEvents, zoom, selectedId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [map, shownKey, zoom, selectedId],
+  );
+  const inCluster = useMemo(() => new Set(clusters.flatMap((c) => c.members.map((e) => e.id))), [clusters]);
+
+  const openCluster = (c: MarkerCluster) => {
+    const bounds = L.latLngBounds(c.members.map((e) => [e.location.lat, e.location.lng] as [number, number]));
+    // Toate practic în același punct (≤ 10 m): zoomul nu le separă, deci le arătăm în listă.
+    if (bounds.getNorthEast().distanceTo(bounds.getSouthWest()) <= 10) {
+      onSameSpot(c.members.map((e) => e.id));
+      map.flyTo(bounds.getCenter(), Math.max(map.getZoom(), CLUSTER_MAX_ZOOM), { duration: 0.5 });
+      return;
+    }
+    // Altfel încadrăm grupul (cu margine), ca markerele să se separe.
+    map.flyToBounds(bounds.pad(0.5), { duration: 0.5, maxZoom: MAP.MAX_ZOOM });
+  };
+
+  return (
+    <>
+      {/* Zonele (cercurile) evenimentelor dintr-un grup se ascund: se vede doar grupul comun. */}
+      {events.map((e) => (
+        <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e) && !inCluster.has(e.id)} selected={selectedId === e.id} />
+      ))}
+      {events.map((e) => (
+        <EventMarker key={`marker-${e.id}`} e={e} show={isShown(e) && !inCluster.has(e.id)} selected={selectedId === e.id} onOpen={onOpen} />
+      ))}
+      {clusters.map((c) => (
+        <Marker
+          key={`cluster-${c.id}-${c.members.length}`}
+          position={[c.lat, c.lng]}
+          icon={clusterIcon(c)}
+          title={`${plural(c.members.length, 'eveniment', 'evenimente')} · ${t('apasă pentru a mări')}`}
+          zIndexOffset={300}
+          eventHandlers={{ click: () => openCluster(c) }}
+        />
+      ))}
+    </>
   );
 }
 

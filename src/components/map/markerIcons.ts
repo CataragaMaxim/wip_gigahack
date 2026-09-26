@@ -1,8 +1,9 @@
 import L from 'leaflet';
-import { SUBTYPES } from '@/config/categories';
+import { SUBTYPES, TYPES } from '@/config/categories';
 import { iconSvg } from '@/lib/icons';
 import { tileStyle } from '@/lib/status';
 import type { DerivedEvent, SavedLocation } from '@/types';
+import { clusterSize, type MarkerCluster } from './clusters';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -46,3 +47,25 @@ export const meIcon = L.divIcon({
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 });
+
+/**
+ * Grupul de markere suprapuse (zoom depărtat): cerc mai mare în culoarea tipului dominant, inel cu proporția
+ * tipurilor (apă / electricitate / gaz) și numărul de evenimente în colțul din dreapta sus.
+ */
+export function clusterIcon(c: MarkerCluster): L.DivIcon {
+  const total = c.members.length;
+  const size = clusterSize(total);
+  let at = 0;
+  const stops = TYPES.filter((k) => c.byType[k]).map((k) => {
+    const from = at;
+    at += ((c.byType[k] ?? 0) / total) * 360;
+    return `var(--c-${k}) ${from}deg ${at}deg`;
+  });
+  const style = `--cl-size:${size}px;--cl-bg:var(--c-${c.main});--cl-ring:conic-gradient(${stops.join(',')})`;
+  return L.divIcon({
+    className: 'wip-marker-host',
+    html: `<div class="wip-cluster" style="${style}"><span class="wip-cluster__dot">${iconSvg(SUBTYPES[c.main].icon, 20)}</span><span class="wip-cluster__count">${total > 99 ? '99+' : total}</span></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}

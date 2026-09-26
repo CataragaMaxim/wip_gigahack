@@ -263,6 +263,8 @@ function useAppStore() {
   const [fadingTypes, setFadingTypes] = useState<Partial<Record<SubtypeKey, true>>>({});
   const fadeTimers = useRef<Partial<Record<SubtypeKey, number>>>({});
   const [search, setSearch] = useState('');
+  /** Lista arată doar aceste evenimente (grupul de pe hartă cu mai multe evenimente în același loc). */
+  const [focusIds, setFocusIds] = useState<string[] | null>(null);
   const [mode, setMode] = useState<PanelMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** De unde s-a deschis detaliul — „Înapoi” revine acolo. */
@@ -375,6 +377,7 @@ function useAppStore() {
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
         if (!isPublic(e)) return false;
+        if (focusIds && !focusIds.includes(e.id)) return false;
         // Raza se aplică în jurul locației curente și al fiecărei adrese salvate (Acasă + celelalte).
         if (radius !== 'all' && e.nearM != null && e.nearM > radius) return false;
         if (q && !normalize(`${e.title} ${e.district} ${e.streets.join(' ')}`).includes(q)) return false;
@@ -390,7 +393,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search]);
+  }, [events, types, fadingTypes, user, radius, search, focusIds]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -821,7 +824,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    types, fadingTypes, toggleType, resetFilters, search, setSearch,
+    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,

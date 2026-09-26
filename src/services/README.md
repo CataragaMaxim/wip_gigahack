@@ -58,9 +58,9 @@ Local, fără Firestore: `python scripts/acc_outages/sync_premier.py --dry-run -
 
 Scraperele geocodează fiecare adresă dintr-un anunț (câte un număr de casă; intervalele „1-17” → capetele) și salvează `areas: [{lat, lng, radiusM, label}]`. Casă găsită exact → 25 m; doar strada → 55 m. Adresele vecine se unesc într-o zonă comună doar dacă aceasta rămâne ≤ 55 m; altfel formează o zonă nouă. Zonele care nu pot fi unite, dar se acoperă mult, se micșorează până se ating. Aplicația afișează câte un eveniment pe zonă (id `anunț~n`); calendarul păstrează un rând pe anunț. Geocodarea se păstrează între rulări (`GEOCACHE_PATH`, în Actions prin `actions/cache`).
 
-## Limbi (română și rusă)
+## Limbi (română, rusă, engleză)
 
-Textul din cod e în română; `t('…')` din `src/i18n` îl întoarce în limba aleasă (RO | RU în bara de sus sau în Setări). Traducerile sunt în `src/i18n/ru.ts`, cheiate după textul românesc; pluralele rusești în `RU_PLURALS`. **Orice text nou din interfață trebuie adăugat și în `ru.ts`** — `npm run check:i18n` (rulat și în CI) eșuează altfel. Datele salvate în Firestore rămân în română (ex. titlurile raportărilor); se traduc doar la afișare. Textul oficial preluat de la furnizori (descrieri, străzi) rămâne în limba sursei.
+Textul din cod e în română; `t('…')` din `src/i18n` îl întoarce în limba aleasă (RO | RU | EN în bara de sus sau în Setări). Traducerile sunt în `src/i18n/ru.ts` și `src/i18n/en.ts`, cheiate după textul românesc; pluralele în `RU_PLURALS` și `EN_PLURALS`. **Orice text nou din interfață trebuie adăugat în ambele fișiere** — `npm run check:i18n` (rulat și în CI) eșuează altfel. Datele salvate în Firestore rămân în română (ex. titlurile raportărilor); se traduc doar la afișare. Textul oficial preluat de la furnizori (descrieri, străzi) rămâne în limba sursei.
 
 
 ## Flux oficial: gaz (Energocom, Chișinău-Gaz)
@@ -70,3 +70,8 @@ Textul din cod e în română; `t('…')` din `src/i18n` îl întoarce în limba
 - **Energocom** (`source: 'Energocom'`, id `ecom-…`): fluxul RSS al categoriei „Deconectări”. Furnizor național, deci localitățile se geocodează în toată țara (cu raionul, când anunțul îl dă). Străzile „str. X nr. 1, 2” devin zone pe adrese; o localitate fără străzi = o zonă de 55 m în centrul ei. Anunțurile „Reluarea livrării…” se ignoră; o localitate omonimă găsită la peste 60 km de restul anunțului se elimină.
 - **Chișinău-Gaz** (`source: 'Chișinău-Gaz'`, id `cgaz-<zi>-…`): tabelul de pe pagina „Deconectări” (cerere POST cu token CSRF, toate paginile). Rândurile cu aceeași zi, sector și motiv = un eveniment. Tabelul nu are ore: evenimentul acoperă toată ziua.
 - **Mutări de dată pentru demonstrație:** `DATE_OVERRIDES` din `sync_gas.py` mută anunțurile din 24 și 25 septembrie 2026 pe 27 septembrie (aceleași ore); descrierea spune data originală. Goliți dicționarul ca să reveniți la datele reale.
+
+
+## Grupuri pe hartă
+
+La zoom depărtat, markerele care se suprapun (mai aproape de ~44 px pe ecran) devin un grup mai mare, în culoarea tipului dominant, cu inel pe tipuri și numărul de evenimente în colțul din dreapta sus (`src/components/map/clusters.ts`). Clic = zoom până se separă; evenimentele în același loc (≤ 10 m) rămân grupate și clicul le arată în listă („N evenimente în același loc · Arată toate”).
