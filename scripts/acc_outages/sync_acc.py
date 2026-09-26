@@ -21,6 +21,7 @@ import html
 import json
 import os
 import re
+import ssl
 import sys
 import time
 import unicodedata
@@ -39,9 +40,16 @@ TITLE = 'Apă deconectată'
 RETENTION = timedelta(hours=24)
 TZ = ZoneInfo('Europe/Chisinau')
 USER_AGENT = 'wip-gigahack-acc-sync/1.0 (+https://github.com/CataragaMaxim/wip_gigahack)'
+# Pentru site-urile sursă (unele țin la coadă cererile fără User-Agent de browser); geocodarea se identifică cu USER_AGENT.
+BROWSER_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
 NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 # lng_min, lat_max, lng_max, lat_min — municipiul Chișinău, ca în src/services/geocoding.ts.
 CHISINAU_VIEWBOX = '28.68,47.12,29.02,46.90'
+
+PHOTON = 'https://photon.komoot.io/api/'
+# lon_min, lat_min, lon_max, lat_max (aceeași zonă ca CHISINAU_VIEWBOX).
+CHISINAU_BBOX = '28.68,46.90,29.02,47.12'
+FIREBASE_PROJECT_ID = os.environ.get('FIREBASE_PROJECT_ID', 'work-in-progress-d4ff1')
 
 TAB_PLANNED, TAB_CURRENT, TAB_WATER = '1', '2', '3'
 SECTORS = {'botanica', 'buiucani', 'centru', 'ciocana', 'riscani'}
@@ -59,6 +67,20 @@ STREET_PREFIXES = {
 ADDRESS_START = re.compile(r'^(str|strada|bd|b-dul|bulevardul|sos|soseaua|str-la|stradela|calea|piata|pl|comuna|com|s|or|satul|orasul)\b\.?', re.I)
 # Separă „str. A 1, 2, bd. B 3” în două adrese.
 ADDRESS_SPLIT = re.compile(r',\s*(?=(?:str|bd|b-dul|sos|str-la|calea|comuna|s|or)\.?\s)', re.I)
+
+
+def _install_https_certificates() -> None:
+    """Certificatele din `certifi` pentru toate cererile HTTPS: Python de pe python.org (macOS) nu are
+    certificate de sistem și altfel pică cu CERTIFICATE_VERIFY_FAILED."""
+    try:
+        import certifi
+    except ImportError:
+        return
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    urllib.request.install_opener(urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx)))
+
+
+_install_https_certificates()
 
 
 # ---------- text ----------
@@ -387,35 +409,59 @@ def parse_planned(sections: dict[str, str]) -> tuple[list[Outage], list[str]]:
 
 # ---------- geocodare ----------
 
-_last_request = 0.0
+_last_request: dict[str, float] = {}
+
+
+def _get_json(service: str, url: str) -> object | None:
+    """GET cu max. 1 cerere/s per serviciu (politica Nominatim)."""
+    wait = 1.1 - (time.monotonic() - _last_request.get(service, 0.0))
+    if wait > 0:
+        time.sleep(wait)
+    req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT, 'Accept-Language': 'ro'})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as res:
+            return json.load(res)
+    except Exception as e:  # noqa: BLE001 — geocodarea nu oprește sincronizarea
+        print(f'  {service}: {e}', file=sys.stderr)
+        return None
+    finally:
+        _last_request[service] = time.monotonic()
+
+
+def _nominatim(q: str) -> tuple[dict, str] | None:
+    params = urllib.parse.urlencode({
+        'q': f'{q}, Chișinău', 'format': 'jsonv2', 'addressdetails': '1', 'limit': '1',
+        'countrycodes': 'md', 'viewbox': CHISINAU_VIEWBOX, 'bounded': '1', 'accept-language': 'ro',
+    })
+    items = _get_json('nominatim', f'{NOMINATIM}?{params}')
+    if not items:
+        return None
+    it = items[0]  # type: ignore[index]
+    a = it.get('address', {})
+    district = re.sub(r'^Sectorul\s+', '', a.get('city_district') or a.get('suburb') or '')
+    return {'lat': float(it['lat']), 'lng': float(it['lon'])}, district
+
+
+def _photon(q: str) -> tuple[dict, str] | None:
+    """Rezervă (tot OpenStreetMap, altă infrastructură), dacă Nominatim refuză IP-urile runner-ului."""
+    params = urllib.parse.urlencode({'q': f'{q}, Chișinău', 'bbox': CHISINAU_BBOX, 'limit': '1'})
+    data = _get_json('photon', f'{PHOTON}?{params}')
+    feats = (data or {}).get('features') or []  # type: ignore[union-attr]
+    if not feats:
+        return None
+    lng, lat = feats[0]['geometry']['coordinates']
+    p = feats[0].get('properties', {})
+    district = re.sub(r'^Sectorul\s+', '', p.get('district') or p.get('locality') or '')
+    return {'lat': float(lat), 'lng': float(lng)}, district
 
 
 def geocode(queries: list[str]) -> tuple[dict, str] | None:
-    """Prima variantă găsită în Chișinău → ({lat, lng}, sector)."""
-    global _last_request
-    for q in queries:
-        wait = 1.1 - (time.monotonic() - _last_request)
-        if wait > 0:
-            time.sleep(wait)
-        params = urllib.parse.urlencode({
-            'q': f'{q}, Chișinău', 'format': 'jsonv2', 'addressdetails': '1', 'limit': '1',
-            'countrycodes': 'md', 'viewbox': CHISINAU_VIEWBOX, 'bounded': '1', 'accept-language': 'ro',
-        })
-        req = urllib.request.Request(f'{NOMINATIM}?{params}', headers={'User-Agent': USER_AGENT})
-        try:
-            with urllib.request.urlopen(req, timeout=15) as res:
-                items = json.load(res)
-        except Exception as e:  # noqa: BLE001 — geocodarea nu oprește sincronizarea
-            print(f'  geocodare eșuată pentru „{q}”: {e}', file=sys.stderr)
-            items = []
-        finally:
-            _last_request = time.monotonic()
-        if items:
-            it = items[0]
-            a = it.get('address', {})
-            district = a.get('city_district') or a.get('suburb') or ''
-            district = re.sub(r'^Sectorul\s+', '', district)
-            return {'lat': float(it['lat']), 'lng': float(it['lon'])}, district
+    """Prima variantă găsită în Chișinău → ({lat, lng}, sector). Nominatim, apoi Photon."""
+    for lookup in (_nominatim, _photon):
+        for q in queries:
+            found = lookup(q)
+            if found:
+                return found
     return None
 
 
@@ -430,8 +476,31 @@ def firestore_client():
         import firebase_admin
         from firebase_admin import credentials, firestore
 
-        raw = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
-        cred = credentials.Certificate(json.loads(raw)) if raw else credentials.ApplicationDefault()
+        raw = (os.environ.get('FIREBASE_SERVICE_ACCOUNT') or '').strip()
+        if os.environ.get('FIRESTORE_EMULATOR_HOST') and not raw:
+            # Emulatorul local nu cere credențiale.
+            from google.auth.credentials import AnonymousCredentials
+            from google.cloud import firestore as gcf
+            _db = gcf.Client(project=FIREBASE_PROJECT_ID, credentials=AnonymousCredentials())
+            return _db
+        if not raw and not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+            raise SystemExit(
+                'Lipsește FIREBASE_SERVICE_ACCOUNT: JSON-ul (sau calea spre fișierul JSON) unui cont de serviciu Firebase.\n'
+                'Firebase Console → Project settings → Service accounts → Generate new private key; în GitHub: '
+                'Settings → Secrets and variables → Actions → FIREBASE_SERVICE_ACCOUNT.\n'
+                'Config-ul web (VITE_FIREBASE_API_KEY etc.) NU poate scrie în Firestore.')
+        if raw.startswith('{'):
+            info = json.loads(raw)
+        elif raw:
+            with open(raw, encoding='utf-8') as f:
+                info = json.load(f)
+        else:
+            info = None
+        if info and info.get('type') != 'service_account':
+            raise SystemExit('FIREBASE_SERVICE_ACCOUNT nu e o cheie de cont de serviciu (lipsește "type": "service_account").')
+        if info and info.get('project_id') != FIREBASE_PROJECT_ID:
+            print(f'::warning::Cheia e pentru proiectul „{info.get("project_id")}”, aplicația folosește „{FIREBASE_PROJECT_ID}”.')
+        cred = credentials.Certificate(info) if info else credentials.ApplicationDefault()
         firebase_admin.initialize_app(cred)
         _db = firestore.client()
     return _db
@@ -488,10 +557,10 @@ def sync_firestore(events: list[dict], source: str = SOURCE, keep_prefixes: tupl
             to_delete.append(d.reference)
 
     batch.commit()
+    summary(f'Firestore ({source}): {created} noi, {updated} actualizate, {resolved} rezolvate, {len(to_delete)} de șters.')
     # recursive_delete șterge și subcolecția `votes`, altfel voturile ar rămâne orfane.
     for ref in to_delete:
         db.recursive_delete(ref)
-    print(f'Firestore: {created} noi, {updated} actualizate, {resolved} rezolvate, {len(to_delete)} șterse.')
 
 
 def existing_locations(ids: list[str]) -> dict[str, dict]:
@@ -514,9 +583,17 @@ def existing_locations(ids: list[str]) -> dict[str, dict]:
 # ---------- main ----------
 
 def fetch_page() -> str:
-    req = urllib.request.Request(URL, headers={'User-Agent': USER_AGENT, 'Accept-Language': 'ro'})
-    with urllib.request.urlopen(req, timeout=30) as res:
-        return res.read().decode('utf-8', errors='replace')
+    last: Exception | None = None
+    for attempt in range(1, 4):
+        req = urllib.request.Request(URL, headers={'User-Agent': BROWSER_UA, 'Accept-Language': 'ro'})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as res:
+                return res.read().decode('utf-8', errors='replace')
+        except Exception as e:  # noqa: BLE001
+            last = e
+            print(f'  {URL}: încercarea {attempt} eșuată ({e})', file=sys.stderr)
+            time.sleep(5 * attempt)
+    raise RuntimeError(f'{URL}: {last}')
 
 
 def main() -> int:
@@ -570,6 +647,13 @@ def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_p
             e['geohash'] = encode_geohash(loc['lat'], loc['lng'])
         events.append(e)
 
+    skipped = len(outages) - len(events)
+    summary(f'**{source}**: {len(outages)} anunțuri citite, {len(events)} localizate, {skipped} omise (adresă negăsită).')
+    if outages and not events:
+        # Nimic localizat = geocodarea nu merge (ex. serviciu blocat), nu „nicio deconectare”: nu scriem nimic.
+        print('Nicio adresă nu a putut fi localizată (Nominatim și Photon). Opresc sincronizarea.', file=sys.stderr)
+        return 1
+
     if args.out:
         with open(args.out, 'w', encoding='utf-8') as f:
             json.dump([{k: v for k, v in e.items() if not k.startswith('_')} for e in events], f, ensure_ascii=False, indent=2)
@@ -579,6 +663,15 @@ def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_p
         return 0
     sync_firestore(events, source, keep_prefixes)
     return 0
+
+
+def summary(line: str) -> None:
+    """Un rând în log și în rezumatul rulării GitHub Actions."""
+    print(line)
+    path = os.environ.get('GITHUB_STEP_SUMMARY')
+    if path:
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write(line + '\n\n')
 
 
 def cli_args(description: str | None, html_help: str | None = None) -> argparse.Namespace:

@@ -25,15 +25,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 from sync_acc import (
-    SECTORS, TZ, Outage, ascii_fold, clean, cli_args, fix_diacritics, house_query, html_lines, publish, stable_id,
+    BROWSER_UA, SECTORS, TZ, Outage, ascii_fold, clean, cli_args, fix_diacritics, house_query, html_lines, publish, stable_id,
 )
 
 BASE = 'https://www.premierenergydistribution.md'
 CALENDAR_URL = f'{BASE}/ro/toate-lucrarile-programate'
 SOURCE = 'Premier Energy Distribution'
 TITLE = 'Energie electrică deconectată'
-# Browserele primesc pagina; unele cereri fără User-Agent de browser sunt ținute la coadă de Cloudflare.
-BROWSER_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
 TIMEOUT_S = 120
 ATTEMPTS = 3
 # Câte zile înainte importăm (calendarul are și luni întregi de istoric).

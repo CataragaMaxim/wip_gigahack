@@ -36,9 +36,9 @@ export function TopBar() {
           type="button"
           className={`icon-btn ${mode === 'calendar' ? 'is-active' : ''}`}
           onClick={mode === 'calendar' ? backToList : openCalendar}
-          aria-label="Calendarul deconectărilor planificate"
+          aria-label="Calendarul evenimentelor programate"
           aria-pressed={mode === 'calendar'}
-          title="Calendar deconectări"
+          title="Calendar evenimente"
         >
           <Icon name="calendar" size={20} strokeWidth={1.8} />
         </button>

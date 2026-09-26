@@ -24,7 +24,7 @@ function DesktopPanel() {
   if (!panelOpen) return null;
 
   const label =
-    mode === 'detail' ? 'Detalii eveniment' : mode === 'settings' ? 'Setări' : mode === 'calendar' ? 'Calendarul deconectărilor' : 'Lista evenimentelor';
+    mode === 'detail' ? 'Detalii eveniment' : mode === 'settings' ? 'Setări' : mode === 'calendar' ? 'Calendarul evenimentelor' : 'Lista evenimentelor';
 
   return (
     <section className="panel" aria-label={label}>
@@ -63,7 +63,7 @@ function DesktopPanel() {
             <button type="button" className="icon-btn" aria-label="Înapoi la listă" onClick={backToList}>
               <Icon name="chevL" />
             </button>
-            <h2 className="panel__title">Calendar deconectări</h2>
+            <h2 className="panel__title">Calendar evenimente</h2>
           </div>
           <div className="panel__body panel__body--pad">
             <OutageCalendar />
@@ -129,18 +129,18 @@ function MobileSheet() {
   if (mode === 'calendar') {
     return (
       <BottomSheet
-        label="Calendarul deconectărilor"
+        label="Calendarul evenimentelor"
         pageKey="calendar"
         header={{
-          title: 'Calendar deconectări',
-          subtitle: 'Apă și energie electrică · planificate',
+          title: 'Calendar evenimente',
+          subtitle: 'Deconectări și lucrări programate',
           onBack: () => {
             backToList();
             setSheetSnap('mini');
           },
           backLabel: 'Înapoi la hartă',
         }}
-        miniLine="Calendar deconectări planificate"
+        miniLine="Calendar evenimente planificate"
         padBody
       >
         <OutageCalendar />

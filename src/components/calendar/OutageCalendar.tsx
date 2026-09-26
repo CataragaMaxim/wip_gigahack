@@ -20,25 +20,34 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Filtrul calendarului: toate sau un singur tip de deconectare. */
-type Kind = 'all' | Extract<SubtypeKey, 'apa' | 'electricitate'>;
+/** Filtrul calendarului: toate, un tip de deconectare sau restul evenimentelor programate. */
+type Kind = 'all' | Extract<SubtypeKey, 'apa' | 'electricitate'> | 'other';
 const KINDS: { key: Kind; label: string }[] = [
   { key: 'all', label: 'Toate' },
   { key: 'apa', label: 'Apă' },
   { key: 'electricitate', label: 'Energie' },
+  { key: 'other', label: 'Altele' },
 ];
+const matchesKind = (e: DerivedEvent, kind: Kind) =>
+  kind === 'all' || (kind === 'other' ? e.subtype !== 'apa' && e.subtype !== 'electricitate' : e.subtype === kind);
 
-/** Deconectările planificate din raza aleasă (ca în listă: fără locație, nu filtrăm după distanță). */
-function usePlannedOutages(kind: Kind) {
-  const { events, radius } = useApp();
+/**
+ * În calendar: deconectările importate (`planned`) și orice anunț oficial cu dată de început
+ * (inclusiv cele adăugate manual în Firestore). Raportările cetățenilor nu au program, deci nu apar.
+ */
+const isScheduled = (e: DerivedEvent) => !!e.startAt && (e.planned || e.sourceType === 'official');
+
+/** Evenimentele programate din raza și categoriile alese (ca în listă: fără locație, nu filtrăm după distanță). */
+function useScheduledEvents(kind: Kind) {
+  const { events, radius, cats } = useApp();
   return useMemo(
     () =>
       events
-        .filter((e) => e.planned && e.startAt && e.status !== 'rezolvat')
-        .filter((e) => kind === 'all' || e.subtype === kind)
+        .filter((e) => isScheduled(e) && e.status !== 'rezolvat' && cats[e.category])
+        .filter((e) => matchesKind(e, kind))
         .filter((e) => radius === 'all' || e.distanceM == null || e.distanceM <= radius)
         .sort((a, b) => a.startAt!.localeCompare(b.startAt!)),
-    [events, radius, kind],
+    [events, radius, cats, kind],
   );
 }
 
@@ -72,7 +81,7 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
 export function OutageCalendar() {
   const { radius, userPos, gps, openSettings, openEvent, loadState } = useApp();
   const [kind, setKind] = useState<Kind>('all');
-  const outages = usePlannedOutages(kind);
+  const outages = useScheduledEvents(kind);
   const byDay = useMemo(() => groupByDay(outages), [outages]);
   const today = startOfDay(new Date());
 
@@ -108,7 +117,7 @@ export function OutageCalendar() {
   return (
     <div className="cal fade-in">
       <p className="muted small">
-        {loadState === 'loading' ? 'Se încarcă…' : `${plural(upcoming, 'deconectare planificată', 'deconectări planificate')} · ${scope}`}
+        {loadState === 'loading' ? 'Se încarcă…' : `${plural(upcoming, 'eveniment programat', 'evenimente programate')} · ${scope}`}
       </p>
       {(radius === 'all' || noGps) && (
         <div className="card card--sunk row gap-10 cal__hint">
@@ -124,10 +133,10 @@ export function OutageCalendar() {
         </div>
       )}
 
-      <div className="seg seg--3" role="group" aria-label="Tipul deconectării">
+      <div className="seg seg--4" role="group" aria-label="Tipul evenimentului">
         {KINDS.map((k) => (
           <button key={k.key} type="button" className="seg__btn" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>
-            {k.key !== 'all' && <Icon name={SUBTYPES[k.key].icon} size={16} />}
+            {(k.key === 'apa' || k.key === 'electricitate') && <Icon name={SUBTYPES[k.key].icon} size={16} />}
             {k.label}
           </button>
         ))}
@@ -145,7 +154,7 @@ export function OutageCalendar() {
         </button>
       </div>
 
-      <div className="cal__grid" role="grid" aria-label="Calendarul deconectărilor planificate">
+      <div className="cal__grid" role="grid" aria-label="Calendarul evenimentelor programate">
         {WEEKDAYS.map((w) => (
           <span key={w} className="cal__wd" aria-hidden="true">
             {w}
@@ -164,7 +173,7 @@ export function OutageCalendar() {
               type="button"
               className={cls}
               aria-pressed={k === selected}
-              aria-label={`${d.getDate()} ${MONTH_NAMES[d.getMonth()]}${n ? `, ${plural(n, 'deconectare', 'deconectări')}` : ''}`}
+              aria-label={`${d.getDate()} ${MONTH_NAMES[d.getMonth()]}${n ? `, ${plural(n, 'eveniment', 'evenimente')}` : ''}`}
               onClick={() => setPicked(k)}
             >
               <span>{d.getDate()}</span>
@@ -180,7 +189,7 @@ export function OutageCalendar() {
         </h3>
         {dayList.length === 0 ? (
           <div className="card card--sunk stack gap-8">
-            <span className="small muted">Nicio deconectare planificată în această zi.</span>
+            <span className="small muted">Nimic programat în această zi.</span>
             {next && (
               <button type="button" className="btn btn--ghost btn--sm cal__next" onClick={() => setPicked(next)}>
                 Următoarea: {fromKey(next).getDate()} {MONTH_NAMES[fromKey(next).getMonth()]}
@@ -192,7 +201,7 @@ export function OutageCalendar() {
           <ul className="cal__agenda">
             {dayList.map((e) => (
               <li key={e.id}>
-                <button type="button" className="cal__item" onClick={() => openEvent(e.id, 'calendar')}>
+                <button type="button" className="cal__item" style={{ borderLeftColor: catVar(e.category) }} onClick={() => openEvent(e.id, 'calendar')}>
                   <span className="stack gap-6 cal__when">
                     <span className="cal__kind" style={{ background: catTint(e.category), color: catVar(e.category) }} title={SUBTYPES[e.subtype].label}>
                       <Icon name={SUBTYPES[e.subtype].icon} size={16} />
