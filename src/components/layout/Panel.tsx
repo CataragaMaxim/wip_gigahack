@@ -17,16 +17,10 @@ export function Panel() {
 }
 
 function DesktopPanel() {
-  const { mode, selected, backToList, panelOpen, setPanelOpen, visible } = useApp();
+  const { mode, selected, backToList, panelOpen, setPanelOpen } = useApp();
 
-  if (!panelOpen) {
-    return (
-      <button type="button" className="btn btn--float panel-reopen" onClick={() => setPanelOpen(true)}>
-        <Icon name="list" size={18} strokeWidth={1.8} />
-        Listă · {visible.length}
-      </button>
-    );
-  }
+  // Panoul închis: butonul „Listă” stă în rândul filtrelor (MapOverlay), ca să nu se suprapună cu ele.
+  if (!panelOpen) return null;
 
   const label = mode === 'detail' ? 'Detalii eveniment' : mode === 'settings' ? 'Setări' : 'Lista evenimentelor';
 

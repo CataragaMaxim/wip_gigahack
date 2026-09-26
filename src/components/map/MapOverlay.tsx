@@ -7,7 +7,7 @@ import { SearchBox } from '@/components/layout/SearchBox';
 
 /** Stratul de deasupra hărții: căutarea (mobil), filtrele pe categorii, avertismente. */
 export function MapOverlay() {
-  const { cats, toggleCategory, online, syncedAt, gpsNotice, setGpsNotice, panelOpen, report, modal, sheetSnap } = useApp();
+  const { cats, toggleCategory, online, syncedAt, gpsNotice, setGpsNotice, panelOpen, setPanelOpen, visible, report, modal, sheetSnap } = useApp();
   const isMobile = useIsMobile();
   const pinMode = modal === 'report' && report.step === 2;
 
@@ -20,24 +20,32 @@ export function MapOverlay() {
     <div
       className={`overlay ${!isMobile && panelOpen && !pinMode ? 'overlay--beside-panel' : ''} ${isMobile && sheetSnap === 'tall' && !pinMode ? 'is-hidden' : ''}`}>
       {isMobile && <SearchBox className="overlay__search" />}
-      <div className="chips" role="group" aria-label="Filtrează după categorie">
-        {CATEGORIES.map((c) => {
-          const on = cats[c.key];
-          return (
-            <button
-              key={c.key}
-              type="button"
-              className={`chip ${on ? 'is-on' : ''}`}
-              style={{ ['--cat' as string]: `var(--c-${c.key})`, ['--cat-t' as string]: `var(--c-${c.key}-t)` }}
-              aria-pressed={on}
-              onClick={() => toggleCategory(c.key)}
-            >
-              <Icon name={c.icon} size={18} />
-              {c.short}
-              {on && <Icon name="check" size={14} strokeWidth={2.6} />}
-            </button>
-          );
-        })}
+      <div className="overlay__row">
+        {!isMobile && !panelOpen && !pinMode && (
+          <button type="button" className="btn btn--float panel-reopen" onClick={() => setPanelOpen(true)}>
+            <Icon name="list" size={18} strokeWidth={1.8} />
+            Listă · {visible.length}
+          </button>
+        )}
+        <div className="chips" role="group" aria-label="Filtrează după categorie">
+          {CATEGORIES.map((c) => {
+            const on = cats[c.key];
+            return (
+              <button
+                key={c.key}
+                type="button"
+                className={`chip ${on ? 'is-on' : ''}`}
+                style={{ ['--cat' as string]: `var(--c-${c.key})`, ['--cat-t' as string]: `var(--c-${c.key}-t)` }}
+                aria-pressed={on}
+                onClick={() => toggleCategory(c.key)}
+              >
+                <Icon name={c.icon} size={18} />
+                {c.short}
+                {on && <Icon name="check" size={14} strokeWidth={2.6} />}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {/* Pe mobil, avizele stau în capul listei (vezi ListNotices). */}
       {!isMobile && !online && (

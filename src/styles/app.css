@@ -348,7 +348,9 @@ textarea::placeholder {
 }
 .overlay > * { pointer-events: auto; }
 .overlay--beside-panel { left: 432px; }
-.chips { display: flex; gap: 8px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+/* Butonul „Listă” (panou închis) și filtrele stau pe același rând; filtrele se derulează dacă nu încap. */
+.overlay__row { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+.chips { display: flex; gap: 8px; max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
   display: inline-flex;
@@ -381,7 +383,7 @@ textarea::placeholder {
 .zoom__sep { height: 1px; background: var(--border); }
 .fab-wrap { position: absolute; z-index: 7; left: 432px; right: 16px; bottom: 24px; display: flex; justify-content: center; pointer-events: none; }
 .fab-wrap .btn { pointer-events: auto; }
-.panel-reopen { position: absolute; z-index: 9; left: 16px; top: 16px; }
+.panel-reopen { flex-shrink: 0; }
 
 /* ---------- panou / bottom sheet ---------- */
 .panel {
