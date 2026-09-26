@@ -14,7 +14,7 @@ import type {
   CategoryKey, DerivedEvent, LatLng, SavedLocation, Severity, SubtypeKey, Theme, UrbanEvent, User, Vote,
 } from '@/types';
 
-import { signUpUser, logInUser, logOutUser, watchAuth, softDeleteUser } from '@/services/authService';
+import { signUpUser, logInUser, logOutUser, watchAuth, deleteUserAccount } from '@/services/authService';
 
 /** Crește la fiecare schimbare a setului de alerte demonstrative: voturile, ștergerile și raportările vechi se golesc. */
 const DATA_VERSION = '2026-09-real-streets';
@@ -492,7 +492,7 @@ function useAppStore() {
   }, [flash]);
   const deleteAccount = useCallback(async () => {
     if (!session.user) return;
-    await softDeleteUser(session.user.id);
+    await deleteUserAccount(session.user.id);
     setSession({ user: null, locations: [] });
     setFollowing({});
     setUserReports([]);

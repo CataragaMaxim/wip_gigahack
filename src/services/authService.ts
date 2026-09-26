@@ -5,6 +5,7 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  deleteUser,
 } from 'firebase/auth';
 import {
   doc, setDoc, getDoc, getDocs, collection, deleteDoc, updateDoc, Timestamp 
@@ -78,9 +79,10 @@ export function watchAuth(cb: (u: User | null) => void) {
   });
 }
 
-export async function softDeleteUser(uid: string): Promise<void> {
-  await updateDoc(doc(db, 'users', uid), {
-    deletedAt: Timestamp.now(),
-  });
-  await signOut(auth);
+export async function deleteUserAccount(uid: string): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), { deletedAt: Timestamp.now() });
+
+  if (auth.currentUser) {
+    await deleteUser(auth.currentUser);
+  }
 }
