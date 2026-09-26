@@ -5,6 +5,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { EventList, EventListHeader, ListNotices, useSheetSummary } from '@/components/events/EventList';
 import { EventActions, EventDetail } from '@/components/events/EventDetail';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
+import { OutageCalendar } from '@/components/calendar/OutageCalendar';
 import { BottomSheet } from './BottomSheet';
 
 /** Panoul lateral (desktop) / bottom sheet cu 3 stări (mobil) cu lista, detaliul sau setările. */
@@ -17,12 +18,13 @@ export function Panel() {
 }
 
 function DesktopPanel() {
-  const { mode, selected, backToList, panelOpen, setPanelOpen } = useApp();
+  const { mode, selected, backToList, closeDetail, detailFrom, panelOpen, setPanelOpen } = useApp();
 
   // Panoul închis: butonul „Listă” stă în rândul filtrelor (MapOverlay), ca să nu se suprapună cu ele.
   if (!panelOpen) return null;
 
-  const label = mode === 'detail' ? 'Detalii eveniment' : mode === 'settings' ? 'Setări' : 'Lista evenimentelor';
+  const label =
+    mode === 'detail' ? 'Detalii eveniment' : mode === 'settings' ? 'Setări' : mode === 'calendar' ? 'Calendarul deconectărilor' : 'Lista evenimentelor';
 
   return (
     <section className="panel" aria-label={label}>
@@ -43,14 +45,28 @@ function DesktopPanel() {
       {mode === 'detail' && selected && (
         <>
           <div className="panel__bar">
-            <button type="button" className="btn btn--ghost btn--sm" onClick={backToList}>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={closeDetail}>
               <Icon name="chevL" />
-              Înapoi la listă
+              {detailFrom === 'calendar' ? 'Înapoi la calendar' : 'Înapoi la listă'}
             </button>
             <span className="muted xsmall">{selected.sourceType === 'official' ? 'Anunț oficial' : 'Raportare cetățean'}</span>
           </div>
           <div className="panel__body panel__body--pad" key={selected.id}>
             <EventDetail e={selected} />
+          </div>
+        </>
+      )}
+
+      {mode === 'calendar' && (
+        <>
+          <div className="panel__bar panel__bar--start">
+            <button type="button" className="icon-btn" aria-label="Înapoi la listă" onClick={backToList}>
+              <Icon name="chevL" />
+            </button>
+            <h2 className="panel__title">Calendar deconectări</h2>
+          </div>
+          <div className="panel__body panel__body--pad">
+            <OutageCalendar />
           </div>
         </>
       )}
@@ -73,7 +89,7 @@ function DesktopPanel() {
 }
 
 function MobileSheet() {
-  const { mode, selected, backToList, sheetSnap, setSheetSnap, user, loadState, visible, online, gps, userPos, gpsNotice, setGpsNotice } = useApp();
+  const { mode, selected, backToList, closeDetail, detailFrom, sheetSnap, setSheetSnap, user, loadState, visible, online, gps, userPos, gpsNotice, setGpsNotice } = useApp();
   const summary = useSheetSummary();
 
   // „Locația mea” eșuată cu lista strânsă: avizul GPS stă acum în listă, deci o aducem la jumătate.
@@ -100,12 +116,34 @@ function MobileSheet() {
       <BottomSheet
         label="Detalii eveniment"
         pageKey={`detail-${selected.id}`}
-        header={{ title: selected.title, subtitle: sub, onBack: backToList, backLabel: 'Înapoi la listă' }}
+        header={{ title: selected.title, subtitle: sub, onBack: closeDetail, backLabel: detailFrom === 'calendar' ? 'Înapoi la calendar' : 'Înapoi la listă' }}
         miniAria={`${selected.title}, ${sub}`}
         padBody
         footer={<EventActions e={selected} short />}
       >
         <EventDetail key={selected.id} e={selected} showActions={!tall} />
+      </BottomSheet>
+    );
+  }
+
+  if (mode === 'calendar') {
+    return (
+      <BottomSheet
+        label="Calendarul deconectărilor"
+        pageKey="calendar"
+        header={{
+          title: 'Calendar deconectări',
+          subtitle: 'Apă și energie electrică · planificate',
+          onBack: () => {
+            backToList();
+            setSheetSnap('mini');
+          },
+          backLabel: 'Înapoi la hartă',
+        }}
+        miniLine="Calendar deconectări planificate"
+        padBody
+      >
+        <OutageCalendar />
       </BottomSheet>
     );
   }

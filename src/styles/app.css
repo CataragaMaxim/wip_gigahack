@@ -756,3 +756,44 @@ textarea::placeholder {
 .phone-input .input { flex: 1; min-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .input--code { max-width: 220px; font-size: 22px; font-weight: 600; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- calendarul deconectărilor planificate ---------- */
+.cal { display: flex; flex-direction: column; gap: 16px; }
+.cal__hint { align-items: center; }
+.cal__month { display: flex; align-items: center; justify-content: space-between; }
+.cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal__wd { padding-bottom: 4px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.cal__day {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  height: 44px; border: 1px solid transparent; border-radius: var(--radius-s);
+  background: transparent; color: var(--text); font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums;
+  transition: background-color 0.15s ease;
+}
+.cal__day:hover { background: var(--hover); }
+.cal__day.is-past { color: var(--text-3); }
+.cal__day.is-today { border-color: var(--border-strong); font-weight: 700; }
+.cal__day.has-events { background: var(--c-utilitati-t); color: var(--c-utilitati); font-weight: 700; }
+.cal__day.is-selected { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.cal__dot {
+  min-width: 6px; height: 6px; border-radius: 999px; background: currentColor;
+  font-size: 0; line-height: 1;
+}
+.cal__dot:not(:empty) { height: 14px; min-width: 14px; padding: 0 3px; font-size: 10px; font-weight: 700; color: var(--surface); display: flex; align-items: center; justify-content: center; }
+.cal__day.has-events .cal__dot:not(:empty) { background: var(--c-utilitati); color: var(--on-cat); }
+.cal__day.is-selected .cal__dot:not(:empty) { background: var(--on-ink); color: var(--ink); }
+.cal__agenda { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.cal__item {
+  width: 100%; display: flex; align-items: flex-start; gap: 12px; padding: 12px; text-align: left;
+  border: 1px solid var(--border); border-left: 4px solid var(--c-utilitati); border-radius: var(--radius-m);
+  background: var(--surface); color: var(--text); transition: background-color 0.15s ease;
+}
+.cal__item:hover { background: var(--hover); }
+.cal__item > .icon, .cal__item > svg { flex-shrink: 0; margin-top: 2px; color: var(--text-3); }
+.cal__when { flex-shrink: 0; width: 96px; align-items: flex-start; }
+.cal__kind { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-s); }
+.cal__time { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+.cal__next { align-self: flex-start; }
+@media (max-width: 380px) {
+  .cal__item { flex-wrap: wrap; }
+  .cal__when { width: 100%; flex-direction: row; align-items: center; }
+}

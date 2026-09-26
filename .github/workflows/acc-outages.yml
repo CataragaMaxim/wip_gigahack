@@ -1,6 +1,8 @@
-name: Flux ACC — apă deconectată
+name: Flux oficial — apă și energie electrică
 
-# Preia deconectările de apă de pe https://acc.md/disconnections și le scrie în Firestore (`events`, feed „live”).
+# Preia deconectările de pe https://acc.md/disconnections (apă) și
+# https://www.premierenergydistribution.md/ro/toate-lucrarile-programate (energie electrică)
+# și le scrie în Firestore (`events`, feed „live”). Cele două surse rulează ca job-uri separate: una nu o blochează pe cealaltă.
 # Necesită secretul FIREBASE_SERVICE_ACCOUNT (JSON-ul unui cont de serviciu cu rol „Cloud Datastore User”).
 
 on:
@@ -22,7 +24,8 @@ permissions:
   contents: read
 
 jobs:
-  sync:
+  acc:
+    name: Apă (Apă-Canal Chișinău)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,5 +46,31 @@ jobs:
         with:
           name: acc-events
           path: acc-events.json
+          retention-days: 3
+          if-no-files-found: ignore
+
+  premier:
+    name: Energie electrică (Premier Energy Distribution)
+    runs-on: ubuntu-latest
+    # Site-ul răspunde în 20–60 s pe pagină; prima rulare geocodează și toate adresele.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/acc_outages/requirements.txt
+      - run: pip install -r scripts/acc_outages/requirements.txt
+      - name: Sincronizare
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          python scripts/acc_outages/sync_premier.py --out premier-events.json ${{ inputs.dry_run && '--dry-run' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: premier-events
+          path: premier-events.json
           retention-days: 3
           if-no-files-found: ignore

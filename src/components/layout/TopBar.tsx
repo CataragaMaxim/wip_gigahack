@@ -15,7 +15,7 @@ export function Logo() {
 }
 
 export function TopBar() {
-  const { user, mode, openSettings, openAuth, backToList, mapRef } = useApp();
+  const { user, mode, openSettings, openCalendar, openAuth, backToList, mapRef } = useApp();
   const isMobile = useIsMobile();
   const goHome = () => {
     backToList();
@@ -32,6 +32,16 @@ export function TopBar() {
       </button>
       {!isMobile && <SearchBox className="topbar__search" />}
       <div className="topbar__actions">
+        <button
+          type="button"
+          className={`icon-btn ${mode === 'calendar' ? 'is-active' : ''}`}
+          onClick={mode === 'calendar' ? backToList : openCalendar}
+          aria-label="Calendarul deconectărilor planificate"
+          aria-pressed={mode === 'calendar'}
+          title="Calendar deconectări"
+        >
+          <Icon name="calendar" size={20} strokeWidth={1.8} />
+        </button>
         {user ? (
           <button
             type="button"

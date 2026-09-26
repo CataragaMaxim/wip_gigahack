@@ -39,3 +39,16 @@ Pragurile (confirmări, expirare, rază de vot, rază de deduplicare) sunt în `
 Configurare: în GitHub → Settings → Secrets and variables → Actions, adaugă `FIREBASE_SERVICE_ACCOUNT` cu JSON-ul unui cont de serviciu din Firebase (Project settings → Service accounts → Generate new private key). Pornire manuală: Actions → „Flux ACC — apă deconectată” → Run workflow (opțiunea „Doar citire” nu scrie nimic).
 
 Local, fără Firestore: `pip install -r scripts/acc_outages/requirements.txt && python scripts/acc_outages/sync_acc.py --dry-run --out acc.json`
+
+## Flux oficial: energie electrică deconectată (Premier Energy Distribution)
+
+Același workflow rulează, ca job separat, `scripts/acc_outages/sync_premier.py`. Sursa: https://www.premierenergydistribution.md/ro/toate-lucrarile-programate (un calendar cu câte o pagină pe zi). Documentele au `subtype: 'electricitate'`, `title: 'Energie electrică deconectată'`, `source: 'Premier Energy Distribution'`, `planned: true`, id `ped-<zi>-<hash>`.
+
+- **Ce se importă:** paginile „Lucrări programate” de azi până la 31 de zile înainte, doar secțiunile „Chișinău, …” (sectoare și localitățile municipiului). Fiecare rând (adrese + interval + motiv) = un eveniment. „Întreruperile de manevră” (noaptea, max. 30 min, sectoare întregi) nu se importă.
+- **Gravitate:** `partial` când rândul spune „parțial”, altfel `total`.
+- **Adrese:** în listă apar primele 12 străzi, restul în descriere. Pinul (și distanța folosită de rază) = prima adresă din rând.
+- **Site lent:** paginile răspund în 20–60 s; cererile au timeout de 120 s și 3 încercări. Dacă pagina unei zile nu se descarcă, evenimentele acelei zile rămân neatinse.
+- Zilele trecute nu se mai importă: evenimentele lor sunt rezolvate, apoi șterse după 24 h (ca la ACC).
+
+Local, fără Firestore: `python scripts/acc_outages/sync_premier.py --dry-run --out premier.json`
+

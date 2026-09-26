@@ -29,6 +29,8 @@ export interface UrbanEvent {
   source?: string;
   /** „live” = flux oficial automat. */
   feed?: 'live';
+  /** Deconectare anunțată din timp (ex. „Sistări planificate” de pe acc.md) — apare în calendar. */
+  planned?: boolean;
   severity: Severity;
   district: string;
   streets: string[];

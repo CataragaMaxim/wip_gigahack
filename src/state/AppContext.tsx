@@ -18,7 +18,7 @@ import type {
 const DATA_VERSION = '2026-09-real-streets';
 resetIfStale(DATA_VERSION, ['wip.userReports', 'wip.deleted', 'wip.votes']);
 
-export type PanelMode = 'list' | 'detail' | 'settings';
+export type PanelMode = 'list' | 'detail' | 'settings' | 'calendar';
 /** Pozițiile bottom sheet-ului pe mobil. */
 export type SheetSnap = 'mini' | 'mid' | 'tall';
 export const SHEET_SNAPS: SheetSnap[] = ['mini', 'mid', 'tall'];
@@ -201,6 +201,8 @@ function useAppStore() {
   const [search, setSearch] = useState('');
   const [mode, setMode] = useState<PanelMode>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** De unde s-a deschis detaliul — „Înapoi” revine acolo. */
+  const [detailFrom, setDetailFrom] = useState<'list' | 'calendar'>('list');
   const [panelOpen, setPanelOpen] = useState(true);
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('mini');
   const cycleSheet = useCallback(() => setSheetSnap((s) => SHEET_SNAPS[(SHEET_SNAPS.indexOf(s) + 1) % SHEET_SNAPS.length]), []);
@@ -338,7 +340,8 @@ function useAppStore() {
   }, []);
 
   const openEvent = useCallback(
-    (id: string) => {
+    (id: string, from: 'list' | 'calendar' = 'list') => {
+      setDetailFrom(from);
       setSelectedId(id);
       setMode('detail');
       setPanelOpen(true);
@@ -353,6 +356,18 @@ function useAppStore() {
     setMode('list');
     setSelectedId(null);
     setDeleteAsk(null);
+  }, []);
+  /** Închide detaliul: înapoi în calendar dacă de acolo a fost deschis, altfel la listă. */
+  const closeDetail = useCallback(() => {
+    setMode(detailFrom);
+    setSelectedId(null);
+    setDeleteAsk(null);
+  }, [detailFrom]);
+  const openCalendar = useCallback(() => {
+    setMode('calendar');
+    setSelectedId(null);
+    setPanelOpen(true);
+    setSheetSnap('tall');
   }, []);
   const openSettings = useCallback(() => {
     setMode('settings');
@@ -584,7 +599,7 @@ function useAppStore() {
     // filtre & căutare
     cats, fadingCats, toggleCategory, resetFilters, search, setSearch,
     // panou
-    mode, openEvent, backToList, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount,
+    mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,
     // dialoguri
     modal, setModal, authMode, setAuthMode, authAfter, openAuth,

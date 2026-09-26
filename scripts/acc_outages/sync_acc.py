@@ -210,16 +210,20 @@ class Outage:
     updated: datetime | None
     description: str
     geo_queries: list[str] = field(default_factory=list)
+    # Din „Sistări planificate” (afișate și în calendarul aplicației).
+    planned: bool = False
+    subtype: str = 'apa'
+    source: str = SOURCE
 
     def to_event(self) -> dict:
         """Forma `UrbanEvent` (fără `location`, adăugată după geocodare)."""
         return {
             'id': self.id,
             'category': 'utilitati',
-            'subtype': 'apa',
+            'subtype': self.subtype,
             'title': self.title,
             'sourceType': 'official',
-            'source': SOURCE,
+            'source': self.source,
             'feed': 'live',
             'severity': self.severity,
             'district': self.district,
@@ -228,6 +232,7 @@ class Outage:
             'endAt': local_iso(self.end) if self.end else None,
             'updatedAt': local_iso(self.updated) if self.updated else None,
             'description': self.description or None,
+            'planned': self.planned,
         }
 
 
@@ -375,6 +380,7 @@ def parse_planned(sections: dict[str, str]) -> tuple[list[Outage], list[str]]:
             updated=posted,
             description=('Sistare planificată. ' + ('Apă cu presiune joasă. ' if low else '') + intro)[:500],
             geo_queries=house_query(street, number),
+            planned=True,
         ))
     return out, warnings
 
@@ -431,7 +437,9 @@ def firestore_client():
     return _db
 
 
-def sync_firestore(events: list[dict]) -> None:
+def sync_firestore(events: list[dict], source: str = SOURCE, keep_prefixes: tuple[str, ...] = ()) -> None:
+    """Scrie evenimentele sursei; cele care lipsesc sunt rezolvate, cu excepția id-urilor cu `keep_prefixes`
+    (ex. zilele a căror pagină nu s-a putut descărca)."""
     from google.cloud.firestore import GeoPoint, SERVER_TIMESTAMP
     from google.cloud.firestore_v1.base_query import FieldFilter
 
@@ -463,13 +471,13 @@ def sync_firestore(events: list[dict]) -> None:
             created += 1
 
     # Toate evenimentele fluxului (doar egalități → fără index compus); colecția rămâne mică datorită ștergerii.
-    feed_docs = (col.where(filter=FieldFilter('source', '==', SOURCE))
+    feed_docs = (col.where(filter=FieldFilter('source', '==', source))
                  .where(filter=FieldFilter('feed', '==', 'live'))
                  .stream())
     cutoff = datetime.now(timezone.utc) - RETENTION
     to_delete = []
     for d in feed_docs:
-        if d.id in live_ids:
+        if d.id in live_ids or d.id.startswith(keep_prefixes or ('\0',)):
             continue
         resolved_at = d.get('resolvedAt')
         if resolved_at is None:
@@ -512,14 +520,7 @@ def fetch_page() -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--dry-run', action='store_true', help='nu scrie în Firestore')
-    ap.add_argument('--html', help='citește pagina dintr-un fișier local în loc de acc.md')
-    ap.add_argument('--out', help='scrie evenimentele (JSON) în acest fișier')
-    ap.add_argument('--no-geocode', action='store_true', help='fără Nominatim (doar la --dry-run)')
-    args = ap.parse_args()
-    if args.no_geocode and not args.dry_run:
-        ap.error('--no-geocode merge doar cu --dry-run (Firestore cere o locație)')
+    args = cli_args(__doc__, 'citește pagina dintr-un fișier local în loc de acc.md')
 
     page = open(args.html, encoding='utf-8').read() if args.html else fetch_page()
     sections = split_sections(page)
@@ -540,6 +541,11 @@ def main() -> int:
         print(f'::warning::{w}')
     print(f'ACC: {len(outages) - len(planned)} sistări curente, {len(planned)} planificate.')
 
+    return publish(outages, args, SOURCE)
+
+
+def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_prefixes: tuple[str, ...] = ()) -> int:
+    """Geocodare (cu locațiile existente refolosite) → JSON opțional → Firestore."""
     known = {} if args.dry_run else existing_locations([o.id for o in outages])
     events: list[dict] = []
     for o in outages:
@@ -571,8 +577,21 @@ def main() -> int:
 
     if args.dry_run:
         return 0
-    sync_firestore(events)
+    sync_firestore(events, source, keep_prefixes)
     return 0
+
+
+def cli_args(description: str | None, html_help: str | None = None) -> argparse.Namespace:
+    ap = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--dry-run', action='store_true', help='nu scrie în Firestore')
+    if html_help:
+        ap.add_argument('--html', help=html_help)
+    ap.add_argument('--out', help='scrie evenimentele (JSON) în acest fișier')
+    ap.add_argument('--no-geocode', action='store_true', help='fără Nominatim (doar la --dry-run)')
+    args = ap.parse_args()
+    if args.no_geocode and not args.dry_run:
+        ap.error('--no-geocode merge doar cu --dry-run (Firestore cere o locație)')
+    return args
 
 
 def encode_geohash(lat: float, lng: float, precision: int = 10) -> str:
