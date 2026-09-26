@@ -2,6 +2,7 @@ import { CONFIG } from '@/config/constants';
 import { SUBTYPES, typeTint, typeVar } from '@/config/categories';
 import type { DerivedEvent, Status, UrbanEvent } from '@/types';
 import { fmtAgo, fmtAt } from './format';
+import { t } from '@/i18n';
 import type { IconName } from './icons';
 
 /** Statusul unui eveniment, calculat din sursă, voturi și timp. */
@@ -37,29 +38,29 @@ export interface BadgeStyle {
 export function statusBadge(e: DerivedEvent): BadgeStyle {
   switch (e.status) {
     case 'oficial':
-      return { label: 'Oficial', icon: 'shield', className: 'badge badge--official' };
+      return { label: t('Oficial'), icon: 'shield', className: 'badge badge--official' };
     case 'confirmat':
-      return { label: `Confirmat de ${e.conf} vecini`, icon: 'check', className: 'badge badge--confirmed' };
+      return { label: t('Confirmat de {n} vecini', { n: e.conf }), icon: 'check', className: 'badge badge--confirmed' };
     case 'raportat':
-      return { label: 'Neconfirmat', icon: 'clock', className: 'badge badge--reported' };
+      return { label: t('Neconfirmat'), icon: 'clock', className: 'badge badge--reported' };
     case 'contestat':
-      return { label: 'Contestat', icon: 'help', className: 'badge badge--contested' };
+      return { label: t('Contestat'), icon: 'help', className: 'badge badge--contested' };
     case 'rezolvat':
-      return { label: 'Rezolvat', icon: 'check', className: 'badge badge--closed' };
+      return { label: t('Rezolvat'), icon: 'check', className: 'badge badge--closed' };
     default:
-      return { label: 'Expirat', icon: 'history', className: 'badge badge--closed' };
+      return { label: t('Expirat'), icon: 'history', className: 'badge badge--closed' };
   }
 }
 
 export const severityLabel = (e: UrbanEvent) =>
   e.severity === 'total'
-    ? { label: 'Întrerupere totală', short: 'Totală' }
-    : { label: 'Parțial — posibil afectat', short: 'Posibil afectat' };
+    ? { label: t('Întrerupere totală'), short: t('Totală') }
+    : { label: t('Parțial — posibil afectat'), short: t('Posibil afectat') };
 
 export function sourceLabel(e: UrbanEvent): { label: string; icon: IconName } {
-  if (e.feed === 'live') return { label: `Flux oficial · ${e.source}`, icon: 'radio' };
-  if (e.sourceType === 'official') return { label: e.source ?? 'Sursă oficială', icon: 'shield' };
-  return { label: 'Raportat de vecini', icon: 'user' };
+  if (e.feed === 'live') return { label: t('Flux oficial · {source}', { source: e.source ?? '' }), icon: 'radio' };
+  if (e.sourceType === 'official') return { label: e.source ?? t('Sursă oficială'), icon: 'shield' };
+  return { label: t('Raportat de vecini'), icon: 'user' };
 }
 
 /** Aspectul markerului/plăcuței: culoarea = categoria, forma = statusul, umplerea = gravitatea. */
@@ -75,31 +76,42 @@ export function tileStyle(e: DerivedEvent) {
 }
 
 export function timeInfo(e: DerivedEvent): string {
-  if (e.status === 'rezolvat' && e.resolvedAt) return `rezolvat ${fmtAt(new Date(e.resolvedAt))}`;
-  if (e.status === 'expirat') return 'expirat';
+  if (e.status === 'rezolvat' && e.resolvedAt) return t('rezolvat {when}', { when: fmtAt(new Date(e.resolvedAt)) });
+  if (e.status === 'expirat') return t('expirat');
   if (e.sourceType === 'official') {
     const st = e.startAt ? new Date(e.startAt) : null;
-    if (st && st.getTime() > Date.now()) return `de ${fmtAt(st)}`;
-    return e.endAt ? `până ${fmtAt(new Date(e.endAt))}` : '';
+    if (st && st.getTime() > Date.now()) return t('de {when}', { when: fmtAt(st) });
+    return e.endAt ? t('până {when}', { when: fmtAt(new Date(e.endAt)) }) : '';
   }
-  return e.reportedAt ? `raportat ${fmtAgo(new Date(e.reportedAt))}` : '';
+  return e.reportedAt ? t('raportat {ago}', { ago: fmtAgo(new Date(e.reportedAt)) }) : '';
 }
 
 export function metaLine(e: DerivedEvent): string {
-  return [e.district, timeInfo(e)].filter(Boolean).join(' · ');
+  // Pentru o adresă dintr-un anunț mai mare, adresa e primul lucru din rând.
+  return [e.parentId ? e.streets[0] : null, districtName(e.district), timeInfo(e)].filter(Boolean).join(' · ');
 }
 
 export const categoryLine = (e: UrbanEvent) => SUBTYPES[e.subtype].label;
+
+/** Titlul afișat: titlurile standard (ex. „Apă deconectată”) se traduc; textul liber rămâne cum e. */
+export const eventTitle = (e: Pick<UrbanEvent, 'title'>) => t(e.title);
+
+/** Sectoarele au nume traduse (Botanica → Ботаника); „Cruzești (Ciocana)” → „Cruzești (Чеканы)”. */
+export const districtName = (d: string) => d.replace(/[^()]+/g, (part) => t(part.trim()) === part.trim() ? part : part.replace(part.trim(), t(part.trim())));
 
 /** „Se reia în aproximativ 3 h” / „Începe mâine la 09:00”. */
 export function countdown(e: DerivedEvent): { title: string; sub: string } | null {
   if (e.sourceType !== 'official' || isClosed(e.status) || !e.endAt) return null;
   const st = e.startAt ? new Date(e.startAt) : null;
   const en = new Date(e.endAt);
-  if (st && st.getTime() > Date.now()) return { title: `Începe ${fmtAt(st)}`, sub: `Durată estimată până ${fmtAt(en)}` };
+  if (st && st.getTime() > Date.now())
+    return { title: t('Începe {when}', { when: fmtAt(st) }), sub: t('Durată estimată până {when}', { when: fmtAt(en) }) };
   const h = (en.getTime() - Date.now()) / 36e5;
-  const verb = 'Se reia';
   const title =
-    h < 1 ? `${verb} în mai puțin de o oră` : h < 36 ? `${verb} în aproximativ ${Math.round(h)} h` : `${verb} în aproximativ ${Math.round(h / 24)} zile`;
-  return { title, sub: `Conform anunțului oficial: ${fmtAt(en)}` };
+    h < 1
+      ? t('Se reia în mai puțin de o oră')
+      : h < 36
+        ? t('Se reia în aproximativ {n} h', { n: Math.round(h) })
+        : t('Se reia în aproximativ {n} zile', { n: Math.round(h / 24) });
+  return { title, sub: t('Conform anunțului oficial: {when}', { when: fmtAt(en) }) };
 }

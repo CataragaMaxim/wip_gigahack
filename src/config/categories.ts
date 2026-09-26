@@ -1,5 +1,6 @@
 import type { CategoryKey, SubtypeKey } from '@/types';
 import type { IconName } from '@/lib/icons';
+import { t } from '@/i18n';
 
 export interface CategoryDef {
   key: CategoryKey;
@@ -11,7 +12,14 @@ export interface CategoryDef {
 }
 
 export const CATEGORIES: CategoryDef[] = [
-  { key: 'utilitati', label: 'Utilități', short: 'Utilități', hint: 'Apă, gaz, electricitate', icon: 'plug', subtypes: ['apa', 'gaz', 'electricitate'] },
+  {
+    key: 'utilitati',
+    get label() { return t('Utilități'); },
+    get short() { return t('Utilități'); },
+    get hint() { return t('Apă, gaz, electricitate'); },
+    icon: 'plug',
+    subtypes: ['apa', 'gaz', 'electricitate'],
+  },
 ];
 
 export const CATEGORY: Record<CategoryKey, CategoryDef> = Object.fromEntries(
@@ -27,10 +35,25 @@ export interface SubtypeDef {
   hint: string;
 }
 
+/** Textele se traduc la citire (getter), deci oriunde se folosește `SUBTYPES[k].label` apare în limba curentă. */
+const subtype = (icon: IconName, label: string, title: string, hint: string): SubtypeDef => ({
+  icon,
+  get label() { return t(label); },
+  get title() { return t(title); },
+  get hint() { return t(hint); },
+});
+
+/** Titlul salvat în Firestore pentru o raportare nouă — mereu în română (se traduce doar la afișare). */
+export const SUBTYPE_TITLE_RO: Record<SubtypeKey, string> = {
+  apa: 'Lipsă apă',
+  gaz: 'Lipsă gaz',
+  electricitate: 'Fără energie electrică',
+};
+
 export const SUBTYPES: Record<SubtypeKey, SubtypeDef> = {
-  apa: { label: 'Apă', icon: 'droplet', title: 'Lipsă apă', hint: 'Fără apă, presiune joasă, avarie' },
-  gaz: { label: 'Gaz', icon: 'flame', title: 'Lipsă gaz', hint: 'Fără gaz, miros de gaz, avarie' },
-  electricitate: { label: 'Electricitate', icon: 'bolt', title: 'Fără energie electrică', hint: 'Pană de curent, tensiune instabilă' },
+  apa: subtype('droplet', 'Apă', SUBTYPE_TITLE_RO.apa, 'Fără apă, presiune joasă, avarie'),
+  gaz: subtype('flame', 'Gaz', SUBTYPE_TITLE_RO.gaz, 'Fără gaz, miros de gaz, avarie'),
+  electricitate: subtype('bolt', 'Electricitate', SUBTYPE_TITLE_RO.electricitate, 'Pană de curent, tensiune instabilă'),
 };
 
 /** Opțiunile din filtre, raportare și calendar, în această ordine. */

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '@/state/AppContext';
+import { t } from '@/i18n';
 
 /** Cât timp așteptăm cel mult harta înainte să o arătăm oricum (ms). */
 const MAX_WAIT_MS = 15000;
@@ -37,7 +38,7 @@ export function Splash() {
   }, [hidden]);
 
   if (gone) return null;
-  const status = !locationReady ? 'Căutăm locația ta…' : !tilesReady ? 'Se încarcă harta Chișinăului…' : !dataReady ? 'Se încarcă alertele…' : 'Gata';
+  const status = !locationReady ? t('Căutăm locația ta…') : !tilesReady ? t('Se încarcă harta Chișinăului…') : !dataReady ? t('Se încarcă alertele…') : t('Gata');
 
   return (
     <div className={`splash ${hidden ? 'is-hidden' : ''}`} role="status" aria-live="polite" aria-busy={!hidden}>
@@ -46,8 +47,8 @@ export function Splash() {
           <span className="splash__bar" />
         </span>
       </div>
-      <strong className="splash__name">Work In Progress</strong>
-      <span className="splash__loading">Se încarcă…</span>
+      <strong className="splash__name">{t('Work In Progress')}</strong>
+      <span className="splash__loading">{t('Se încarcă…')}</span>
       <span className="splash__status">{status}</span>
     </div>
   );

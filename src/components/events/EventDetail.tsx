@@ -2,10 +2,11 @@ import { CONFIG } from '@/config/constants';
 import { typeTint, typeVar } from '@/config/categories';
 import { fmtAgo, fmtAt, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { categoryLine, countdown, isClosed } from '@/lib/status';
+import { categoryLine, countdown, districtName, eventTitle, isClosed } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent } from '@/types';
 import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits';
+import { t } from '@/i18n';
 
 const AVATAR_POOL = ['AM', 'IC', 'DR', 'VP', 'EL', 'NS', 'OT', 'MG', 'CB', 'LS'];
 
@@ -21,10 +22,10 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
 
   let voteBlocked = '';
   if (!myVote) {
-    if (!online) voteBlocked = 'Confirmarea necesită conexiune la internet.';
-    else if (!userPos) voteBlocked = 'Poți confirma doar dacă ești în apropiere. Activează locația pentru a vota.';
+    if (!online) voteBlocked = t('Confirmarea necesită conexiune la internet.');
+    else if (!userPos) voteBlocked = t('Poți confirma doar dacă ești în apropiere. Activează locația pentru a vota.');
     else if (!near)
-      voteBlocked = `Poți confirma doar dacă ești în apropiere (până la ${CONFIG.VOTE_RADIUS_M / 1000} km).`;
+      voteBlocked = t('Poți confirma doar dacă ești în apropiere (până la {km} km).', { km: CONFIG.VOTE_RADIUS_M / 1000 });
   }
 
   const hash = [...e.id].reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -40,8 +41,8 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
           <span className="detail__cat" style={{ color: typeVar(e.subtype) }}>
             {categoryLine(e)}
           </span>
-          <h2 className="detail__title">{e.title}</h2>
-          {e.district && <span className="muted small">{e.district}</span>}
+          <h2 className="detail__title">{eventTitle(e)}</h2>
+          {e.district && <span className="muted small">{districtName(e.district)}</span>}
         </div>
       </div>
 
@@ -83,7 +84,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
             {e.conf > 3 && <span className="avatar avatar--sm avatar--more">+{e.conf - 3}</span>}
           </div>
           <strong>
-            {e.conf === 1 ? '1 vecin a confirmat' : `${plural(e.conf, 'vecin', 'vecini')} au confirmat`}
+            {e.conf === 1 ? t('1 vecin a confirmat') : t('{n} au confirmat', { n: plural(e.conf, 'vecin', 'vecini') })}
             {myVote === 'yes' ? ', inclusiv tu' : ''}
           </strong>
         </div>
@@ -94,7 +95,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
           <Icon name="history" />
           <span className="stack">
             <strong>{e.status === 'rezolvat' && e.resolvedAt ? `Rezolvat ${fmtAt(new Date(e.resolvedAt))}` : 'Expirat'}</strong>
-            <span className="muted small">Evenimentul nu mai apare pe hartă.</span>
+            <span className="muted small">{t('Evenimentul nu mai apare pe hartă.')}</span>
           </span>
         </div>
       )}
@@ -103,24 +104,24 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
         <>
           <dl className="facts">
             <div>
-              <dt>Sursa</dt>
+              <dt>{t('Sursa')}</dt>
               <dd>{e.source}</dd>
             </div>
             <div>
-              <dt>Ultima actualizare</dt>
+              <dt>{t('Ultima actualizare')}</dt>
               <dd>{e.updatedAt ? fmtAt(new Date(e.updatedAt)) : '—'}</dd>
             </div>
             <div>
-              <dt>Început oficial</dt>
+              <dt>{t('Început oficial')}</dt>
               <dd>{e.startAt ? fmtAt(new Date(e.startAt)) : '—'}</dd>
             </div>
             <div>
-              <dt>Sfârșit oficial</dt>
+              <dt>{t('Sfârșit oficial')}</dt>
               <dd className="strong">{e.endAt ? fmtAt(new Date(e.endAt)) : '—'}</dd>
             </div>
           </dl>
           <section className="stack gap-8">
-            <h3 className="h3">Străzi afectate</h3>
+            <h3 className="h3">{e.parentId ? t('Adresa') : t('Străzi afectate')}</h3>
             <ul className="streets">
               {e.streets.map((s) => (
                 <li key={s}>
@@ -130,12 +131,18 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
               ))}
             </ul>
           </section>
+          {e.allStreets && (
+            <section className="stack gap-8">
+              <h3 className="h3">{t('Toate adresele din anunț')}</h3>
+              <p className="small muted">{e.allStreets.join(' · ')}</p>
+            </section>
+          )}
         </>
       ) : (
         <>
           <dl className="facts">
             <div>
-              <dt>Raportat</dt>
+              <dt>{t('Raportat')}</dt>
               <dd>{e.reportedAt ? `${fmtAt(new Date(e.reportedAt))} (${fmtAgo(new Date(e.reportedAt))})` : '—'}</dd>
             </div>
           </dl>
@@ -154,7 +161,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
           {e.photo && (
             <img
               src={typeof e.photo === 'string' ? e.photo : ''}
-              alt="Fotografie atașată de autor"
+              alt={t('Fotografie atașată de autor')}
               style={{ width: '100%', borderRadius: 12 }}
             />
           )}
@@ -169,14 +176,14 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
 
       {!closed && !isMine && (
         <section className="vote">
-          <h3 className="h3">Ai și tu această problemă?</h3>
+          <h3 className="h3">{t('Ai și tu această problemă?')}</h3>
           {(myVote || !voteBlocked) && (
             <div className="grid-2">
               <button type="button" className={`btn btn--vote ${myVote === 'yes' ? 'is-chosen' : ''} ${myVote === 'no' ? 'is-dim' : ''}`} disabled={!!myVote} aria-pressed={myVote === 'yes'} onClick={() => vote(e.id, 'yes')}>
-                Da, și la mine
+                {t('Da, și la mine')}
               </button>
               <button type="button" className={`btn btn--vote btn--vote-no ${myVote === 'no' ? 'is-chosen' : ''} ${myVote === 'yes' ? 'is-dim' : ''}`} disabled={!!myVote} aria-pressed={myVote === 'no'} onClick={() => vote(e.id, 'no')}>
-                Nu, la mine funcționează
+                {t('Nu, la mine funcționează')}
               </button>
             </div>
           )}
@@ -184,7 +191,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
             <p className="row gap-8 small" role="status">
               <Icon name="check" size={18} strokeWidth={2.2} />
               <span>
-                <strong>{myVote === 'yes' ? 'Ai confirmat problema.' : 'Ai răspuns că la tine funcționează.'}</strong> {e.conf} confirmă · {e.den} nu
+                <strong>{myVote === 'yes' ? t('Ai confirmat problema.') : t('Ai răspuns că la tine funcționează.')}</strong> {t('{yes} confirmă · {no} nu', { yes: e.conf, no: e.den })}
               </span>
             </p>
           )}
@@ -194,7 +201,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
               {voteBlocked}
             </p>
           )}
-          <span className="muted xsmall">Un singur răspuns pe dispozitiv. Nu ai nevoie de cont.</span>
+          <span className="muted xsmall">{t('Un singur răspuns pe dispozitiv. Nu ai nevoie de cont.')}</span>
         </section>
       )}
 
@@ -210,7 +217,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
         ) : (
           <button type="button" className="btn btn--danger-ghost" onClick={() => setDeleteAsk(e.id)}>
             <Icon name="trash" size={16} />
-            Șterge raportarea mea
+            {t('Șterge raportarea mea')}
           </button>
         ))}
     </div>
@@ -223,10 +230,10 @@ export function EventActions({ e, short = false }: { e: DerivedEvent; short?: bo
   const share = async () => {
     const url = `${window.location.origin}/?e=${encodeURIComponent(e.id)}`;
     try {
-      if (navigator.share) await navigator.share({ title: e.title, url });
+      if (navigator.share) await navigator.share({ title: eventTitle(e), url });
       else {
         await navigator.clipboard.writeText(url);
-        flash('Linkul evenimentului a fost copiat');
+        flash(t('Linkul evenimentului a fost copiat'));
       }
     } catch {
       /* partajare anulată */
@@ -238,11 +245,11 @@ export function EventActions({ e, short = false }: { e: DerivedEvent; short?: bo
     <>
       <button type="button" className={`btn btn--secondary ${short ? 'btn--lg' : ''}`} aria-pressed={on} onClick={() => toggleFollow(e.id)}>
         <Icon name="bookmark" fill={on ? 'currentColor' : 'none'} />
-        {on ? 'Urmărești' : short ? 'Urmărește' : 'Salvează / urmărește'}
+        {on ? t('Urmărești') : short ? t('Urmărește') : t('Salvează / urmărește')}
       </button>
       <button type="button" className={`btn btn--secondary ${short ? 'btn--lg' : ''}`} onClick={() => void share()}>
         <Icon name="share" />
-        Distribuie
+        {t('Distribuie')}
       </button>
     </>
   );
@@ -250,15 +257,15 @@ export function EventActions({ e, short = false }: { e: DerivedEvent; short?: bo
 
 export function DeleteConfirm({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   return (
-    <div className="danger-box fade-in" role="alertdialog" aria-label="Confirmă ștergerea">
-      <strong>Ștergi raportarea?</strong>
-      <span className="muted small">Dispare de pe hartă pentru toți, iar confirmările vecinilor se pierd. Acțiunea nu poate fi anulată.</span>
+    <div className="danger-box fade-in" role="alertdialog" aria-label={t('Confirmă ștergerea')}>
+      <strong>{t('Ștergi raportarea?')}</strong>
+      <span className="muted small">{t('Dispare de pe hartă pentru toți, iar confirmările vecinilor se pierd. Acțiunea nu poate fi anulată.')}</span>
       <div className="grid-2">
         <button type="button" className="btn btn--secondary" onClick={onCancel}>
-          Anulează
+          {t('Anulează')}
         </button>
         <button type="button" className="btn btn--danger" onClick={onConfirm}>
-          Șterge
+          {t('Șterge')}
         </button>
       </div>
     </div>

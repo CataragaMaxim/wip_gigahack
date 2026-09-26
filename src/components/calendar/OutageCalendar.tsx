@@ -5,10 +5,25 @@ import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent, SubtypeKey } from '@/types';
 import { SeverityBadge } from '@/components/events/EventBits';
+import { getLang, t } from '@/i18n';
+import { districtName, eventTitle } from '@/lib/status';
 
-const WEEKDAYS = ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'];
-const WEEKDAY_NAMES = ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'];
-const MONTH_NAMES = ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'];
+const CAL = {
+  ro: {
+    weekdays: ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'],
+    dayNames: ['duminică', 'luni', 'marți', 'miercuri', 'joi', 'vineri', 'sâmbătă'],
+    /** Titlul lunii („Septembrie 2026”) și data („28 septembrie”) — în română, aceeași formă. */
+    months: ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'],
+    monthsOf: ['ianuarie', 'februarie', 'martie', 'aprilie', 'mai', 'iunie', 'iulie', 'august', 'septembrie', 'octombrie', 'noiembrie', 'decembrie'],
+  },
+  ru: {
+    weekdays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+    dayNames: ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
+    /** Rusa: nominativ în titlu („Сентябрь 2026”), genitiv în dată („28 сентября”). */
+    months: ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'],
+    monthsOf: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+  },
+};
 
 /** Cheia zilei locale: „2026-09-28”. */
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -43,6 +58,8 @@ function useScheduledEvents(kind: Kind) {
         .filter((e) => isScheduled(e) && e.status !== 'rezolvat' && types[e.subtype])
         .filter((e) => matchesKind(e, kind))
         .filter((e) => radius === 'all' || e.distanceM == null || e.distanceM <= radius)
+        // Un anunț cu mai multe adrese apare o singură dată (prima lui adresă din rază).
+        .filter((e, i, all) => !e.parentId || all.findIndex((x) => x.parentId === e.parentId) === i)
         .sort((a, b) => a.startAt!.localeCompare(b.startAt!)),
     [events, radius, types, kind],
   );
@@ -70,12 +87,13 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
   const startsToday = dayKey(start) === k;
   const endsToday = !!end && dayKey(end) === k;
   if (startsToday && endsToday) return `${hm(start)} – ${hm(end!)}`;
-  if (startsToday) return end ? `de la ${hm(start)}` : hm(start);
-  if (endsToday) return `până la ${hm(end!)}`;
-  return 'toată ziua';
+  if (startsToday) return end ? t('de la {time}', { time: hm(start) }) : hm(start);
+  if (endsToday) return t('până la {time}', { time: hm(end!) });
+  return t('toată ziua');
 }
 
 export function OutageCalendar() {
+  const cal = CAL[getLang()];
   const { radius, userPos, gps, openSettings, openEvent, loadState } = useApp();
   const [kind, setKind] = useState<Kind>('all');
   const outages = useScheduledEvents(kind);
@@ -109,50 +127,50 @@ export function OutageCalendar() {
   const next = [...byDay.keys()].sort().find((d) => d > selected);
   const noGps = !userPos && gps !== 'pending';
   const upcoming = outages.filter((e) => new Date(e.endAt ?? e.startAt!) >= new Date()).length;
-  const scope = radius === 'all' || noGps ? 'tot orașul' : `rază ${radius / 1000} km`;
+  const scope = radius === 'all' || noGps ? t('tot orașul') : t('rază {km} km', { km: radius / 1000 });
 
   return (
     <div className="cal fade-in">
       <p className="muted small">
-        {loadState === 'loading' ? 'Se încarcă…' : `${plural(upcoming, 'eveniment programat', 'evenimente programate')} · ${scope}`}
+        {loadState === 'loading' ? t('Se încarcă…') : `${plural(upcoming, 'eveniment programat', 'evenimente programate')} · ${scope}`}
       </p>
       {(radius === 'all' || noGps) && (
         <div className="card card--sunk row gap-10 cal__hint">
           <Icon name="locate" size={18} />
           <span className="small grow">
-            {noGps ? 'Locația e dezactivată: afișăm tot orașul.' : 'Alege o rază ca să vezi doar străzile din jurul tău.'}
+            {noGps ? t('Locația e dezactivată: afișăm tot orașul.') : t('Alege o rază ca să vezi doar străzile din jurul tău.')}
           </span>
           {!noGps && (
             <button type="button" className="btn btn--ghost btn--sm" onClick={openSettings}>
-              Setează raza
+              {t('Setează raza')}
             </button>
           )}
         </div>
       )}
 
-      <div className="seg seg--4" role="group" aria-label="Tipul evenimentului">
+      <div className="seg seg--4" role="group" aria-label={t('Tipul evenimentului')}>
         {KINDS.map((k) => (
           <button key={k.key} type="button" className="seg__btn" aria-pressed={kind === k.key} onClick={() => setKind(k.key)}>
             {k.key !== 'all' && <Icon name={SUBTYPES[k.key].icon} size={16} />}
-            {k.label}
+            {t(k.label)}
           </button>
         ))}
       </div>
 
       <div className="cal__month">
-        <button type="button" className="icon-btn" aria-label="Luna anterioară" onClick={() => shiftMonth(-1)}>
+        <button type="button" className="icon-btn" aria-label={t('Luna anterioară')} onClick={() => shiftMonth(-1)}>
           <Icon name="chevL" />
         </button>
         <h3 className="h3" aria-live="polite">
-          {capitalize(MONTH_NAMES[month.getMonth()])} {month.getFullYear()}
+          {capitalize(cal.months[month.getMonth()])} {month.getFullYear()}
         </h3>
-        <button type="button" className="icon-btn" aria-label="Luna următoare" onClick={() => shiftMonth(1)}>
+        <button type="button" className="icon-btn" aria-label={t('Luna următoare')} onClick={() => shiftMonth(1)}>
           <Icon name="chevR" />
         </button>
       </div>
 
-      <div className="cal__grid" role="grid" aria-label="Calendarul evenimentelor programate">
-        {WEEKDAYS.map((w) => (
+      <div className="cal__grid" role="grid" aria-label={t('Calendarul evenimentelor programate')}>
+        {cal.weekdays.map((w) => (
           <span key={w} className="cal__wd" aria-hidden="true">
             {w}
           </span>
@@ -170,7 +188,7 @@ export function OutageCalendar() {
               type="button"
               className={cls}
               aria-pressed={k === selected}
-              aria-label={`${d.getDate()} ${MONTH_NAMES[d.getMonth()]}${n ? `, ${plural(n, 'eveniment', 'evenimente')}` : ''}`}
+              aria-label={`${d.getDate()} ${cal.monthsOf[d.getMonth()]}${n ? `, ${plural(n, 'eveniment', 'evenimente')}` : ''}`}
               onClick={() => setPicked(k)}
             >
               <span>{d.getDate()}</span>
@@ -182,14 +200,14 @@ export function OutageCalendar() {
 
       <section className="stack gap-8" aria-live="polite">
         <h3 className="h3">
-          {capitalize(WEEKDAY_NAMES[selDate.getDay()])}, {selDate.getDate()} {MONTH_NAMES[selDate.getMonth()]}
+          {capitalize(cal.dayNames[selDate.getDay()])}, {selDate.getDate()} {cal.monthsOf[selDate.getMonth()]}
         </h3>
         {dayList.length === 0 ? (
           <div className="card card--sunk stack gap-8">
-            <span className="small muted">Nimic programat în această zi.</span>
+            <span className="small muted">{t('Nimic programat în această zi.')}</span>
             {next && (
               <button type="button" className="btn btn--ghost btn--sm cal__next" onClick={() => setPicked(next)}>
-                Următoarea: {fromKey(next).getDate()} {MONTH_NAMES[fromKey(next).getMonth()]}
+                {t('Următoarea: {date}', { date: `${fromKey(next).getDate()} ${cal.monthsOf[fromKey(next).getMonth()]}` })}
                 <Icon name="chevR" size={16} />
               </button>
             )}
@@ -206,10 +224,10 @@ export function OutageCalendar() {
                     <span className="cal__time">{hoursOnDay(e, selDate)}</span>
                   </span>
                   <span className="stack gap-4 grow">
-                    <strong className="small">{e.title}</strong>
-                    <span className="small">{e.streets.join(' · ')}</span>
+                    <strong className="small">{eventTitle(e)}</strong>
+                    <span className="small">{(e.allStreets ?? e.streets).join(' · ')}</span>
                     <span className="xsmall muted">
-                      {[e.district, e.source].filter(Boolean).join(' · ')}
+                      {[districtName(e.district), e.source].filter(Boolean).join(' · ')}
                     </span>
                     <span className="badges">
                       <SeverityBadge e={e} />

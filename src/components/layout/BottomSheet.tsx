@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Icon } from '@/lib/icons';
 import { SHEET_SNAPS, useApp, type SheetSnap } from '@/state/AppContext';
+import { t } from '@/i18n';
 
 export interface SheetHeader {
   title: string;
@@ -154,7 +155,7 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
   };
 
   const baseAria = miniAria ?? header.title;
-  const gripLabel = snap === 'mini' ? `${baseAria}. Extinde lista la jumătate` : snap === 'mid' ? 'Extinde lista pe tot ecranul' : 'Restrânge lista';
+  const gripLabel = snap === 'mini' ? `${baseAria}. ${t('Extinde lista la jumătate')}` : snap === 'mid' ? t('Extinde lista pe tot ecranul') : t('Restrânge lista');
 
   return (
     <section ref={ref} className="sheet" data-snap={snap} aria-label={label}>
@@ -180,7 +181,7 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
             data-sheet-toggle
             aria-expanded={false}
             aria-controls={bodyId}
-            aria-label={`${baseAria}. Extinde lista la jumătate`}
+            aria-label={`${baseAria}. ${t('Extinde lista la jumătate')}`}
             onClick={keyToggle}
           >
             <span className="sheet__titles">
@@ -206,7 +207,7 @@ export function BottomSheet({ label, header, miniLine, miniAria, live = 'ok', pa
               {header.subtitle && <p className="sheet__sub">{header.subtitle}</p>}
             </div>
             {header.contextLabel && <span className="sheet__tag">{header.contextLabel}</span>}
-            <button type="button" className="sheet__collapse" aria-label="Restrânge" onClick={() => setSheetSnap(snap === 'tall' ? 'mid' : 'mini')}>
+            <button type="button" className="sheet__collapse" aria-label={t('Restrânge')} onClick={() => setSheetSnap(snap === 'tall' ? 'mid' : 'mini')}>
               <Icon name="chevD" size={18} strokeWidth={2.2} />
             </button>
           </div>

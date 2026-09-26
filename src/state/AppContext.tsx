@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import L, { type Map as LeafletMap } from 'leaflet';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
-import { ALL_TYPES_ON, SUBTYPES, isKnownType } from '@/config/categories';
+import { ALL_TYPES_ON, SUBTYPE_TITLE_RO, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
 import { distanceToEvent } from '@/lib/geo';
 import { deriveStatus, isClosed, isPublic } from '@/lib/status';
@@ -10,6 +10,7 @@ import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
 import { matchStreet, type StreetMatch } from '@/services/streetMatch';
 import type { GeoResult } from '@/services/geocoding';
+import { applyLang, getLang, t, type Lang } from '@/i18n';
 import {
   watchAuth,
   logInWithEmail,
@@ -81,6 +82,28 @@ interface Session {
   locations: SavedLocationDoc[];
 }
 
+/**
+ * Un anunț oficial cu mai multe adrese devine câte un eveniment pe adresă (zonă mică, 25–55 m),
+ * ca pe hartă să nu apară cercuri mari suprapuse. Id-ul zonei: `${anunț}~${index}`.
+ */
+function splitAreas(e: UrbanEvent): (UrbanEvent & { parentId?: string; allStreets?: string[] })[] {
+  if (!e.areas?.length) return [e];
+  if (e.areas.length === 1) {
+    const a = e.areas[0];
+    return [{ ...e, location: { lat: a.lat, lng: a.lng }, radiusM: a.radiusM }];
+  }
+  return e.areas.map((a, i) => ({
+    ...e,
+    id: `${e.id}~${i}`,
+    parentId: e.id,
+    allStreets: e.streets,
+    streets: [a.label],
+    location: { lat: a.lat, lng: a.lng },
+    radiusM: a.radiusM,
+    areas: undefined,
+  }));
+}
+
 /** Documentul unei adrese salvate, dintr-o adresă aleasă din căutare. */
 function placeDoc(kind: SavedLocationDoc['kind'], name: string, p: GeoResult): Omit<SavedLocationDoc, 'id'> {
   return {
@@ -97,6 +120,12 @@ function useAppStore() {
   const [theme, setTheme] = useState<Theme>(() => load<Theme>('wip.theme', 'system'));
   const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false);
   const [radius, setRadius] = useState<RadiusOption>(() => load<RadiusOption>('wip.radius', 'all'));
+  // Limba: `t()` citește limba curentă din modulul i18n; schimbarea stării re-randează toată aplicația.
+  const [lang, setLangState] = useState<Lang>(getLang);
+  const setLang = useCallback((l: Lang) => {
+    applyLang(l);
+    setLangState(l);
+  }, []);
   useEffect(() => save('wip.theme', theme), [theme]);
   useEffect(() => save('wip.radius', radius), [radius]);
   useEffect(() => {
@@ -162,7 +191,7 @@ function useAppStore() {
     };
   }, []);
 
-  const [modal, setModal] = useState<null | 'report' | 'auth' | 'location'>(null);
+  const [modal, setModal] = useState<null | 'report' | 'auth' | 'location' | 'help'>(null);
 
   // ---------- locație ----------
   const [gps, setGps] = useState<GpsState>(USE_DEMO_LOCATION ? 'demo' : 'pending');
@@ -299,6 +328,7 @@ function useAppStore() {
     const rawIds = new Set(raw.map((e) => e.id));
     return raw
       .concat(userReports.filter((e) => !rawIds.has(e.id)))
+      .flatMap(splitAreas)
       .filter((e) => !deletedIds[e.id] && isKnownType(e.subtype))
       .map((e) => {
         const v = votes[e.id];
@@ -464,7 +494,7 @@ function useAppStore() {
           }),
         ]);
       }
-      flash('Mulțumim! Răspunsul tău a fost înregistrat.');
+      flash(t('Mulțumim! Răspunsul tău a fost înregistrat.'));
     },
     [votes, byId, user, flash],
   );
@@ -485,7 +515,7 @@ function useAppStore() {
         const n = { ...f };
         if (n[id]) delete n[id];
         else n[id] = true;
-        flash(n[id] ? 'Urmărești evenimentul.' : 'Nu mai urmărești evenimentul');
+        flash(n[id] ? t('Urmărești evenimentul.') : t('Nu mai urmărești evenimentul'));
         return n;
       });
     },
@@ -509,12 +539,12 @@ function useAppStore() {
           setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
         }
         setAuthAfter(null);
-        flash(`Cont creat. Bine ai venit, ${name.split(' ')[0]}!`);
+        flash(t('Cont creat. Bine ai venit, {name}!', { name: name.split(' ')[0] }));
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : '';
         flash(msg.includes('email-already-in-use')
-          ? 'Există deja un cont cu acest email.'
-          : 'Nu am putut crea contul. Încearcă din nou.');
+          ? t('Există deja un cont cu acest email.')
+          : t('Nu am putut crea contul. Încearcă din nou.'));
       }
     },
     [authAfter, flash],
@@ -532,9 +562,9 @@ function useAppStore() {
           setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
         }
         setAuthAfter(null);
-        flash('Te-ai autentificat');
+        flash(t('Te-ai autentificat'));
       } catch {
-        flash('Email sau parolă incorectă.');
+        flash(t('Email sau parolă incorectă.'));
       }
     },
     [authAfter, flash],
@@ -551,9 +581,9 @@ function useAppStore() {
         setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
       }
       setAuthAfter(null);
-      flash('Te-ai autentificat cu Google');
+      flash(t('Te-ai autentificat cu Google'));
     } catch {
-      flash('Autentificarea cu Google a eșuat.');
+      flash(t('Autentificarea cu Google a eșuat.'));
     }
   }, [authAfter, flash]);
 
@@ -561,9 +591,9 @@ function useAppStore() {
     async (phone: string, containerId: string) => {
       try {
         await sendPhoneCode(phone, containerId);
-        flash('Codul a fost trimis prin SMS.');
+        flash(t('Codul a fost trimis prin SMS.'));
       } catch {
-        flash('Nu am putut trimite codul. Verifică numărul.');
+        flash(t('Nu am putut trimite codul. Verifică numărul.'));
       }
     },
     [flash],
@@ -581,9 +611,9 @@ function useAppStore() {
           setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
         }
         setAuthAfter(null);
-        flash('Te-ai autentificat cu telefonul');
+        flash(t('Te-ai autentificat cu telefonul'));
       } catch {
-        flash('Cod incorect.');
+        flash(t('Cod incorect.'));
       }
     },
     [authAfter, flash],
@@ -593,7 +623,7 @@ function useAppStore() {
     await logOutUser();
     setFollowing({});
     setMode('list');
-    flash('Ai ieșit din cont');
+    flash(t('Ai ieșit din cont'));
   }, [flash]);
 
   const deleteAccount = useCallback(async () => {
@@ -602,7 +632,7 @@ function useAppStore() {
     await logOutUser();
     setUserReports([]);
     setMode('list');
-    flash('Contul a fost șters');
+    flash(t('Contul a fost șters'));
   }, [user, flash]);
 
   /** Setează sau schimbă adresa „Acasă”. */
@@ -612,7 +642,7 @@ function useAppStore() {
       const doc = placeDoc('home', 'Acasă', place);
       await upsertUserLocation(user.uid, 'acasa', doc);
       setSession((ss) => ({ ...ss, locations: [{ ...doc, id: 'acasa' }, ...ss.locations.filter((l) => l.kind !== 'home')] }));
-      flash('Adresa de acasă a fost salvată');
+      flash(t('Adresa de acasă a fost salvată'));
     },
     [user, flash],
   );
@@ -621,14 +651,14 @@ function useAppStore() {
     async (name: string, place: GeoResult) => {
       if (!user) return;
       if (locations.filter((l) => l.kind !== 'home').length >= CONFIG.MAX_EXTRA_ADDRESSES) {
-        flash(`Poți salva cel mult ${CONFIG.MAX_EXTRA_ADDRESSES} adrese pe lângă „Acasă”.`);
+        flash(t('Poți salva cel mult {n} adrese pe lângă „Acasă”.', { n: CONFIG.MAX_EXTRA_ADDRESSES }));
         return;
       }
       const locId = `l-${Date.now()}`;
       const doc = placeDoc('other', name.trim(), place);
       await upsertUserLocation(user.uid, locId, doc);
       setSession((ss) => ({ ...ss, locations: [...ss.locations, { ...doc, id: locId }] }));
-      flash(`Adresa „${doc.name}” a fost salvată`);
+      flash(t('Adresa „{name}” a fost salvată', { name: doc.name }));
     },
     [user, locations, flash],
   );
@@ -637,7 +667,7 @@ function useAppStore() {
       if (!user) return;
       await deleteUserLocation(user.uid, id);
       setSession((ss) => ({ ...ss, locations: ss.locations.filter((l) => l.id !== id) }));
-      flash('Adresa a fost ștearsă');
+      flash(t('Adresa a fost ștearsă'));
     },
     [user, flash],
   );
@@ -650,7 +680,7 @@ function useAppStore() {
       if (user) await bumpUserStats(user.uid, { reports: -1 });
       setDeleteAsk(null);
       if (selectedId === id) backToList();
-      flash('Raportarea a fost ștearsă');
+      flash(t('Raportarea a fost ștearsă'));
     },
     [selectedId, backToList, user, flash],
   );
@@ -658,7 +688,7 @@ function useAppStore() {
   // ---------- raportare ----------
   const openReport = useCallback(() => {
     if (!online) {
-      flash('Raportarea necesită conexiune la internet');
+      flash(t('Raportarea necesită conexiune la internet'));
       return;
     }
     if (!user) {
@@ -733,7 +763,7 @@ function useAppStore() {
       id: `u-${Date.now()}`,
       category: report.category,
       subtype: report.subtype,
-      title: SUBTYPES[report.subtype].title,
+      title: SUBTYPE_TITLE_RO[report.subtype],
       sourceType: 'citizen',
       authorId: user.uid,
       severity: report.severity,
@@ -772,7 +802,7 @@ function useAppStore() {
 
   return {
     // preferințe
-    theme, setTheme, isDark, radius, setRadius,
+    theme, setTheme, isDark, radius, setRadius, lang, setLang,
     // sesiune
     user, locations,
     signUp, logIn, logInGoogle, requestPhoneCode, verifyPhoneCode,

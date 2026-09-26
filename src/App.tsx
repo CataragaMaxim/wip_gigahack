@@ -11,6 +11,9 @@ import { AuthDialog } from '@/components/auth/AuthDialog';
 import { LocationDialog } from '@/components/location/LocationDialog';
 import { Splash } from '@/components/layout/Splash';
 import { ProximityPrompt } from '@/components/events/ProximityPrompt';
+import { ONBOARDED_KEY, Onboarding } from '@/components/help/Onboarding';
+import { load, save } from '@/lib/storage';
+import { t } from '@/i18n';
 
 function Shell() {
   const app = useApp();
@@ -28,6 +31,14 @@ function Shell() {
     }
   }, [isMobile, pinMode, panelOpen, sheetPx, mapInsets]);
 
+  // Prima vizită: ghidul „cum funcționează” (o singură dată; se redeschide din Setări).
+  useEffect(() => {
+    if (app.loadState !== 'ready' || modal || load(ONBOARDED_KEY, false)) return;
+    save(ONBOARDED_KEY, true);
+    app.setModal('help');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app.loadState]);
+
   // Deschide un eveniment din link (?e=id).
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('e');
@@ -37,7 +48,7 @@ function Shell() {
   return (
     <div className="app">
       <a className="skip-link" href="#panel">
-        Sari la lista evenimentelor
+        {t('Sari la lista evenimentelor')}
       </a>
       <TopBar />
       <main className={`stage ${pinMode ? 'is-pin' : ''}`} id="panel">
@@ -50,6 +61,7 @@ function Shell() {
       {modal === 'report' && <ReportDialog />}
       {modal === 'auth' && <AuthDialog />}
       {modal === 'location' && <LocationDialog />}
+      {modal === 'help' && <Onboarding />}
       <ProximityPrompt />
       <Splash />
       <div className="toast-region" aria-live="polite">

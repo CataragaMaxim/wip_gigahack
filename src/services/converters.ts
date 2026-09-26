@@ -37,6 +37,9 @@ export function fromFirestore(id: string, d: any): UrbanEvent {
     authorId: d.authorId ?? undefined,
     location: gpToLatLng(d.location)!,
     radiusM: typeof d.radiusM === 'number' ? d.radiusM : undefined,
+    areas: Array.isArray(d.areas)
+      ? d.areas.map((a: any) => ({ lat: a.lat, lng: a.lng, radiusM: a.radiusM, label: a.label ?? '' }))
+      : undefined,
     path: Array.isArray(d.path) ? (d.path.map(gpToLatLng).filter(Boolean) as LatLng[]) : undefined,
   };
 }

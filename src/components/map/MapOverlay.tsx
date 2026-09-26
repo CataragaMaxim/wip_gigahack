@@ -3,6 +3,7 @@ import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { SearchBox } from '@/components/layout/SearchBox';
+import { t } from '@/i18n';
 
 /** Stratul de deasupra hărții: căutarea (mobil), butonul „Listă”, avertismente. Filtrele sunt în panou. */
 export function MapOverlay() {
@@ -32,7 +33,7 @@ export function MapOverlay() {
         <div className="notice fade-in" role="status">
           <Icon name="wifiOff" size={18} />
           <span>
-            <strong>Ești offline.</strong> Afișăm date salvate{syncedAt ? ` · Date din ${hm(syncedAt)}` : ''}
+            <strong>{t('Ești offline.')}</strong> {syncedAt ? t('Afișăm datele salvate la {time}.', { time: hm(syncedAt) }) : t('Afișăm datele salvate.')}
           </span>
         </div>
       )}
@@ -40,14 +41,14 @@ export function MapOverlay() {
         <div className="notice notice--card fade-in" role="status">
           <Icon name="locate" size={20} />
           <div className="notice__body">
-            <strong>Locația nu este disponibilă</strong>
-            <span>Ai blocat accesul la locație. Îl poți permite din setările browserului sau poți căuta o adresă.</span>
+            <strong>{t('Locația nu este disponibilă')}</strong>
+            <span>{t('Ai blocat accesul la locație. Îl poți permite din setările browserului sau poți căuta o adresă.')}</span>
             <div className="row gap-8">
               <button type="button" className="btn btn--primary btn--sm" onClick={focusSearch}>
-                Caută o adresă
+                {t('Caută o adresă')}
               </button>
               <button type="button" className="btn btn--secondary btn--sm" onClick={() => setGpsNotice(false)}>
-                Închide
+                {t('Închide')}
               </button>
             </div>
           </div>
@@ -70,23 +71,23 @@ export function MapControls() {
       <div className={`controls ${hidden ? 'is-hidden' : ''}`}>
         {!isMobile && (
           <div className="zoom">
-            <button type="button" className="icon-btn" aria-label="Mărește harta" onClick={() => mapRef.current?.zoomIn()}>
+            <button type="button" className="icon-btn" aria-label={t('Mărește harta')} onClick={() => mapRef.current?.zoomIn()}>
               <Icon name="plus" />
             </button>
             <span className="zoom__sep" />
-            <button type="button" className="icon-btn" aria-label="Micșorează harta" onClick={() => mapRef.current?.zoomOut()}>
+            <button type="button" className="icon-btn" aria-label={t('Micșorează harta')} onClick={() => mapRef.current?.zoomOut()}>
               <Icon name="minus" />
             </button>
           </div>
         )}
-        <button type="button" className="btn btn--float" onClick={() => void locateMe()}>
+        <button type="button" className="btn btn--float controls__locate" aria-label={t('Locația mea')} onClick={() => void locateMe()}>
           <Icon name="locate" size={18} strokeWidth={1.8} />
-          Locația mea
+          <span className="btn__label">{t('Locația mea')}</span>
         </button>
         {isMobile && (
           <button type="button" className="btn btn--primary btn--fab" onClick={openReport} aria-disabled={!online}>
             <Icon name="plus" size={20} strokeWidth={2.2} />
-            Raportează o problemă
+            {t('Raportează o problemă')}
           </button>
         )}
       </div>
@@ -94,7 +95,7 @@ export function MapControls() {
         <div className="fab-wrap">
           <button type="button" className="btn btn--primary btn--fab" onClick={openReport} aria-disabled={!online}>
             <Icon name="plus" size={20} strokeWidth={2.2} />
-            Raportează o problemă
+            {t('Raportează o problemă')}
           </button>
         </div>
       )}

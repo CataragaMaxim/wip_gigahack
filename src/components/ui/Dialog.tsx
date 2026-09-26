@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Icon } from '@/lib/icons';
+import { t } from '@/i18n';
 
 interface Props {
   title: string;
@@ -39,7 +40,7 @@ export function Dialog({ title, subtitle, onClose, onBack, width = 580, header, 
         <div className="dialog__head">
           <div className="row gap-4 align-start">
             {onBack && (
-              <button type="button" className="icon-btn" aria-label="Înapoi" onClick={onBack}>
+              <button type="button" className="icon-btn" aria-label={t('Înapoi')} onClick={onBack}>
                 <Icon name="chevL" />
               </button>
             )}
@@ -49,7 +50,7 @@ export function Dialog({ title, subtitle, onClose, onBack, width = 580, header, 
             </div>
           </div>
           {onClose && (
-            <button type="button" className="icon-btn" aria-label="Închide" onClick={onClose}>
+            <button type="button" className="icon-btn" aria-label={t('Închide')} onClick={onClose}>
               <Icon name="x" />
             </button>
           )}

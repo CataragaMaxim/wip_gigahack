@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { STREETS } from '@/data/streets';
 import { normalize } from '@/lib/format';
 import { Icon } from '@/lib/icons';
+import { t } from '@/i18n';
 
 interface Props {
   id: string;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 /** Câmp de adresă cu sugestii din străzile Chișinăului. */
-export function StreetInput({ id, value, streetId, onChange, onBlur, invalid, describedBy, placeholder = 'Începe să scrii strada' }: Props) {
+export function StreetInput({ id, value, streetId, onChange, onBlur, invalid, describedBy, placeholder }: Props) {
   const [focused, setFocused] = useState(false);
   const suggestions = useMemo(() => {
     const q = normalize(value.trim());
@@ -33,7 +34,7 @@ export function StreetInput({ id, value, streetId, onChange, onBlur, invalid, de
         aria-expanded={open}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('Începe să scrii strada')}
         value={value}
         onChange={(e) => onChange(e.target.value, null)}
         onFocus={() => setFocused(true)}

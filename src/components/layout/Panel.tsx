@@ -7,6 +7,8 @@ import { EventActions, EventDetail } from '@/components/events/EventDetail';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { OutageCalendar } from '@/components/calendar/OutageCalendar';
 import { BottomSheet } from './BottomSheet';
+import { t } from '@/i18n';
+import { eventTitle } from '@/lib/status';
 
 /** Panoul lateral (desktop) / bottom sheet cu 3 stări (mobil) cu lista, detaliul sau setările. */
 export function Panel() {
@@ -24,7 +26,7 @@ function DesktopPanel() {
   if (!panelOpen) return null;
 
   const label =
-    mode === 'detail' ? 'Detalii eveniment' : mode === 'settings' ? 'Setări' : mode === 'calendar' ? 'Calendarul evenimentelor' : 'Lista evenimentelor';
+    mode === 'detail' ? t('Detalii eveniment') : mode === 'settings' ? t('Setări') : mode === 'calendar' ? t('Calendarul evenimentelor') : t('Lista evenimentelor');
 
   return (
     <section className="panel" aria-label={label}>
@@ -32,7 +34,7 @@ function DesktopPanel() {
         <>
           <div className="panel__head">
             <EventListHeader />
-            <button type="button" className="icon-btn" aria-label="Ascunde lista" onClick={() => setPanelOpen(false)}>
+            <button type="button" className="icon-btn" aria-label={t('Ascunde lista')} onClick={() => setPanelOpen(false)}>
               <Icon name="panel" strokeWidth={1.8} />
             </button>
           </div>
@@ -50,9 +52,9 @@ function DesktopPanel() {
           <div className="panel__bar">
             <button type="button" className="btn btn--ghost btn--sm" onClick={closeDetail}>
               <Icon name="chevL" />
-              {detailFrom === 'calendar' ? 'Înapoi la calendar' : 'Înapoi la listă'}
+              {detailFrom === 'calendar' ? t('Înapoi la calendar') : t('Înapoi la listă')}
             </button>
-            <span className="muted xsmall">{selected.sourceType === 'official' ? 'Anunț oficial' : 'Raportare cetățean'}</span>
+            <span className="muted xsmall">{selected.sourceType === 'official' ? t('Anunț oficial') : t('Raportare cetățean')}</span>
           </div>
           <div className="panel__body panel__body--pad" key={selected.id}>
             <EventDetail e={selected} />
@@ -63,10 +65,10 @@ function DesktopPanel() {
       {mode === 'calendar' && (
         <>
           <div className="panel__bar panel__bar--start">
-            <button type="button" className="icon-btn" aria-label="Înapoi la listă" onClick={backToList}>
+            <button type="button" className="icon-btn" aria-label={t('Înapoi la listă')} onClick={backToList}>
               <Icon name="chevL" />
             </button>
-            <h2 className="panel__title">Calendar evenimente</h2>
+            <h2 className="panel__title">{t('Calendar evenimente')}</h2>
           </div>
           <div className="panel__body panel__body--pad">
             <OutageCalendar />
@@ -77,10 +79,10 @@ function DesktopPanel() {
       {mode === 'settings' && (
         <>
           <div className="panel__bar panel__bar--start">
-            <button type="button" className="icon-btn" aria-label="Înapoi la hartă" onClick={backToList}>
+            <button type="button" className="icon-btn" aria-label={t('Înapoi la hartă')} onClick={backToList}>
               <Icon name="chevL" />
             </button>
-            <h2 className="panel__title">Setări</h2>
+            <h2 className="panel__title">{t('Setări')}</h2>
           </div>
           <div className="panel__body panel__body--pad">
             <SettingsPanel />
@@ -110,17 +112,17 @@ function MobileSheet() {
   if (mode === 'detail' && selected) {
     const official = selected.sourceType === 'official';
     const sub = official
-      ? `Anunț oficial${selected.source ? ` · ${selected.source}` : ''}`
+      ? `${t('Anunț oficial')}${selected.source ? ` · ${selected.source}` : ''}`
       : selected.conf > 0
-        ? `Raportat de vecini · confirmat de ${selected.conf}`
-        : 'Raportare cetățean';
+        ? t('Raportat de vecini · confirmat de {n}', { n: selected.conf })
+        : t('Raportare cetățean');
     const tall = sheetSnap === 'tall';
     return (
       <BottomSheet
-        label="Detalii eveniment"
+        label={t('Detalii eveniment')}
         pageKey={`detail-${selected.id}`}
-        header={{ title: selected.title, subtitle: sub, onBack: closeDetail, backLabel: detailFrom === 'calendar' ? 'Înapoi la calendar' : 'Înapoi la listă' }}
-        miniAria={`${selected.title}, ${sub}`}
+        header={{ title: eventTitle(selected), subtitle: sub, onBack: closeDetail, backLabel: detailFrom === 'calendar' ? t('Înapoi la calendar') : t('Înapoi la listă') }}
+        miniAria={`${eventTitle(selected)}, ${sub}`}
         padBody
         footer={<EventActions e={selected} short />}
       >
@@ -132,18 +134,18 @@ function MobileSheet() {
   if (mode === 'calendar') {
     return (
       <BottomSheet
-        label="Calendarul evenimentelor"
+        label={t('Calendarul evenimentelor')}
         pageKey="calendar"
         header={{
-          title: 'Calendar evenimente',
-          subtitle: 'Deconectări și lucrări programate',
+          title: t('Calendar evenimente'),
+          subtitle: t('Deconectări și lucrări programate'),
           onBack: () => {
             backToList();
             setSheetSnap('mini');
           },
-          backLabel: 'Înapoi la hartă',
+          backLabel: t('Înapoi la hartă'),
         }}
-        miniLine="Calendar evenimente planificate"
+        miniLine={t('Calendar evenimente planificate')}
         padBody
       >
         <OutageCalendar />
@@ -154,7 +156,7 @@ function MobileSheet() {
   if (mode === 'settings') {
     return (
       <BottomSheet
-        label="Setări"
+        label={t('Setări')}
         pageKey="settings"
         header={{
           title: 'Setări',
@@ -163,9 +165,9 @@ function MobileSheet() {
             backToList();
             setSheetSnap('mini');
           },
-          backLabel: 'Înapoi la hartă',
+          backLabel: t('Înapoi la hartă'),
         }}
-        miniLine={user?.name ?? 'Cont, adrese, temă, rază'}
+        miniLine={user?.name ?? t('Cont, adrese, temă, rază')}
         padBody
       >
         <SettingsPanel />
@@ -177,9 +179,9 @@ function MobileSheet() {
   const center = !hasNotices && (loadState === 'error' || (loadState === 'ready' && visible.length === 0));
   return (
     <BottomSheet
-      label="Lista evenimentelor"
+      label={t('Lista evenimentelor')}
       pageKey="list"
-      header={{ title: 'Evenimente în zonă', subtitle: summary.subtitle }}
+      header={{ title: t('Evenimente în zonă'), subtitle: summary.subtitle }}
       miniLine={summary.mini}
       miniAria={summary.miniAria}
       live={summary.live}

@@ -3,6 +3,7 @@ import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { Dialog } from '@/components/ui/Dialog';
 import { searchAddress, type GeoResult } from '@/services/geocoding';
+import { t } from '@/i18n';
 
 /**
  * Cere adresa exactă când locația live nu e disponibilă (refuzată / nesuportată).
@@ -66,8 +67,8 @@ export function LocationDialog() {
 
   return (
     <Dialog
-      title={required ? 'Unde te afli?' : 'Schimbă locația'}
-      subtitle="Avem nevoie de locația ta ca să-ți arătăm ce se întâmplă în apropiere."
+      title={required ? t('Unde te afli?') : t('Schimbă locația')}
+      subtitle={t('Avem nevoie de locația ta ca să-ți arătăm ce se întâmplă în apropiere.')}
       onClose={required ? undefined : close}
       width={480}
     >
@@ -77,15 +78,15 @@ export function LocationDialog() {
             <Icon name="locate" />
             <span>
               {gps === 'unsupported'
-                ? 'Browserul tău nu oferă acces la locație.'
-                : 'Accesul la locația live este blocat. Îl poți permite din setările browserului sau poți introduce adresa manual.'}
+                ? t('Browserul tău nu oferă acces la locație.')
+                : t('Accesul la locația live este blocat. Îl poți permite din setările browserului sau poți introduce adresa manual.')}
             </span>
           </div>
         )}
 
         <div className="field">
           <label htmlFor={`${id}-q`} className="field__label">
-            Adresa ta
+            {t('Adresa ta')}
           </label>
           <div className="street-input">
             <input
@@ -97,7 +98,7 @@ export function LocationDialog() {
               aria-expanded={results.length > 0}
               aria-controls={`${id}-list`}
               aria-describedby={`${id}-hint`}
-              placeholder="Ex.: Bd. Dacia 23"
+              placeholder={t('Ex.: Bd. Dacia 23')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -132,17 +133,17 @@ export function LocationDialog() {
             )}
           </div>
           <span id={`${id}-hint`} className={state === 'error' ? 'field__error' : 'field__hint'} role={state === 'error' ? 'alert' : undefined}>
-            {state === 'loading' && 'Căutăm adresa…'}
-            {state === 'empty' && 'Nu am găsit adresa în Chișinău. Verifică strada și numărul.'}
-            {state === 'error' && 'Căutarea nu a funcționat. Verifică conexiunea și încearcă din nou.'}
-            {state === 'idle' && 'Scrie strada și numărul casei, apoi alege adresa din listă. După aceea poți muta marcajul pe hartă.'}
+            {state === 'loading' && t('Căutăm adresa…')}
+            {state === 'empty' && t('Nu am găsit adresa în Chișinău. Verifică strada și numărul.')}
+            {state === 'error' && t('Căutarea nu a funcționat. Verifică conexiunea și încearcă din nou.')}
+            {state === 'idle' && t('Scrie strada și numărul casei, apoi alege adresa din listă. După aceea poți muta marcajul pe hartă.')}
           </span>
         </div>
 
         {gps !== 'unsupported' && (
           <button type="button" className="btn btn--secondary" onClick={() => void retryGps()} disabled={retrying}>
             <Icon name="locate" size={18} />
-            {retrying ? 'Se caută locația…' : 'Folosește locația live'}
+            {retrying ? t('Se caută locația…') : t('Folosește locația live')}
           </button>
         )}
       </form>

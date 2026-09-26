@@ -6,6 +6,8 @@ import { distance } from '@/lib/geo';
 import { Icon } from '@/lib/icons';
 import { load, save } from '@/lib/storage';
 import { useApp } from '@/state/AppContext';
+import { t } from '@/i18n';
+import { eventTitle } from '@/lib/status';
 
 const DISMISSED_KEY = 'wip.promptDismissed';
 
@@ -35,7 +37,7 @@ export function ProximityPrompt() {
   }, [events, userPos, votes, dismissed, user, online]);
 
   if (!target || modal) return null;
-  const t = SUBTYPES[target.subtype];
+  const sub = SUBTYPES[target.subtype];
   const close = () => setDismissed((d) => ({ ...d, [target.id]: true }));
 
   return (
@@ -43,34 +45,37 @@ export function ProximityPrompt() {
       <span className="nearby__pulse" style={{ background: typeVar(target.subtype) }} aria-hidden="true" />
       <div className="nearby__head">
         <span className="nearby__icon" style={{ background: typeTint(target.subtype), color: typeVar(target.subtype) }}>
-          <Icon name={t.icon} size={22} />
+          <Icon name={sub.icon} size={22} />
         </span>
         <span className="stack grow">
-          <strong id="nearby-title">Ai și tu problema asta?</strong>
+          <strong id="nearby-title">{t('Ai și tu problema asta?')}</strong>
           <span className="muted small">
-            {target.title}
+            {eventTitle(target)}
             {target.streets[0] ? ` · ${target.streets[0]}` : ''}
-            {target.reportedAt ? ` · raportat ${fmtAgo(new Date(target.reportedAt))}` : ''}
+            {target.reportedAt ? ` · ${t('raportat {ago}', { ago: fmtAgo(new Date(target.reportedAt)) })}` : ''}
           </span>
         </span>
-        <button type="button" className="icon-btn icon-btn--muted" aria-label="Închide" onClick={close}>
+        <button type="button" className="icon-btn icon-btn--muted" aria-label={t('Închide')} onClick={close}>
           <Icon name="x" size={18} />
         </button>
       </div>
       <p className="xsmall muted">
-        Un vecin a raportat-o chiar lângă tine. {target.conf > 0 ? `${target.conf} din ${CONFIG.CONFIRM_THRESHOLD} confirmări până acum.` : `Sunt necesare ${CONFIG.CONFIRM_THRESHOLD} confirmări.`}
+        {t('Un vecin a raportat-o chiar lângă tine.')}{' '}
+        {target.conf > 0
+          ? t('{n} din {total} confirmări până acum.', { n: target.conf, total: CONFIG.CONFIRM_THRESHOLD })
+          : t('Sunt necesare {total} confirmări.', { total: CONFIG.CONFIRM_THRESHOLD })}
       </p>
       <div className="row gap-8">
         <button type="button" className="btn btn--primary grow" onClick={() => void vote(target.id, 'yes')}>
           <Icon name="check" size={18} strokeWidth={2.4} />
-          Da, confirm
+          {t('Da, confirm')}
         </button>
         <button type="button" className="btn btn--secondary grow" onClick={() => void vote(target.id, 'no')}>
-          Nu, la mine merge
+          {t('Nu, la mine merge')}
         </button>
       </div>
       <button type="button" className="link small nearby__more" onClick={() => openEvent(target.id)}>
-        Vezi detalii
+        {t('Vezi detalii')}
       </button>
     </div>
   );

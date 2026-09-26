@@ -845,3 +845,39 @@ textarea::placeholder {
 .method__panel { padding: 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-m); background: var(--surface); }
 .address-input__ok { color: var(--text-2); display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .street-input__menu li.is-active { background: var(--hover); }
+
+/* ---------- RO | RU ---------- */
+.lang-switch { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--sunk); border: 1px solid var(--border); }
+.lang-switch button { height: 32px; min-width: 36px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 700; }
+.lang-switch button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
+@media (max-width: 380px) { .lang-switch button { min-width: 30px; padding: 0 6px; } }
+
+/* ---------- ghidul de la prima vizită ---------- */
+.onb { display: flex; flex-direction: column; gap: 14px; }
+.onb__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.onb__list li { display: flex; align-items: center; gap: 12px; }
+.onb__sample { position: relative; flex-shrink: 0; }
+.onb__badge {
+  position: absolute; top: -6px; right: -6px; display: flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: var(--ink); color: var(--on-ink);
+  font-size: 11px; font-weight: 700; border: 2px solid var(--surface);
+}
+.onb__circle { width: 40px; height: 40px; flex-shrink: 0; border-radius: 999px; border: 2px solid; }
+.onb__icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-m); background: var(--sunk); color: var(--text); }
+.onb__dots { display: flex; justify-content: center; gap: 6px; }
+.onb__dots span { width: 8px; height: 8px; border-radius: 999px; background: var(--border-strong); transition: width 0.2s ease, background-color 0.2s ease; }
+.onb__dots .is-on { width: 22px; background: var(--ink); }
+
+/* ---------- zoom lin pe hartă ---------- */
+/* Leaflet încheie animația după 250 ms (timer intern), deci durata rămâne 0,25 s; schimbăm doar curba. */
+.leaflet-zoom-anim .leaflet-zoom-animated { transition: transform 0.25s cubic-bezier(0.22, 0.8, 0.3, 1); }
+.leaflet-fade-anim .leaflet-tile { transition: opacity 0.3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-zoom-anim .leaflet-zoom-animated { transition: none; }
+}
+
+/* Pe ecrane înguste (desktop), „Locația mea” rămâne doar iconiță, ca să nu se suprapună cu „Raportează o problemă” (textele în rusă sunt mai lungi). */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .controls__locate { width: 44px; padding: 0; justify-content: center; }
+  .controls__locate .btn__label { display: none; }
+}

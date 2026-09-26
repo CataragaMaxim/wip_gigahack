@@ -42,12 +42,26 @@ export interface UrbanEvent {
   authorId?: string;
   location: LatLng;
   path?: LatLng[];
-  /** Raza (m) zonei afectate în jurul lui `location`, care cuprinde toate adresele anunțului. */
+  /** Raza (m) zonei afectate în jurul lui `location`. */
   radiusM?: number;
+  /** Zonele pe adrese ale unui anunț oficial (25–55 m fiecare); aplicația afișează câte un eveniment pe zonă. */
+  areas?: EventArea[];
+}
+
+export interface EventArea {
+  lat: number;
+  lng: number;
+  radiusM: number;
+  /** Adresa zonei, ex. „Str. Ion Neculce 10, 12”. */
+  label: string;
 }
 
 /** Eveniment îmbogățit pe client (status, distanță, locațiile afectate). */
 export interface DerivedEvent extends UrbanEvent {
+  /** Pentru zonele unui anunț cu mai multe adrese: id-ul anunțului (documentul din Firestore). */
+  parentId?: string;
+  /** Toate adresele anunțului din care face parte zona. */
+  allStreets?: string[];
   status: Status;
   conf: number;
   den: number;

@@ -3,13 +3,14 @@ import { CONFIG } from '@/config/constants';
 import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
 import { fmtAt } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { categoryLine, metaLine, statusBadge } from '@/lib/status';
+import { categoryLine, eventTitle, metaLine, statusBadge } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import { Dialog } from '@/components/ui/Dialog';
 import { matchStreet, type StreetMatch } from '@/services/streetMatch';
 import { EventTile, StatusBadge } from '@/components/events/EventBits';
+import { t } from '@/i18n';
 
-const STEPS = ['Categorie', 'Locație', 'Verificare', 'Detalii', 'Trimite'];
+const STEPS = ['Tip', 'Locație', 'Verificare', 'Detalii', 'Trimite'];
 
 export function ReportDialog() {
   const app = useApp();
@@ -21,7 +22,7 @@ export function ReportDialog() {
   const result = r.resultId ? byId[r.resultId] : null;
 
   const stepper = r.step !== 'done' && (
-    <ol className="stepper" aria-label="Pașii raportării">
+    <ol className="stepper" aria-label={t('Pașii raportării')}>
       {STEPS.map((s, i) => (
         <li
           key={s}
@@ -29,7 +30,7 @@ export function ReportDialog() {
           aria-current={i + 1 === idx ? 'step' : undefined}
         >
           <span />
-          {s}
+          {t(s)}
         </li>
       ))}
     </ol>
@@ -42,7 +43,7 @@ export function ReportDialog() {
   if (r.step === 1) {
     body = (
       <>
-        <h3 className="h3">Ce ai observat?</h3>
+        <h3 className="h3">{t('Ce ai observat?')}</h3>
         <div className="stack gap-8">
           {TYPES.map((k) => {
             const on = r.subtype === k;
@@ -71,10 +72,10 @@ export function ReportDialog() {
     footer = (
       <>
         <button type="button" className="btn btn--secondary btn--lg" onClick={closeReport}>
-          Anulează
+          {t('Anulează')}
         </button>
         <button type="button" className="btn btn--primary btn--lg grow" disabled={!r.subtype} onClick={goToPinStep}>
-          Continuă
+          {t('Continuă')}
         </button>
       </>
     );
@@ -87,11 +88,11 @@ export function ReportDialog() {
     body = (
       <>
         <div className="stack gap-6">
-          <h3 className="h3">Poate a fost deja semnalată</h3>
+          <h3 className="h3">{t('Poate a fost deja semnalată')}</h3>
           <p className="body-text">
             {dup.sourceType === 'official'
-              ? `Există deja un anunț oficial similar la ${dist}. Confirmă-l în loc să creezi o raportare nouă.`
-              : `Există deja o raportare similară la ${dist}. Confirm-o în loc să creezi una nouă.`}
+              ? t('Există deja un anunț oficial similar la {dist}. Confirmă-l în loc să creezi o raportare nouă.', { dist })
+              : t('Există deja o raportare similară la {dist}. Confirm-o în loc să creezi una nouă.', { dist })}
           </p>
         </div>
         <div className="card card--outline row gap-12 align-start">
@@ -100,7 +101,7 @@ export function ReportDialog() {
             <span className="xsmall strong" style={{ color: typeVar(dup.subtype) }}>
               {categoryLine(dup)}
             </span>
-            <strong>{dup.title}</strong>
+            <strong>{eventTitle(dup)}</strong>
             <span className="muted small">{metaLine(dup)}</span>
             <span>
               <StatusBadge e={dup} />
@@ -112,10 +113,10 @@ export function ReportDialog() {
     footer = (
       <>
         <button type="button" className="btn btn--secondary btn--lg grow" onClick={() => patchReport({ step: 4 })}>
-          Este altă problemă
+          {t('Este altă problemă')}
         </button>
         <button type="button" className="btn btn--primary btn--lg grow" onClick={confirmDuplicate}>
-          Confirmă
+          {t('Confirmă')}
         </button>
       </>
     );
@@ -128,17 +129,17 @@ export function ReportDialog() {
         {r.noDuplicate && (
           <p className="row gap-8 muted small">
             <Icon name="check" size={16} strokeWidth={2.2} />
-            Nu există raportări similare în apropiere.
+            {t('Nu există raportări similare în apropiere.')}
           </p>
         )}
 
         <div className="stack gap-8">
-          <h3 className="h3">Cât de gravă este?</h3>
-          <div className="grid-2" role="group" aria-label="Gravitate">
+          <h3 className="h3">{t('Cât de gravă este?')}</h3>
+          <div className="grid-2" role="group" aria-label={t('Gravitate')}>
             {([
               ['total', 'Nu funcționează deloc', 'Întrerupere totală'],
               ['partial', 'Funcționează parțial', 'Posibil afectat'],
-            ] as const).map(([k, l, h]) => (
+            ] as const).map(([k, l0, h0]) => ({ k, l: t(l0), h: t(h0) })).map(({ k, l, h }) => (
               <button
                 key={k}
                 type="button"
@@ -156,7 +157,7 @@ export function ReportDialog() {
         <div className="field">
           <div className="row between">
             <label htmlFor={`${id}-desc`} className="field__label">
-              Descriere <span className="muted normal">(opțional)</span>
+              {t('Descriere')} <span className="muted normal">{t('(opțional)')}</span>
             </label>
             <span
               className={`xsmall ${r.description.length > CONFIG.DESCRIPTION_MAX - 20 ? 'text-crit' : 'muted'}`}
@@ -170,7 +171,7 @@ export function ReportDialog() {
             className="input textarea"
             rows={4}
             maxLength={CONFIG.DESCRIPTION_MAX}
-            placeholder="Ce se întâmplă? De exemplu: fără curent în tot blocul de la ora 12."
+            placeholder={t('Ce se întâmplă? De exemplu: fără curent în tot blocul de la ora 12.')}
             value={r.description}
             onChange={(e) => patchReport({ description: e.target.value.slice(0, CONFIG.DESCRIPTION_MAX) })}
           />
@@ -179,17 +180,17 @@ export function ReportDialog() {
         {/* Fotografie ca URL — fără Firebase Storage */}
         <div className="stack gap-8">
           <span className="field__label">
-            Fotografie <span className="muted normal">(opțional)</span>
+            {t('Fotografie')} <span className="muted normal">{t('(opțional)')}</span>
           </span>
           {r.photo ? (
             <div className="card card--outline row gap-12">
               <img
                 src={r.photo}
-                alt="Previzualizare"
+                alt={t('Previzualizare')}
                 style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
               />
               <span className="stack grow min0">
-                <strong className="small">Fotografie atașată</strong>
+                <strong className="small">{t('Fotografie atașată')}</strong>
                 <span className="muted xsmall" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {r.photo}
                 </span>
@@ -199,7 +200,7 @@ export function ReportDialog() {
                 className="btn btn--ghost btn--sm"
                 onClick={() => patchReport({ photo: null })}
               >
-                Elimină
+                {t('Elimină')}
               </button>
             </div>
           ) : (
@@ -207,7 +208,7 @@ export function ReportDialog() {
               type="button"
               className="btn btn--dashed btn--lg"
               onClick={() => {
-                const url = window.prompt('URL-ul imaginii (fără Firebase Storage pentru demo):');
+                const url = window.prompt(t('URL-ul imaginii (fără Firebase Storage pentru demo):'));
                 if (url && /^https?:\/\//i.test(url)) patchReport({ photo: url });
               }}
             >
@@ -225,10 +226,10 @@ export function ReportDialog() {
           className="btn btn--secondary btn--lg"
           onClick={() => (r.duplicateId ? patchReport({ step: 3 }) : goToPinStep())}
         >
-          Înapoi
+          {t('Înapoi')}
         </button>
         <button type="button" className="btn btn--primary btn--lg grow" onClick={() => patchReport({ step: 5 })}>
-          Continuă
+          {t('Continuă')}
         </button>
       </>
     );
@@ -237,15 +238,15 @@ export function ReportDialog() {
   // ---------- Pas 5: Review + trimite ----------
   if (r.step === 5 && r.category && r.subtype) {
     const rows: [string, string][] = [
-      ['Tip', SUBTYPES[r.subtype].label],
-      ['Locație', r.street ? [r.street.label, r.street.district].filter(Boolean).join(', ') : 'Punct pe hartă, fără stradă în apropiere'],
-      ['Gravitate', r.severity === 'total' ? 'Întrerupere totală' : 'Parțial — posibil afectat'],
-      ['Descriere', r.description.trim() || 'Fără descriere'],
-      ['Fotografie', r.photo ? '1 fotografie' : 'Fără fotografie'],
+      [t('Tip'), SUBTYPES[r.subtype].label],
+      [t('Locație'), r.street ? [r.street.label, r.street.district].filter(Boolean).join(', ') : t('Punct pe hartă, fără stradă în apropiere')],
+      [t('Gravitate'), r.severity === 'total' ? t('Întrerupere totală') : t('Parțial — posibil afectat')],
+      [t('Descriere'), r.description.trim() || t('Fără descriere')],
+      [t('Fotografie'), r.photo ? t('1 fotografie') : t('Fără fotografie')],
     ];
     body = (
       <>
-        <h3 className="h3">Verifică și trimite</h3>
+        <h3 className="h3">{t('Verifică și trimite')}</h3>
         <dl className="review">
           {rows.map(([k, v]) => (
             <div key={k}>
@@ -257,8 +258,7 @@ export function ReportDialog() {
         <div className="card card--sunk row gap-10 align-start small">
           <Icon name="info" />
           <span>
-            Semnalarea devine publică pe hartă după {CONFIG.CONFIRM_THRESHOLD} confirmări din apropiere. Până atunci o vezi doar tu și vecinii care raportează aceeași
-            problemă. Fără confirmări, expiră automat după {CONFIG.REPORT_EXPIRY_H} ore.
+            {t('Semnalarea apare pe hartă ca „Neconfirmat”, iar vecinii aflați lângă ea sunt întrebați dacă o confirmă. După {n} confirmări devine „Confirmat”. Fără confirmări, expiră automat după {h} ore.', { n: CONFIG.CONFIRM_THRESHOLD, h: CONFIG.REPORT_EXPIRY_H })}
           </span>
         </div>
       </>
@@ -266,10 +266,10 @@ export function ReportDialog() {
     footer = (
       <>
         <button type="button" className="btn btn--secondary btn--lg" onClick={() => patchReport({ step: 4 })}>
-          Înapoi
+          {t('Înapoi')}
         </button>
         <button type="button" className="btn btn--primary btn--lg grow" onClick={() => void submitReport()}>
-          Trimite semnalarea
+          {t('Trimite semnalarea')}
         </button>
       </>
     );
@@ -283,28 +283,28 @@ export function ReportDialog() {
         <span className="done__icon">
           <Icon name="check" size={30} strokeWidth={2.4} />
         </span>
-        <h3>{r.confirmedDuplicate ? 'Mulțumim! Ai confirmat raportarea existentă.' : 'Raportarea ta a fost trimisă.'}</h3>
+        <h3>{r.confirmedDuplicate ? t('Mulțumim! Ai confirmat raportarea existentă.') : t('Raportarea ta a fost trimisă.')}</h3>
         <p>
           {r.confirmedDuplicate
-            ? 'Fiecare confirmare ajută vecinii să știe că problema e reală.'
-            : `Vecinii din zonă o pot confirma. Apare public pe hartă după ${CONFIG.CONFIRM_THRESHOLD} confirmări.`}
+            ? t('Fiecare confirmare ajută vecinii să știe că problema e reală.')
+            : t('Vecinii din zonă o pot confirma. După {n} confirmări devine „Confirmat”.', { n: CONFIG.CONFIRM_THRESHOLD })}
         </p>
         <p className="muted small">
           {r.confirmedDuplicate
             ? result
-              ? `Status actual: ${statusBadge(result).label}.`
+              ? t('Status actual: {status}.', { status: statusBadge(result).label })
               : ''
-            : `Dacă nu o confirmă cel puțin ${CONFIG.CONFIRM_THRESHOLD} vecini în ${CONFIG.REPORT_EXPIRY_H} ore, expiră automat (${fmtAt(expires)}).`}
+            : t('Dacă nu o confirmă cel puțin {n} vecini în {h} ore, expiră automat ({when}).', { n: CONFIG.CONFIRM_THRESHOLD, h: CONFIG.REPORT_EXPIRY_H, when: fmtAt(expires) })}
         </p>
       </div>
     );
     footer = (
       <>
         <button type="button" className="btn btn--secondary btn--lg grow" onClick={closeReport}>
-          Închide
+          {t('Închide')}
         </button>
         <button type="button" className="btn btn--primary btn--lg grow" onClick={viewReportResult}>
-          Vezi pe hartă
+          {t('Vezi pe hartă')}
         </button>
       </>
     );
@@ -312,8 +312,8 @@ export function ReportDialog() {
 
   return (
     <Dialog
-      title="Semnalează o avarie"
-      subtitle="Un semnal rapid îi avertizează pe vecini din timp."
+      title={t('Semnalează o avarie')}
+      subtitle={t('Un semnal rapid îi avertizează pe vecini din timp.')}
       onClose={closeReport}
       header={stepper}
       footer={footer}
@@ -369,7 +369,7 @@ export function PinCard() {
   if (r.step !== 2) return null;
   const ns = where.match;
   const choices = [
-    ...(userPos ? [{ id: 'gps', label: 'Locația mea', icon: 'locate' as const, pos: userPos }] : []),
+    ...(userPos ? [{ id: 'gps', label: t('Locația mea'), icon: 'locate' as const, pos: userPos }] : []),
     ...locations.map((l) => ({
       id: l.id,
       label: l.name,
@@ -379,16 +379,16 @@ export function PinCard() {
   ];
 
   return (
-    <section className="pin-card fade-up" aria-label="Alege locația problemei">
+    <section className="pin-card fade-up" aria-label={t('Alege locația problemei')}>
       <div className="row between">
-        <span className="eyebrow">Pasul 2 din 5 · Locație</span>
-        <button type="button" className="icon-btn" aria-label="Renunță la raportare" onClick={closeReport}>
+        <span className="eyebrow">{t('Pasul 2 din 5 · Locație')}</span>
+        <button type="button" className="icon-btn" aria-label={t('Renunță la raportare')} onClick={closeReport}>
           <Icon name="x" />
         </button>
       </div>
       <div className="stack gap-4">
-        <h2 className="h2">Unde este problema?</h2>
-        <span className="muted">Trage harta ca pinul să ajungă exact în locul potrivit.</span>
+        <h2 className="h2">{t('Unde este problema?')}</h2>
+        <span className="muted">{t('Trage harta ca pinul să ajungă exact în locul potrivit.')}</span>
       </div>
       <div className="address-row" aria-live="polite">
         <Icon name="pin" />
@@ -396,21 +396,21 @@ export function PinCard() {
           <strong>
             {where.state !== 'done'
               ? where.state === 'moving'
-                ? 'Mută harta pentru a alege locul'
-                : 'Se identifică strada…'
+                ? t('Mută harta pentru a alege locul')
+                : t('Se identifică strada…')
               : ns
                 ? [ns.label, ns.district].filter(Boolean).join(', ')
-                : 'Nicio stradă în apropiere'}
+                : t('Nicio stradă în apropiere')}
           </strong>
           {where.state === 'done' && (
             <span className="muted xsmall">
               {ns
                 ? !ns.onStreet
-                  ? `La circa ${Math.round(ns.distanceM / 10) * 10} m de stradă`
+                  ? t('La circa {m} m de stradă', { m: Math.round(ns.distanceM / 10) * 10 })
                   : ns.distanceM <= 15
-                    ? 'Pe stradă'
-                    : `Pinul va fi mutat pe stradă (circa ${Math.round(ns.distanceM / 5) * 5} m)`
-                : 'Apropie pinul de strada unde este problema'}
+                    ? t('Pe stradă')
+                    : t('Pinul va fi mutat pe stradă (circa {m} m)', { m: Math.round(ns.distanceM / 5) * 5 })
+                : t('Apropie pinul de strada unde este problema')}
             </span>
           )}
         </span>
@@ -434,13 +434,13 @@ export function PinCard() {
         {!userPos && (
           <button type="button" className="pill" onClick={() => setGpsNotice(true)}>
             <Icon name="locate" size={15} />
-            Locația mea
+            {t('Locația mea')}
           </button>
         )}
       </div>
       <div className="row gap-8">
         <button type="button" className="btn btn--secondary btn--lg" onClick={() => patchReport({ step: 1 })}>
-          Înapoi
+          {t('Înapoi')}
         </button>
         <button
           type="button"
@@ -449,7 +449,7 @@ export function PinCard() {
           disabled={r.locating}
           aria-busy={r.locating}
         >
-          {r.locating ? 'Se verifică strada…' : 'Confirmă locația'}
+          {r.locating ? t('Se verifică strada…') : t('Confirmă locația')}
         </button>
       </div>
     </section>

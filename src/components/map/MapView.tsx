@@ -4,11 +4,12 @@ import { Circle, MapContainer, Marker, TileLayer } from 'react-leaflet';
 import { RESOLVED_HEX, SUBTYPES, TYPE_HEX } from '@/config/categories';
 import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
-import { isClosed, statusBadge } from '@/lib/status';
+import { eventTitle, isClosed, statusBadge } from '@/lib/status';
 import { areaRadius } from '@/lib/geo';
 import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
 import { eventIcon, meIcon, placeIcon } from './markerIcons';
+import { getLang, t } from '@/i18n';
 
 /**
  * Harta (Leaflet + OpenStreetMap/CARTO).
@@ -52,6 +53,11 @@ export function MapView() {
         zoomControl={false}
         zoomAnimation
         fadeAnimation
+        // Zoom lin la rotiță / trackpad: pași de ¼ de nivel, mai mulți pixeli de derulare pe nivel.
+        zoomSnap={0.25}
+        zoomDelta={0.5}
+        wheelPxPerZoomLevel={110}
+        wheelDebounceTime={30}
         className="map__canvas"
       >
         <TileLayer
@@ -96,8 +102,8 @@ export function MapView() {
 /** Cercul razei afișate, cu eticheta „2 km” pe marginea de sus. */
 function RadiusCircle({ center, radiusM }: { center: { lat: number; lng: number }; radiusM: number }) {
   const label = useMemo(
-    () => L.divIcon({ className: 'wip-radius-host', html: `<span class="wip-radius-label">${radiusM / 1000} km</span>`, iconSize: [0, 0] }),
-    [radiusM],
+    () => L.divIcon({ className: 'wip-radius-host', html: `<span class="wip-radius-label">${t('{km} km', { km: radiusM / 1000 })}</span>`, iconSize: [0, 0] }),
+    [radiusM, getLang()],
   );
   const top: [number, number] = [center.lat + radiusM / 111320, center.lng];
   return (
@@ -117,14 +123,14 @@ function ManualMarker() {
       position={[userPos.lat, userPos.lng]}
       icon={meIcon}
       draggable
-      title={`${manualPlace?.label ?? 'Locația ta'} — trage pentru a ajusta, clic pentru a schimba adresa`}
+      title={`${manualPlace?.label ?? t('Locația ta')} — ${t('trage pentru a ajusta, clic pentru a schimba adresa')}`}
       zIndexOffset={-400}
       eventHandlers={{
         click: openLocationPicker,
         dragend: (ev) => {
           const { lat, lng } = (ev.target as L.Marker).getLatLng();
           const location = { lat, lng };
-          setManualLocation({ label: manualPlace?.label ?? 'Locație aleasă pe hartă', location }, { fly: false });
+          setManualLocation({ label: manualPlace?.label ?? t('Locație aleasă pe hartă'), location }, { fly: false });
           void reverseGeocode(location).then((r) => {
             if (r) setManualLocation({ label: r.detail ? `${r.label}, ${r.detail}` : r.label, location }, { fly: false });
           });
@@ -159,7 +165,7 @@ function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'lig
 
 function EventMarker({ e, show, selected, onOpen }: { e: DerivedEvent; show: boolean; selected: boolean; onOpen: (id: string) => void }) {
   const icon = useMemo(() => eventIcon(e, selected), [e, selected]);
-  const title = `${SUBTYPES[e.subtype].label}, ${statusBadge(e).label}: ${e.title}`;
+  const title = `${SUBTYPES[e.subtype].label}, ${statusBadge(e).label}: ${eventTitle(e)}`;
   return (
     <Marker
       position={[e.location.lat, e.location.lng]}

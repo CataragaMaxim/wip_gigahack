@@ -5,6 +5,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { AddressInput } from '@/components/ui/AddressInput';
 import type { GeoResult } from '@/services/geocoding';
 import { GoogleIcon } from './ProviderIcons';
+import { t } from '@/i18n';
 
 type Field = 'name' | 'email' | 'password' | 'terms' | 'phone' | 'code';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -41,17 +42,17 @@ export function AuthDialog() {
 
   const errors = useMemo(() => {
     const e: Partial<Record<Field, string>> = {};
-    if (mode === 'signup' && name.trim().length < 2) e.name = 'Introdu numele tău.';
+    if (mode === 'signup' && name.trim().length < 2) e.name = t('Introdu numele tău.');
     if (tab === 'email') {
-      if (!email.trim()) e.email = 'Introdu adresa de email.';
-      else if (!EMAIL_RE.test(email.trim())) e.email = 'Adresa de email nu pare corectă.';
-      if ((mode === 'signup' || mode === 'login') && password.length < 8) e.password = 'Parola trebuie să aibă cel puțin 8 caractere.';
+      if (!email.trim()) e.email = t('Introdu adresa de email.');
+      else if (!EMAIL_RE.test(email.trim())) e.email = t('Adresa de email nu pare corectă.');
+      if ((mode === 'signup' || mode === 'login') && password.length < 8) e.password = t('Parola trebuie să aibă cel puțin 8 caractere.');
     }
     if (tab === 'phone') {
-      if (!/^\+\d{10,15}$/.test(phone.replace(/\s/g, ''))) e.phone = 'Introdu numărul în format internațional, ex. +37369123456.';
-      if (codeSent && !/^\d{4,8}$/.test(code)) e.code = 'Introdu codul din SMS.';
+      if (!/^\+\d{10,15}$/.test(phone.replace(/\s/g, ''))) e.phone = t('Introdu numărul în format internațional, ex. +37369123456.');
+      if (codeSent && !/^\d{4,8}$/.test(code)) e.code = t('Introdu codul din SMS.');
     }
-    if (mode === 'signup' && !terms) e.terms = 'Pentru a crea contul, acceptă termenii.';
+    if (mode === 'signup' && !terms) e.terms = t('Pentru a crea contul, acceptă termenii.');
     return e;
   }, [mode, tab, name, email, password, terms, phone, code, codeSent]);
 
@@ -90,11 +91,11 @@ export function AuthDialog() {
   const title =
     mode === 'signup'
       ? authAfter === 'report'
-        ? 'Creează un cont ca să raportezi'
-        : 'Creează cont'
+        ? t('Creează un cont ca să raportezi')
+        : t('Creează cont')
       : mode === 'login'
-        ? 'Intră în cont'
-        : 'Resetează parola';
+        ? t('Intră în cont')
+        : t('Resetează parola');
 
   const err = (f: Field) =>
     show(f) ? (
@@ -115,21 +116,21 @@ export function AuthDialog() {
           <div className="stack gap-4 grow">
             <button type="submit" form={`${id}-form`} className="btn btn--primary btn--xl">
               {tab === 'phone' && mode !== 'forgot'
-                ? codeSent ? 'Verifică codul' : 'Trimite codul SMS'
+                ? codeSent ? t('Verifică codul') : t('Trimite codul SMS')
                 : mode === 'signup'
-                  ? 'Creează cont'
+                  ? t('Creează cont')
                   : mode === 'login'
-                    ? 'Intră în cont'
-                    : 'Trimite linkul de resetare'}
+                    ? t('Intră în cont')
+                    : t('Trimite linkul de resetare')}
             </button>
             {mode === 'signup' && (
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => switchMode('login')}>
-                Am deja cont
+                {t('Am deja cont')}
               </button>
             )}
             {mode === 'login' && (
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => switchMode('signup')}>
-                Nu ai cont? Creează unul
+                {t('Nu ai cont? Creează unul')}
               </button>
             )}
           </div>
@@ -144,10 +145,10 @@ export function AuthDialog() {
           <span className="done__icon done__icon--sm">
             <Icon name="check" size={22} strokeWidth={2.4} />
           </span>
-          <strong>Verifică emailul</strong>
+          <strong>{t('Verifică emailul')}</strong>
           <span className="muted">Dacă există un cont pentru {email}, vei primi un link de resetare.</span>
           <button type="button" className="btn btn--primary btn--lg" onClick={() => switchMode('login')}>
-            Înapoi la autentificare
+            {t('Înapoi la autentificare')}
           </button>
         </div>
       ) : (
@@ -157,13 +158,13 @@ export function AuthDialog() {
             <>
               <button type="button" className="btn btn--secondary btn--lg" onClick={() => void logInGoogle()}>
                 <GoogleIcon size={18} />
-                Continuă cu Google
+                {t('Continuă cu Google')}
               </button>
               <div className="divider" role="separator">
-                sau {mode === 'signup' ? 'creează contul cu' : 'intră cu'}
+                {mode === 'signup' ? t('sau creează contul cu') : t('sau intră cu')}
               </div>
               {/* Metoda: două carduri, cel ales e marcat clar; câmpurile lui stau în cadrul de dedesubt. */}
-              <div className="method" role="tablist" aria-label="Metodă de autentificare">
+              <div className="method" role="tablist" aria-label={t('Metodă de autentificare')}>
                 {METHODS.map((m) => {
                   const on = tab === m.key;
                   return (
@@ -185,8 +186,8 @@ export function AuthDialog() {
                         <Icon name={m.icon} size={18} />
                       </span>
                       <span className="stack">
-                        <strong>{m.label}</strong>
-                        <span className="xsmall muted">{m.hint}</span>
+                        <strong>{t(m.label)}</strong>
+                        <span className="xsmall muted">{t(m.hint)}</span>
                       </span>
                       <span className="method__check" aria-hidden="true">
                         {on && <Icon name="check" size={14} strokeWidth={3} />}
@@ -208,7 +209,7 @@ export function AuthDialog() {
               <>
                 {mode === 'signup' && (
                   <div className="field">
-                    <label htmlFor={`${id}-name`} className="field__label">Nume</label>
+                    <label htmlFor={`${id}-name`} className="field__label">{t('Nume')}</label>
                     <input
                       id={`${id}-name`}
                       className={`input ${show('name') ? 'is-invalid' : ''}`}
@@ -222,13 +223,13 @@ export function AuthDialog() {
                 )}
 
                 <div className="field">
-                  <label htmlFor={`${id}-email`} className="field__label">Email</label>
+                  <label htmlFor={`${id}-email`} className="field__label">{t('Email')}</label>
                   <input
                     id={`${id}-email`}
                     type="email"
                     inputMode="email"
                     autoComplete="email"
-                    placeholder="nume@exemplu.md"
+                    placeholder={t('nume@exemplu.md')}
                     className={`input ${show('email') ? 'is-invalid' : ''}`}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -240,10 +241,10 @@ export function AuthDialog() {
                 {(mode === 'signup' || mode === 'login') && (
                   <div className="field">
                     <div className="row between">
-                      <label htmlFor={`${id}-pw`} className="field__label">Parolă</label>
+                      <label htmlFor={`${id}-pw`} className="field__label">{t('Parolă')}</label>
                       {mode === 'login' && (
                         <button type="button" className="link small" onClick={() => switchMode('forgot')}>
-                          Am uitat parola
+                          {t('Am uitat parola')}
                         </button>
                       )}
                     </div>
@@ -260,23 +261,23 @@ export function AuthDialog() {
                       <button
                         type="button"
                         className="icon-btn input-wrap__btn"
-                        aria-label={showPw ? 'Ascunde parola' : 'Arată parola'}
+                        aria-label={showPw ? t('Ascunde parola') : t('Arată parola')}
                         onClick={() => setShowPw(!showPw)}
                       >
                         <Icon name={showPw ? 'eyeOff' : 'eye'} />
                       </button>
                     </div>
-                    {err('password') ?? (mode === 'signup' && <span className="field__hint">Minimum 8 caractere.</span>)}
+                    {err('password') ?? (mode === 'signup' && <span className="field__hint">{t('Minimum 8 caractere.')}</span>)}
                   </div>
                 )}
 
                 {mode === 'signup' && (
                   <div className="field">
                     <label htmlFor={`${id}-addr`} className="field__label">
-                      Adresa de acasă <span className="muted normal">— opțional</span>
+                      Adresa de acasă <span className="muted normal">{t('— opțional')}</span>
                     </label>
                     <AddressInput id={`${id}-addr`} value={home} onChange={setHome} />
-                    <span className="field__hint">Te anunțăm când apare o problemă aici. Mai poți adăuga 5 adrese din Setări.</span>
+                    <span className="field__hint">{t('Te anunțăm când apare o problemă aici. Mai poți adăuga 5 adrese din Setări.')}</span>
                   </div>
                 )}
               </>
@@ -285,7 +286,7 @@ export function AuthDialog() {
             {tab === 'phone' && (
               <>
                 <div className="field">
-                  <label htmlFor={`${id}-phone`} className="field__label">Număr de telefon</label>
+                  <label htmlFor={`${id}-phone`} className="field__label">{t('Număr de telefon')}</label>
                   <input
                     id={`${id}-phone`}
                     type="tel"
@@ -298,11 +299,11 @@ export function AuthDialog() {
                     onBlur={() => touch('phone')}
                     disabled={codeSent}
                   />
-                  {err('phone') ?? <span className="field__hint">Îți trimitem un cod prin SMS.</span>}
+                  {err('phone') ?? <span className="field__hint">{t('Îți trimitem un cod prin SMS.')}</span>}
                 </div>
                 {codeSent && (
                   <div className="field">
-                    <label htmlFor={`${id}-code`} className="field__label">Cod SMS</label>
+                    <label htmlFor={`${id}-code`} className="field__label">{t('Cod SMS')}</label>
                     <input
                       id={`${id}-code`}
                       inputMode="numeric"
@@ -316,7 +317,7 @@ export function AuthDialog() {
                   </div>
                 )}
                 {mode === 'signup' && (
-                  <span className="field__hint">Adresa de acasă și încă 5 adrese le poți seta după, din Setări.</span>
+                  <span className="field__hint">{t('Adresa de acasă și încă 5 adrese le poți seta după, din Setări.')}</span>
                 )}
               </>
             )}
@@ -326,19 +327,19 @@ export function AuthDialog() {
             <>
               <label className="check">
                 <input type="checkbox" checked={terms} onChange={() => setTerms(!terms)} />
-                <span>Accept <a href="#termeni">Termenii</a> și <a href="#confidentialitate">Politica de confidențialitate</a>.</span>
+                <span>{t('Accept')} <a href="#termeni">{t('Termenii')}</a> {t('și')} <a href="#confidentialitate">{t('Politica de confidențialitate')}</a>.</span>
               </label>
               {err('terms')}
               <label className="check">
                 <input type="checkbox" checked={notify} onChange={() => setNotify(!notify)} />
-                <span>Vreau notificări când apare o problemă la adresele mele.</span>
+                <span>{t('Vreau notificări când apare o problemă la adresele mele.')}</span>
               </label>
             </>
           )}
 
           {submitted && Object.keys(errors).length > 0 && (
             <p className="text-crit small strong" role="alert">
-              Verifică câmpurile marcate.
+              {t('Verifică câmpurile marcate.')}
             </p>
           )}
         </form>

@@ -231,8 +231,8 @@ class Outage:
     end: datetime | None
     updated: datetime | None
     description: str
-    # Variantele de căutare pentru fiecare adresă afectată (prima = adresa principală).
-    geo_targets: list[list[str]] = field(default_factory=list)
+    # Adresele afectate: [(etichetă, variante de căutare)], câte una pe număr de casă (prima = adresa principală).
+    geo_targets: list[tuple[str, list[str]]] = field(default_factory=list)
     # Din „Sistări planificate” (afișate și în calendarul aplicației).
     planned: bool = False
     subtype: str = 'apa'
@@ -314,7 +314,7 @@ def table_outage(district, ticket, street, number, fault, affected, off, on, tan
     desc.append('Ora reconectării este estimativă.')
     # Suburbie (ex. „Cruzești (Ciocana)”): căutăm în localitate, nu pe o stradă omonimă din oraș.
     locality = re.sub(r'\s*\(.*$', '', fix_diacritics(district))
-    targets = address_targets([(street, number), *affected_addresses(affected, street)], locality)
+    targets = [t for st, nr in [(street, number), *affected_addresses(affected, street)] for t in point_targets(st, nr, locality)]
     return Outage(
         id=f'acc-{ticket}',
         title=TITLE,
@@ -419,7 +419,7 @@ def parse_planned(sections: dict[str, str]) -> tuple[list[Outage], list[str]]:
             end=end,
             updated=posted,
             description=('Sistare planificată. ' + ('Apă cu presiune joasă. ' if low else '') + intro)[:500],
-            geo_targets=address_targets(pairs),
+            geo_targets=[t for st, nr in pairs for t in point_targets(st, nr)],
             planned=True,
         ))
     return out, warnings
@@ -501,7 +501,8 @@ def geocode(queries: list[str]) -> dict | None:
         for q in queries:
             found = lookup(q)
             if found:
-                if has_house_number(q):
+                found['exact'] = has_house_number(q)
+                if found['exact']:
                     found['bbox'] = None
                 return found
     return None
@@ -532,6 +533,9 @@ class GeoCache:
         key = ascii_fold(queries[0])
         hit = self.data.get(key)
         if hit and (not hit.get('miss') or datetime.now(timezone.utc) - datetime.fromisoformat(hit['at']) < self.MISS_RETRY):
+            if not hit.get('miss') and 'exact' not in hit:
+                # Intrări salvate înainte de câmpul `exact`: prima variantă (cu număr) era încercată prima.
+                hit['exact'] = has_house_number(queries[0])
             return None if hit.get('miss') else hit
         if self.looked_up >= self.budget:
             self.pending += 1
@@ -556,43 +560,133 @@ def _meters(a: tuple[float, float], b: tuple[float, float]) -> float:
     return 2 * 6371000 * math.asin(math.sqrt(h))
 
 
-# Zona afectată: cercul care cuprinde toate adresele găsite, cu o margine pentru clădirile din jurul punctului.
-AREA_PAD_M = 100
-AREA_MIN_M = 150
-AREA_MAX_M = 4000
+# Zona fiecărei adrese: mică, ca zonele să nu se suprapună. Casă găsită exact → 25 m; doar strada → 55 m.
+AREA_HOUSE_M = 25
+AREA_STREET_M = 55
+AREA_MAX_M = 55
+# Două zone mai apropiate de atât sunt același loc și se unesc.
+SAME_SPOT_M = 15
+# Două zone care nu pot fi unite se micșorează dacă centrele lor sunt mai apropiate de 80% din suma razelor.
+MAX_OVERLAP = 0.8
 # O adresă la peste atât de mediana celorlalte e, cel mai probabil, o stradă omonimă găsită greșit.
 OUTLIER_M = 3000
 
 
-def covering_circle(found: list[dict]) -> tuple[dict, int]:
-    """Centrul și raza (m) cercului care acoperă toate adresele (și străzile întregi, prin colțurile bbox)."""
+def build_areas(found: list[tuple[str, dict]]) -> list[dict]:
+    """
+    [(etichetă, rezultat geocodare), …] → zonele afectate [{lat, lng, radiusM, label}], câte una pe adresă.
+    Adresele vecine se unesc într-o zonă comună, ca cercurile să nu se suprapună; nicio zonă nu depășește AREA_MAX_M —
+    o adresă care ar depăși-o formează o zonă nouă.
+    """
     import statistics
-    mlat = statistics.median(f['lat'] for f in found)
-    mlng = statistics.median(f['lng'] for f in found)
-    kept = [f for f in found if _meters((f['lat'], f['lng']), (mlat, mlng)) <= OUTLIER_M] or found[:1]
-    pts: list[tuple[float, float]] = []
-    for f in kept:
-        pts.append((f['lat'], f['lng']))
-        if f.get('bbox'):
-            la0, lo0, la1, lo1 = f['bbox']
-            pts += [(la0, lo0), (la1, lo1), (la0, lo1), (la1, lo0)]
-    c = ((min(p[0] for p in pts) + max(p[0] for p in pts)) / 2, (min(p[1] for p in pts) + max(p[1] for p in pts)) / 2)
-    r = max(_meters(c, p) for p in pts) + AREA_PAD_M
-    return {'lat': round(c[0], 7), 'lng': round(c[1], 7)}, int(min(AREA_MAX_M, max(AREA_MIN_M, r)))
+    if not found:
+        return []
+    mlat = statistics.median(f['lat'] for _, f in found)
+    mlng = statistics.median(f['lng'] for _, f in found)
+    kept = [(l, f) for l, f in found if _meters((f['lat'], f['lng']), (mlat, mlng)) <= OUTLIER_M] or found[:1]
+
+    # Grupare aglomerativă: pornim cu un cerc pe adresă și unim mereu perechea al cărei cerc comun e cel mai mic,
+    # cât timp rămâne ≤ AREA_MAX_M. Adresele care nu mai încap rămân (sau încep) un grup separat.
+    def circle(members: list[tuple[tuple[float, float], int]]) -> tuple[tuple[float, float], float]:
+        center = (sum(m[0][0] for m in members) / len(members), sum(m[0][1] for m in members) / len(members))
+        return center, max(_meters(center, m[0]) + m[1] for m in members)
+
+    clusters: list[dict] = []
+    for label, f in kept:
+        base = AREA_HOUSE_M if f.get('exact') else AREA_STREET_M
+        clusters.append({'members': [((f['lat'], f['lng']), base)], 'labels': [label]})
+    while len(clusters) > 1:
+        best = None
+        for i in range(len(clusters)):
+            for j in range(i + 1, len(clusters)):
+                ci, cj = circle(clusters[i]['members'])[0], circle(clusters[j]['members'])[0]
+                if _meters(ci, cj) > 2 * AREA_MAX_M:
+                    continue  # prea departe ca să încapă în același cerc
+                _, r = circle(clusters[i]['members'] + clusters[j]['members'])
+                if r <= AREA_MAX_M and (best is None or r < best[0]):
+                    best = (r, i, j)
+        if not best:
+            break
+        _, i, j = best
+        clusters[i] = {'members': clusters[i]['members'] + clusters[j]['members'],
+                       'labels': clusters[i]['labels'] + [l for l in clusters[j]['labels'] if l not in clusters[i]['labels']]}
+        del clusters[j]
+    for c in clusters:
+        (c['lat'], c['lng']), c['r'] = circle(c['members'])
+    # Zonele care nu pot fi unite (ar depăși AREA_MAX_M) dar se acoperă mult — ex. stradele întregi vecine,
+    # fiecare de 55 m — se micșorează până la distanța dintre centre (minim AREA_HOUSE_M): se ating, nu se acoperă.
+    i = 0
+    while i < len(clusters):
+        a = clusters[i]
+        j = i + 1
+        while j < len(clusters):
+            b = clusters[j]
+            d = _meters((a['lat'], a['lng']), (b['lat'], b['lng']))
+            if d < SAME_SPOT_M:
+                # Practic același loc: o singură zonă (tot ≤ AREA_MAX_M), cu ambele adrese.
+                a['r'] = min(AREA_MAX_M, max(a['r'], b['r']))
+                a['labels'] += [l for l in b['labels'] if l not in a['labels']]
+                del clusters[j]
+                continue
+            if d < MAX_OVERLAP * (a['r'] + b['r']):
+                a['r'] = b['r'] = max(AREA_HOUSE_M, min(a['r'], b['r'], d / 2 + 5))
+            j += 1
+        i += 1
+    return [{
+        'lat': round(c['lat'], 7), 'lng': round(c['lng'], 7),
+        'radiusM': int(round(min(AREA_MAX_M, max(AREA_HOUSE_M, c['r'])))),
+        'label': merge_labels(c['labels']),
+    } for c in clusters]
 
 
-def address_targets(addresses: list[tuple[str, str]], locality: str = '') -> list[list[str]]:
-    """[(stradă, număr), …] → variantele de căutare pentru fiecare adresă (în localitate, dacă e o suburbie)."""
-    out = []
-    for street, number in addresses:
-        if re.search(r'/|\btraseu\b', ascii_fold(street)):
-            continue  # cod de conductă (ex. „San/Traseu Tr1”), nu o adresă
-        qs = house_query(street, number)
-        if locality and ascii_fold(locality) not in SECTORS:
-            qs = [f'{q}, {locality}' for q in qs]
-        if qs:
-            out.append(qs)
+def merge_labels(labels: list[str]) -> str:
+    """„Str. Ion Neculce 10”, „Str. Ion Neculce 12” → „Str. Ion Neculce 10, 12”."""
+    out: list[tuple[str, list[str]]] = []
+    key = lambda st: ascii_fold(re.sub(r'^[\w-]+\.\s*', '', st))  # „Str. Alba-Iulia” = „Alba-Iulia”
+    for l in labels:
+        m = re.match(r'^(.*?)\s+(\d\S*)$', l)
+        street, num = (m.group(1), m.group(2)) if m else (l, '')
+        for s_, nums in out:
+            if key(s_) == key(street):
+                if num and num not in nums:
+                    nums.append(num)
+                break
+        else:
+            out.append((street, [num] if num else []))
+    return '; '.join(f'{s_} {", ".join(n)}' if n else s_ for s_, n in out)
+
+
+HOUSE_NO_RE = re.compile(r'\d+[A-Za-z]?(?:/\d+[A-Za-z]?)?')
+
+
+def house_numbers(raw: str) -> list[str]:
+    """„10, 12/1, 5-9, 189/...-203/..” → [10, 12/1, 5, 9, 189, 203] (intervalele: capetele)."""
+    out: list[str] = []
+    for tok in re.split(r'[,;]', raw):
+        found = HOUSE_NO_RE.findall(tok)
+        if not found:
+            continue
+        picks = [found[0], found[-1]] if '-' in tok and len(found) > 1 else found[:1]
+        for n in picks:
+            n = re.sub(r'/$', '', n)
+            if n not in out:
+                out.append(n)
     return out
+
+
+def point_targets(street: str, numbers: str | list[str], locality: str = '', label_street: str | None = None) -> list[tuple[str, list[str]]]:
+    """
+    O stradă cu numerele ei → câte o țintă de geocodare pe număr: [(etichetă, variante de căutare)].
+    Fără numere → o singură țintă pentru stradă. Suburbiile se caută în localitatea lor.
+    """
+    if re.search(r'/|\btraseu\b', ascii_fold(street)):
+        return []  # cod de conductă (ex. „San/Traseu Tr1”), nu o adresă
+    nums = house_numbers(', '.join(numbers) if isinstance(numbers, list) else numbers)
+    label_street = label_street or format_street(street)
+    suffix = f', {locality}' if locality and ascii_fold(locality) not in SECTORS else ''
+    if not nums:
+        return [(label_street, [q + suffix for q in house_query(street, '')])]
+    return [(f'{label_street} {n}', [q + suffix for q in house_query(street, n)]) for n in nums]
 
 
 # ---------- Firestore ----------
@@ -704,6 +798,7 @@ def existing_locations(ids: list[str]) -> dict[str, dict]:
             loc = d.get('location')
             out[snap.id] = {
                 'radiusM': d.get('radiusM'),
+                'areas': d.get('areas'),
                 'location': {'lat': loc.latitude, 'lng': loc.longitude} if loc else None,
                 'district': d.get('district') or '',
             }
@@ -753,21 +848,25 @@ def main() -> int:
 
 def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_prefixes: tuple[str, ...] = (),
             geo_budget: int = 300) -> int:
-    """Geocodarea tuturor adreselor (cu cache) → zona afectată (cerc) → JSON opțional → Firestore."""
+    """Geocodarea fiecărei adrese (cu cache) → zonele afectate (câte una pe adresă) → JSON opțional → Firestore."""
     known = {} if args.dry_run else existing_locations([o.id for o in outages])
     cache = GeoCache(os.environ.get('GEOCACHE_PATH', '.geocache/geocache.json'), geo_budget)
     # Întâi adresa principală a fiecărui anunț (ca toate să apară pe hartă din prima rulare), apoi celelalte.
-    found_by: dict[str, list[dict]] = {o.id: [] for o in outages}
+    found_by: dict[str, list[tuple[str, dict]]] = {o.id: [] for o in outages}
     deferred: set[str] = set()
+    asked: set[tuple[str, str]] = set()
     if not args.no_geocode:
         for targets_of in (lambda o: o.geo_targets[:1], lambda o: o.geo_targets[1:]):
             for o in outages:
-                for t in targets_of(o):
-                    r = cache.get(t)
+                for label, queries in targets_of(o):
+                    if (o.id, ascii_fold(queries[0])) in asked:
+                        continue  # aceeași adresă de două ori în același anunț
+                    asked.add((o.id, ascii_fold(queries[0])))
+                    r = cache.get(queries)
                     if r is GeoCache.PENDING:
                         deferred.add(o.id)
                     elif r:
-                        found_by[o.id].append(r)
+                        found_by[o.id].append((label, r))
 
     events: list[dict] = []
     for o in outages:
@@ -775,13 +874,14 @@ def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_p
         prev = known.get(o.id)
         found = found_by[o.id]
         if found:
-            loc, radius = covering_circle(found)
-            district = next((f['district'] for f in found if f.get('district')), '')
-        elif prev and prev['location']:
-            # Cache-ul s-a pierdut sau bugetul s-a terminat: păstrăm zona calculată anterior.
-            loc, radius, district = prev['location'], prev['radiusM'], prev['district']
+            areas = build_areas(found)
+            district = next((f['district'] for _, f in found if f.get('district')), '')
+        elif prev and prev['location'] and o.id in deferred:
+            # Căutările au fost amânate (buget terminat / cache pierdut): păstrăm zonele calculate anterior.
+            # O adresă negăsită sau invalidă nu primește locația veche.
+            areas, district = prev['areas'] or [{**prev['location'], 'radiusM': prev['radiusM'], 'label': o.streets[0]}], prev['district']
         elif args.no_geocode:
-            loc, radius, district = None, None, ''
+            areas, district = [], ''
         elif o.id in deferred:
             print(f'Amânat (bugetul de geocodare s-a terminat): {o.id}')
             continue
@@ -789,8 +889,11 @@ def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_p
             print(f'::warning::Adresă negăsită, anunț omis: {o.id} {o.streets[0]}')
             continue
         e['district'] = e['district'] or district
+        # Zonele pe adrese; `location`/`radiusM` = prima zonă (compatibil cu clienții vechi).
+        e['areas'] = areas
+        loc = {'lat': areas[0]['lat'], 'lng': areas[0]['lng']} if areas else None
         e['location'] = loc
-        e['radiusM'] = radius
+        e['radiusM'] = areas[0]['radiusM'] if areas else None
         e['_exists'] = o.id in known
         if loc:
             e['geohash'] = encode_geohash(loc['lat'], loc['lng'])

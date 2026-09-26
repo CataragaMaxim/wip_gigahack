@@ -4,6 +4,7 @@ import { SUBTYPES, catTint, catVar, typeTint, typeVar } from '@/config/categorie
 import { fmtAt, initials } from '@/lib/format';
 import { Icon, type IconName } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
+import { districtName, eventTitle } from '@/lib/status';
 import type { Theme } from '@/types';
 import { StatusBadge } from '@/components/events/EventBits';
 import { DeleteConfirm } from '@/components/events/EventDetail';
@@ -12,20 +13,21 @@ import type { GeoResult } from '@/services/geocoding';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { roleLabel, type HistoryEntry } from '@/types/user';
 import { listUserHistory } from '@/services/userService';
+import { LANGS, t } from '@/i18n';
 
 const THEMES: { key: Theme; label: string; icon: IconName }[] = [
-  { key: 'light', label: 'Luminoasă', icon: 'sun' },
-  { key: 'dark', label: 'Întunecată', icon: 'moon' },
-  { key: 'system', label: 'Sistem', icon: 'monitor' },
+  { key: 'light', label: t('Luminoasă'), icon: 'sun' },
+  { key: 'dark', label: t('Întunecată'), icon: 'moon' },
+  { key: 'system', label: t('Sistem'), icon: 'monitor' },
 ];
 const KIND_ICON = { home: 'home', work: 'briefcase', person: 'user', other: 'pin' } as const;
 const HISTORY_ICON = { created: 'plus', confirmed: 'check', denied: 'x' } as const;
-const HISTORY_LABEL = { created: 'Ai raportat', confirmed: 'Ai confirmat', denied: 'Ai negat' } as const;
+const HISTORY_LABEL = { created: t('Ai raportat'), confirmed: t('Ai confirmat'), denied: t('Ai negat') } as const;
 
 export function SettingsPanel() {
   const app = useApp();
   const {
-    user, theme, setTheme, radius, setRadius, events, openAuth,
+    user, theme, setTheme, lang, setLang, setModal, radius, setRadius, events, openAuth,
     logOut, deleteAccount, openEvent, deleteAsk, setDeleteAsk, deleteEvent,
     userPos, fitRadius, setSheetSnap,
   } = app;
@@ -92,34 +94,50 @@ export function SettingsPanel() {
 
           <section className="stack gap-8">
             <div className="stack">
-              <h3 className="h3">Adresele mele</h3>
-              <span className="muted small">Alertele care le afectează apar primele în listă.</span>
+              <h3 className="h3">{t('Adresele mele')}</h3>
+              <span className="muted small">{t('Alertele care le afectează apar primele în listă.')}</span>
             </div>
             <AddressBook />
           </section>
         </>
       ) : (
         <div className="card card--sunk stack gap-10">
-          <strong>Cont</strong>
-          <span className="muted small">Contul e necesar doar pentru a raporta. Poți vedea harta fără cont.</span>
+          <strong>{t('Cont')}</strong>
+          <span className="muted small">{t('Contul e necesar doar pentru a raporta. Poți vedea harta fără cont.')}</span>
           <div className="grid-2">
             <button type="button" className="btn btn--primary" onClick={() => openAuth('signup')}>
-              Creează cont
+              {t('Creează cont')}
             </button>
             <button type="button" className="btn btn--secondary" onClick={() => openAuth('login')}>
-              Intră în cont
+              {t('Intră în cont')}
             </button>
           </div>
         </div>
       )}
 
+      <button type="button" className="btn btn--secondary" onClick={() => setModal('help')}>
+        <Icon name="info" size={18} />
+        {t('Cum funcționează aplicația')}
+      </button>
+
       <section className="stack gap-8">
-        <h3 className="h3">Temă</h3>
-        <div className="seg seg--3" role="group" aria-label="Temă">
-          {THEMES.map((t) => (
-            <button key={t.key} type="button" className="seg__btn" aria-pressed={theme === t.key} onClick={() => setTheme(t.key)}>
-              <Icon name={t.icon} size={16} />
-              {t.label}
+        <h3 className="h3">{t('Limbă')}</h3>
+        <div className="seg seg--2" role="group" aria-label={t('Limbă')}>
+          {LANGS.map((l) => (
+            <button key={l.key} type="button" lang={l.key} className="seg__btn" aria-pressed={lang === l.key} onClick={() => setLang(l.key)}>
+              {l.name}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="stack gap-8">
+        <h3 className="h3">{t('Temă')}</h3>
+        <div className="seg seg--3" role="group" aria-label={t('Temă')}>
+          {THEMES.map((th) => (
+            <button key={th.key} type="button" className="seg__btn" aria-pressed={theme === th.key} onClick={() => setTheme(th.key)}>
+              <Icon name={th.icon} size={16} />
+              {t(th.label)}
             </button>
           ))}
         </div>
@@ -127,14 +145,14 @@ export function SettingsPanel() {
 
       <section className="stack gap-8">
         <div className="stack">
-          <h3 className="h3">Rază afișată</h3>
+          <h3 className="h3">{t('Rază afișată')}</h3>
           <span className="muted small">
             {userPos
-              ? 'Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.'
-              : 'Ce evenimente vezi în jurul locației tale.'}
+              ? t('Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.')
+              : t('Ce evenimente vezi în jurul locației tale.')}
           </span>
         </div>
-        <div className="seg seg--4" role="group" aria-label="Rază afișată">
+        <div className="seg seg--4" role="group" aria-label={t('Rază afișată')}>
           {CONFIG.RADIUS_OPTIONS.map((r) => (
             <button
               key={String(r)}
@@ -150,7 +168,7 @@ export function SettingsPanel() {
                 window.setTimeout(() => fitRadius(center, radiusM), isMobile ? 350 : 0);
               }}
             >
-              {r === 'all' ? 'Tot orașul' : `${r / 1000} km`}
+              {r === 'all' ? t('Tot orașul') : t('{km} km', { km: r / 1000 })}
             </button>
           ))}
         </div>
@@ -159,8 +177,8 @@ export function SettingsPanel() {
       {user && (
         <>
           <section className="stack gap-8">
-            <h3 className="h3">Raportările mele</h3>
-            {myReports.length === 0 && <span className="muted small">Nu ai trimis încă nicio raportare.</span>}
+            <h3 className="h3">{t('Raportările mele')}</h3>
+            {myReports.length === 0 && <span className="muted small">{t('Nu ai trimis încă nicio raportare.')}</span>}
             {myReports.map((e) => (
               <div key={e.id} className="stack gap-8">
                 <div className="row gap-6">
@@ -172,9 +190,9 @@ export function SettingsPanel() {
                       <Icon name={SUBTYPES[e.subtype].icon} size={18} />
                     </span>
                     <span className="stack grow min0">
-                      <strong className="small">{e.title}</strong>
+                      <strong className="small">{eventTitle(e)}</strong>
                       <span className="muted xsmall">
-                        {e.district} · {e.reportedAt ? fmtAt(new Date(e.reportedAt)) : ''}
+                        {districtName(e.district)} · {e.reportedAt ? fmtAt(new Date(e.reportedAt)) : ''}
                       </span>
                       <span className="badges">
                         <StatusBadge e={e} />
@@ -184,7 +202,7 @@ export function SettingsPanel() {
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger icon-btn--boxed"
-                    aria-label={`Șterge raportarea: ${e.title}`}
+                    aria-label={t('Șterge raportarea: {title}', { title: eventTitle(e) })}
                     onClick={() => setDeleteAsk(e.id)}
                   >
                     <Icon name="trash" size={16} />
@@ -199,7 +217,7 @@ export function SettingsPanel() {
 
           {history.length > 0 && (
             <section className="stack gap-8">
-              <h3 className="h3">Istoricul meu</h3>
+              <h3 className="h3">{t('Istoricul meu')}</h3>
               {history.map((h) => (
                 <button
                   key={`${h.eventId}-${h.kind}`}
@@ -216,7 +234,7 @@ export function SettingsPanel() {
                   <span className="stack grow min0">
                     <strong className="small">{h.title}</strong>
                     <span className="muted xsmall">
-                      {HISTORY_LABEL[h.kind]} · {h.at ? fmtAt(h.at.toDate()) : ''}
+                      {t(HISTORY_LABEL[h.kind])} · {h.at ? fmtAt(h.at.toDate()) : ''}
                     </span>
                   </span>
                 </button>
@@ -227,27 +245,27 @@ export function SettingsPanel() {
           <section className="stack gap-10 pb-12">
             <button type="button" className="btn btn--secondary btn--lg" onClick={() => void logOut()}>
               <Icon name="logout" />
-              Ieși din cont
+              {t('Ieși din cont')}
             </button>
             {confirmAccount ? (
-              <div className="danger-box fade-in" role="alertdialog" aria-label="Confirmă ștergerea contului">
-                <strong>Ștergi contul definitiv?</strong>
+              <div className="danger-box fade-in" role="alertdialog" aria-label={t('Confirmă ștergerea contului')}>
+                <strong>{t('Ștergi contul definitiv?')}</strong>
                 <span className="muted small">
-                  Se șterg adresele salvate și setările. Raportările trimise rămân anonime. Acțiunea nu poate fi anulată.
+                  {t('Se șterg adresele salvate și setările. Raportările trimise rămân anonime. Acțiunea nu poate fi anulată.')}
                 </span>
                 <div className="grid-2">
                   <button type="button" className="btn btn--secondary" onClick={() => setConfirmAccount(false)}>
-                    Anulează
+                    {t('Anulează')}
                   </button>
                   <button type="button" className="btn btn--danger" onClick={() => void deleteAccount()}>
-                    Șterge definitiv
+                    {t('Șterge definitiv')}
                   </button>
                 </div>
               </div>
             ) : (
               <button type="button" className="btn btn--danger-ghost" onClick={() => setConfirmAccount(true)}>
                 <Icon name="trash" size={16} />
-                Șterge contul
+                {t('Șterge contul')}
               </button>
             )}
           </section>
@@ -273,17 +291,17 @@ function AddressBook() {
         <div className="address-row">
           <Icon name="home" />
           <span className="stack grow min0">
-            <span className="muted xsmall">Acasă</span>
+            <span className="muted xsmall">{t('Acasă')}</span>
             <strong className="small">{home.address}</strong>
           </span>
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditing('home')}>
-            Schimbă
+            {t('Schimbă')}
           </button>
         </div>
       ) : (
         <button type="button" className="btn btn--dashed" onClick={() => setEditing('home')}>
           <Icon name="home" size={16} />
-          Setează adresa de acasă
+          {t('Setează adresa de acasă')}
         </button>
       )}
 
@@ -297,7 +315,7 @@ function AddressBook() {
           <button
             type="button"
             className="icon-btn icon-btn--muted"
-            aria-label={`Șterge adresa ${l.name}`}
+            aria-label={t('Șterge adresa {name}', { name: l.name })}
             onClick={() => void removeLocation(l.id)}
           >
             <Icon name="trash" size={16} />
@@ -310,7 +328,9 @@ function AddressBook() {
       ) : (
         <button type="button" className="btn btn--dashed" disabled={full} onClick={() => setEditing('extra')}>
           <Icon name="plus" size={16} />
-          {full ? `Ai salvat ${CONFIG.MAX_EXTRA_ADDRESSES} adrese (maximum)` : `Adaugă o adresă (${extras.length} din ${CONFIG.MAX_EXTRA_ADDRESSES})`}
+          {full
+            ? t('Ai salvat {max} adrese (maximum)', { max: CONFIG.MAX_EXTRA_ADDRESSES })
+            : t('Adaugă o adresă ({n} din {max})', { n: extras.length, max: CONFIG.MAX_EXTRA_ADDRESSES })}
         </button>
       )}
     </>
@@ -333,16 +353,16 @@ function AddressForm({ kind, onDone }: { kind: 'home' | 'extra'; onDone: () => v
   };
   return (
     <div className="card card--outline stack gap-12 fade-in">
-      <strong className="small">{kind === 'home' ? 'Adresa de acasă' : 'Adresă nouă'}</strong>
+      <strong className="small">{kind === 'home' ? t('Adresa de acasă') : t('Adresă nouă')}</strong>
       {kind === 'extra' && (
         <div className="field">
           <label htmlFor={`${id}-n`} className="field__label">
-            Cum o numești?
+            {t('Cum o numești?')}
           </label>
           <input
             id={`${id}-n`}
             className="input"
-            placeholder="ex.: Serviciu, Părinți, Grădinița"
+            placeholder={t('ex.: Serviciu, Părinți, Grădinița')}
             maxLength={30}
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -351,17 +371,17 @@ function AddressForm({ kind, onDone }: { kind: 'home' | 'extra'; onDone: () => v
       )}
       <div className="field">
         <label htmlFor={`${id}-a`} className="field__label">
-          Adresă
+          {t('Adresă')}
         </label>
         <AddressInput id={`${id}-a`} value={place} onChange={setPlace} autoFocus={kind === 'home'} />
-        <span className="field__hint">Alege adresa din sugestii.</span>
+        <span className="field__hint">{t('Alege adresa din sugestii.')}</span>
       </div>
       <div className="grid-2">
         <button type="button" className="btn btn--secondary" onClick={onDone}>
-          Anulează
+          {t('Anulează')}
         </button>
         <button type="button" className="btn btn--primary" disabled={!ok || saving} onClick={() => void save()}>
-          {saving ? 'Se salvează…' : 'Salvează'}
+          {saving ? t('Se salvează…') : t('Salvează')}
         </button>
       </div>
     </div>

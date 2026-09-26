@@ -52,3 +52,12 @@ Același workflow rulează, ca job separat, `scripts/acc_outages/sync_premier.py
 
 Local, fără Firestore: `python scripts/acc_outages/sync_premier.py --dry-run --out premier.json`
 
+
+
+## Zone pe adrese (fluxurile oficiale)
+
+Scraperele geocodează fiecare adresă dintr-un anunț (câte un număr de casă; intervalele „1-17” → capetele) și salvează `areas: [{lat, lng, radiusM, label}]`. Casă găsită exact → 25 m; doar strada → 55 m. Adresele vecine se unesc într-o zonă comună doar dacă aceasta rămâne ≤ 55 m; altfel formează o zonă nouă. Zonele care nu pot fi unite, dar se acoperă mult, se micșorează până se ating. Aplicația afișează câte un eveniment pe zonă (id `anunț~n`); calendarul păstrează un rând pe anunț. Geocodarea se păstrează între rulări (`GEOCACHE_PATH`, în Actions prin `actions/cache`).
+
+## Limbi (română și rusă)
+
+Textul din cod e în română; `t('…')` din `src/i18n` îl întoarce în limba aleasă (RO | RU în bara de sus sau în Setări). Traducerile sunt în `src/i18n/ru.ts`, cheiate după textul românesc; pluralele rusești în `RU_PLURALS`. **Orice text nou din interfață trebuie adăugat și în `ru.ts`** — `npm run check:i18n` (rulat și în CI) eșuează altfel. Datele salvate în Firestore rămân în română (ex. titlurile raportărilor); se traduc doar la afișare. Textul oficial preluat de la furnizori (descrieri, străzi) rămâne în limba sursei.

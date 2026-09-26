@@ -2,27 +2,28 @@ import { CONFIG } from '@/config/constants';
 import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
 import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { categoryLine, metaLine } from '@/lib/status';
+import { categoryLine, eventTitle, metaLine } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent } from '@/types';
 import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits';
+import { t } from '@/i18n';
 
 export function EventListHeader() {
   const { visible, radius, search, loadState, online, syncedAt, gps, userPos } = useApp();
   const count = visible.length;
-  const scope = search.trim() ? `pentru „${search.trim()}”` : radius === 'all' ? 'tot orașul' : `rază ${radius / 1000} km`;
+  const scope = search.trim() ? t('pentru „{q}”', { q: search.trim() }) : radius === 'all' ? t('tot orașul') : t('rază {km} km', { km: radius / 1000 });
   let summary = `${plural(count, 'eveniment', 'evenimente')} · ${scope}`;
-  if (loadState === 'loading') summary = 'Se actualizează…';
+  if (loadState === 'loading') summary = t('Se actualizează…');
   if (loadState === 'error') summary = 'Date indisponibile';
-  if (!online && syncedAt) summary += ` · date din ${syncedAt.getHours().toString().padStart(2, '0')}:${syncedAt.getMinutes().toString().padStart(2, '0')}`;
+  if (!online && syncedAt) summary += ` · ${t('date din {time}', { time: hm(syncedAt) })}`;
   return (
     <div className="panel__titles">
-      <h2>Evenimente în zonă</h2>
+      <h2>{t('Evenimente în zonă')}</h2>
       <p className="muted">{summary}</p>
       {!userPos && gps !== 'pending' && (
         <p className="muted small row gap-6">
           <Icon name="info" size={14} />
-          Locația e dezactivată: nu afișăm distanțe.
+          {t('Locația e dezactivată: afișăm tot orașul.')}
         </p>
       )}
     </div>
@@ -33,7 +34,7 @@ export function EventListHeader() {
 export function TypeFilter() {
   const { types, toggleType } = useApp();
   return (
-    <div className="chips type-filter" role="group" aria-label="Filtrează după tip">
+    <div className="chips type-filter" role="group" aria-label={t('Filtrează după tip')}>
       {TYPES.map((k) => {
         const on = types[k];
         return (
@@ -80,24 +81,24 @@ export function useSheetSummary() {
   const active = plural(n, 'alertă activă', 'alerte active');
 
   if (loadState === 'loading')
-    return { live: 'loading' as const, mini: 'Se încarcă alertele…', miniAria: 'Evenimente în zonă, se încarcă alertele', subtitle: 'Se încarcă alertele…' };
+    return { live: 'loading' as const, mini: t('Se încarcă alertele…'), miniAria: t('Evenimente în zonă, se încarcă alertele'), subtitle: t('Se încarcă alertele…') };
   if (loadState === 'error')
-    return { live: 'error' as const, mini: 'Date indisponibile · Atinge pentru detalii', miniAria: 'Evenimente în zonă, date indisponibile', subtitle: 'Date indisponibile' };
+    return { live: 'error' as const, mini: t('Date indisponibile · Atinge pentru detalii'), miniAria: t('Evenimente în zonă, date indisponibile'), subtitle: t('Date indisponibile') };
   if (n === 0)
-    return { live: online ? ('ok' as const) : ('offline' as const), mini: 'Nicio alertă activă în oraș', miniAria: 'Evenimente în zonă, nicio alertă activă în oraș', subtitle: 'Nicio alertă activă în oraș' };
+    return { live: online ? ('ok' as const) : ('offline' as const), mini: t('Nicio alertă activă în oraș'), miniAria: t('Evenimente în zonă, nicio alertă activă în oraș'), subtitle: t('Nicio alertă activă în oraș') };
   if (!online) {
-    const t = `${plural(n, 'alertă', 'alerte')}${synced ? ` · date din ${synced}` : ''}`;
-    return { live: 'offline' as const, mini: boldCount(t), miniAria: `Evenimente în zonă, ${t}`, subtitle: t };
+    const txt = `${plural(n, 'alertă', 'alerte')}${synced ? ` · ${t('date din {time}', { time: synced })}` : ''}`;
+    return { live: 'offline' as const, mini: boldCount(txt), miniAria: `${t('Evenimente în zonă')}, ${txt}`, subtitle: txt };
   }
 
   const q = search.trim();
   const typesOff = Object.values(types).some((on) => !on);
-  let scope = 'tot orașul';
-  if (q) scope = `${plural(visible.length, 'eveniment', 'evenimente')} pentru „${q}”`;
-  else if (radius !== 'all' && !noGps) scope = `${plural(visible.length, 'eveniment', 'evenimente')} · rază ${radius / 1000} km`;
+  let scope = t('tot orașul');
+  if (q) scope = `${plural(visible.length, 'eveniment', 'evenimente')} ${t('pentru „{q}”', { q })}`;
+  else if (radius !== 'all' && !noGps) scope = `${plural(visible.length, 'eveniment', 'evenimente')} · ${t('rază {km} km', { km: radius / 1000 })}`;
   else if (typesOff) scope = plural(visible.length, 'eveniment afișat', 'evenimente afișate');
-  const subtitle = noGps ? `${active} · fără distanțe` : `${active} în oraș · ${scope}`;
-  return { live: 'ok' as const, mini: boldCount(`${active} în oraș`), miniAria: `Evenimente în zonă, ${active} în oraș`, subtitle };
+  const subtitle = noGps ? active : `${t('{active} în oraș', { active })} · ${scope}`;
+  return { live: 'ok' as const, mini: boldCount(t('{active} în oraș', { active })), miniAria: `${t('Evenimente în zonă')}, ${t('{active} în oraș', { active })}`, subtitle };
 }
 
 /** Avizele offline și „GPS refuzat”, în capul listei (mobil), ca să rămână vizibile și în starea 'tall'. */
@@ -110,7 +111,7 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
         <div className="notice notice--inlist" role="status">
           <Icon name="wifiOff" size={18} />
           <span>
-            <strong>Ești offline.</strong> {syncedAt ? `Afișăm datele salvate la ${hm(syncedAt)}.` : 'Afișăm datele salvate.'}
+            <strong>{t('Ești offline.')}</strong> {syncedAt ? t('Afișăm datele salvate la {time}.', { time: hm(syncedAt) }) : t('Afișăm datele salvate.')}
           </span>
         </div>
       )}
@@ -119,11 +120,11 @@ export function ListNotices({ onSearch }: { onSearch: () => void }) {
           <Icon name="locate" size={20} />
           <span className="stack gap-8">
             <span>
-              <strong>Locația nu este disponibilă.</strong>{' '}
-              <span className="muted">Permite accesul din setările browserului sau caută o adresă.</span>
+              <strong>{t('Locația nu este disponibilă.')}</strong>{' '}
+              <span className="muted">{t('Permite accesul din setările browserului sau caută o adresă.')}</span>
             </span>
             <button type="button" className="btn btn--primary btn--sm notice__action" onClick={onSearch}>
-              Caută o adresă
+              {t('Caută o adresă')}
             </button>
           </span>
         </div>
@@ -138,7 +139,7 @@ export function EventList() {
   if (loadState === 'loading') {
     return (
       <div className="list" aria-busy="true">
-        <p className="sr-only">Se încarcă evenimentele din zonă…</p>
+        <p className="sr-only">{t('Se încarcă evenimentele din zonă…')}</p>
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="skeleton-row">
             <span className="skel skel--tile" />
@@ -164,11 +165,11 @@ export function EventList() {
           <span className="state__icon is-crit">
             <Icon name="alert" size={28} />
           </span>
-          <strong>Nu am putut încărca evenimentele</strong>
-          <span className="muted">Serverul nu răspunde. Verifică conexiunea și încearcă din nou.</span>
+          <strong>{t('Nu am putut încărca evenimentele')}</strong>
+          <span className="muted">{t('Serverul nu răspunde. Verifică conexiunea și încearcă din nou.')}</span>
           <button type="button" className="btn btn--primary btn--lg" onClick={() => void fetchEvents()}>
             <Icon name="refresh" size={16} />
-            Reîncearcă
+            {t('Reîncearcă')}
           </button>
         </div>
       </div>
@@ -183,18 +184,18 @@ export function EventList() {
           <span className="state__icon">
             <Icon name="check" size={30} strokeWidth={1.8} />
           </span>
-          <strong>{nothingAtAll ? 'Nicio problemă raportată în zona ta' : 'Niciun eveniment pentru filtrele alese'}</strong>
+          <strong>{nothingAtAll ? t('Nicio problemă raportată în zona ta') : t('Niciun eveniment pentru filtrele alese')}</strong>
           <span className="muted">
-            {nothingAtAll ? 'Totul funcționează normal. Te anunțăm dacă apare ceva la adresele tale.' : 'Încearcă alte categorii sau altă rază din Setări.'}
+            {nothingAtAll ? t('Totul funcționează normal. Te anunțăm dacă apare ceva la adresele tale.') : t('Încearcă alte tipuri sau altă rază din Setări.')}
           </span>
           {nothingAtAll ? (
             <button type="button" className="btn btn--secondary btn--lg" onClick={openReport}>
               <Icon name="plus" size={18} strokeWidth={2.2} />
-              Raportează o problemă
+              {t('Raportează o problemă')}
             </button>
           ) : (
             <button type="button" className="btn btn--secondary btn--lg" onClick={resetFilters}>
-              Resetează filtrele
+              {t('Resetează filtrele')}
             </button>
           )}
         </div>
@@ -229,7 +230,7 @@ function EventRow({ e, fading, onOpen }: { e: DerivedEvent; fading: boolean; onO
             </span>
           )}
         </span>
-        <span className="event-row__title">{e.title}</span>
+        <span className="event-row__title">{eventTitle(e)}</span>
         <span className="event-row__meta">{metaLine(e)}</span>
         <span className="badges">
           <StatusBadge e={e} />

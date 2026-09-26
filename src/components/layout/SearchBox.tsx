@@ -5,6 +5,7 @@ import { normalize } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import type { Street } from '@/types';
+import { t } from '@/i18n';
 
 export function SearchBox({ className = '' }: { className?: string }) {
   const { search, setSearch, flyTo, backToList, flash } = useApp();
@@ -24,20 +25,20 @@ export function SearchBox({ className = '' }: { className?: string }) {
     setFocused(false);
     backToList();
     flyTo(midpoint(s.path), 15);
-    flash(`Harta centrată pe ${s.name}`);
+    flash(t('Harta centrată pe {name}', { name: s.name }));
   };
 
   return (
     <div className={`search ${className}`}>
       <label htmlFor={id} className="sr-only">
-        Caută stradă sau adresă
+        {t('Caută stradă sau adresă')}
       </label>
       <Icon name="search" size={20} strokeWidth={1.8} className="search__icon" />
       <input
         id={id}
         type="search"
         className="search__input"
-        placeholder="Caută stradă sau adresă"
+        placeholder={t('Caută stradă sau adresă')}
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
@@ -65,7 +66,7 @@ export function SearchBox({ className = '' }: { className?: string }) {
         }}
       />
       {search && (
-        <button type="button" className="icon-btn search__clear" aria-label="Șterge căutarea" onClick={() => setSearch('')}>
+        <button type="button" className="icon-btn search__clear" aria-label={t('Șterge căutarea')} onClick={() => setSearch('')}>
           <Icon name="x" size={18} />
         </button>
       )}

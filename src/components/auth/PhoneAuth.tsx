@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Icon } from '@/lib/icons';
 import { SocialAuthError, socialAuth, type AuthIntent, type PhoneVerification, type SocialProfile } from '@/services/socialAuth';
+import { t } from '@/i18n';
 
 /** După cât timp se poate cere un cod nou (s). */
 const RESEND_S = 30;
@@ -19,13 +20,13 @@ export const formatPhone = (d: string) => `+373 ${d.slice(0, 2)} ${d.slice(2, 5)
 
 function errorText(e: unknown, step: 'number' | 'code'): string {
   const code = e instanceof SocialAuthError ? e.code : 'failed';
-  if (code === 'invalid-phone') return 'Numărul nu pare corect. Exemplu: 69 123 456';
-  if (code === 'too-many-requests') return 'Prea multe încercări. Așteaptă câteva minute și încearcă din nou.';
-  if (code === 'invalid-code') return 'Codul nu este corect. Verifică SMS-ul și încearcă din nou.';
-  if (code === 'code-expired') return 'Codul a expirat. Cere unul nou.';
+  if (code === 'invalid-phone') return t('Numărul nu pare corect. Exemplu: 69 123 456');
+  if (code === 'too-many-requests') return t('Prea multe încercări. Așteaptă câteva minute și încearcă din nou.');
+  if (code === 'invalid-code') return t('Codul nu este corect. Verifică SMS-ul și încearcă din nou.');
+  if (code === 'code-expired') return t('Codul a expirat. Cere unul nou.');
   return step === 'number'
-    ? 'Nu am putut trimite codul. Verifică conexiunea și încearcă din nou.'
-    : 'Nu am putut verifica codul. Verifică conexiunea și încearcă din nou.';
+    ? t('Nu am putut trimite codul. Verifică conexiunea și încearcă din nou.')
+    : t('Nu am putut verifica codul. Verifică conexiunea și încearcă din nou.');
 }
 
 interface Props {
@@ -61,7 +62,7 @@ export function PhoneAuth({ intent, onVerified }: Props) {
   const sendCode = async () => {
     if (busy) return;
     if (!isValidMobile(digits)) {
-      setError('Numărul nu pare corect. Exemplu: 69 123 456');
+      setError(t('Numărul nu pare corect. Exemplu: 69 123 456'));
       return;
     }
     setBusy(true);
@@ -83,7 +84,7 @@ export function PhoneAuth({ intent, onVerified }: Props) {
   const confirm = async (value = code) => {
     if (busy || !verification) return;
     if (value.length !== CODE_LEN) {
-      setError(`Introdu codul de ${CODE_LEN} cifre din SMS.`);
+      setError(t('Introdu codul de {n} cifre din SMS.', { n: CODE_LEN }));
       return;
     }
     setBusy(true);
@@ -121,11 +122,11 @@ export function PhoneAuth({ intent, onVerified }: Props) {
           <p className="muted small">Îți trimitem prin SMS un cod de {CODE_LEN} cifre. Nu e nevoie de parolă.</p>
           <div className="field">
             <label htmlFor={`${id}-tel`} className="field__label">
-              Număr de telefon
+              {t('Număr de telefon')}
             </label>
             <div className="phone-input">
               <span className="phone-input__prefix" aria-hidden="true">
-                MD +373
+                {t('MD +373')}
               </span>
               <input
                 id={`${id}-tel`}
@@ -148,13 +149,13 @@ export function PhoneAuth({ intent, onVerified }: Props) {
           </div>
           <button type="submit" className="btn btn--primary btn--xl" disabled={busy} aria-busy={busy}>
             {busy && <span className="spinner" aria-hidden="true" />}
-            {busy ? 'Se trimite codul…' : 'Trimite codul'}
+            {busy ? t('Se trimite codul…') : t('Trimite codul')}
           </button>
         </>
       ) : (
         <>
           <div className="stack gap-4">
-            <span className="muted small">Am trimis codul prin SMS la</span>
+            <span className="muted small">{t('Am trimis codul prin SMS la')}</span>
             <div className="row gap-8">
               <strong>{formatPhone(digits)}</strong>
               <button
@@ -165,13 +166,13 @@ export function PhoneAuth({ intent, onVerified }: Props) {
                   setError(null);
                 }}
               >
-                Schimbă numărul
+                {t('Schimbă numărul')}
               </button>
             </div>
           </div>
           <div className="field">
             <label htmlFor={`${id}-code`} className="field__label">
-              Codul din SMS
+              {t('Codul din SMS')}
             </label>
             <input
               id={`${id}-code`}
@@ -196,10 +197,10 @@ export function PhoneAuth({ intent, onVerified }: Props) {
           </div>
           <button type="submit" className="btn btn--primary btn--xl" disabled={busy} aria-busy={busy}>
             {busy && <span className="spinner" aria-hidden="true" />}
-            {busy ? 'Se verifică…' : 'Confirmă'}
+            {busy ? t('Se verifică…') : t('Confirmă')}
           </button>
           <button type="button" className="btn btn--ghost" disabled={busy || resendIn > 0} onClick={() => void sendCode()}>
-            {resendIn > 0 ? `Retrimite codul în 0:${String(resendIn).padStart(2, '0')}` : 'Retrimite codul'}
+            {resendIn > 0 ? t('Retrimite codul în 0:{s}', { s: String(resendIn).padStart(2, '0') }) : t('Retrimite codul')}
           </button>
         </>
       )}

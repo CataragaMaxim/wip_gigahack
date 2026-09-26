@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 from sync_acc import (
-    BROWSER_UA, TZ, Outage, address_targets, ascii_fold, clean, cli_args, fix_diacritics, html_lines, publish, stable_id,
+    BROWSER_UA, TZ, Outage, ascii_fold, clean, cli_args, fix_diacritics, html_lines, point_targets, publish, stable_id,
 )
 
 BASE = 'https://www.premierenergydistribution.md'
@@ -169,7 +169,7 @@ def parse_day(page: str, day: date) -> tuple[list[Outage], list[str]]:
 
             # Toate adresele rândului (inclusiv cele nelistate în aplicație) intră în zona afectată.
             targets = [t for loc, name, nums in streets
-                       for t in address_targets([(f'str. {name}', nums[0] if nums else '')], loc or heading_locality)]
+                       for t in point_targets(f'str. {name}', nums, loc or heading_locality, street_label(loc, name, []).strip())]
 
             out.append(Outage(
                 id=f'ped-{day}-{stable_id(m.group("addr"), m.group("t0"), m.group("t1"))}',

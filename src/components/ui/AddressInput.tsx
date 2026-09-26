@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@/lib/icons';
 import { searchAddress, type GeoResult } from '@/services/geocoding';
+import { t } from '@/i18n';
 
 interface Props {
   id: string;
@@ -21,7 +22,7 @@ export const placeLabel = (p: GeoResult) => (p.detail ? `${p.label}, ${p.detail}
  * Adresă reală din Chișinău (OpenStreetMap / Nominatim), cu numărul casei.
  * Sugestiile apar după 3 litere; adresa e validă doar după ce e aleasă din listă.
  */
-export function AddressInput({ id, value, onChange, onBlur, invalid, describedBy, placeholder = 'Stradă și număr, ex.: Ismail 88', autoFocus }: Props) {
+export function AddressInput({ id, value, onChange, onBlur, invalid, describedBy, placeholder, autoFocus }: Props) {
   const [query, setQuery] = useState(value ? placeLabel(value) : '');
   const [results, setResults] = useState<GeoResult[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'empty' | 'error'>('idle');
@@ -75,7 +76,7 @@ export function AddressInput({ id, value, onChange, onBlur, invalid, describedBy
           aria-autocomplete="list"
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('Stradă și număr, ex.: Ismail 88')}
           autoFocus={autoFocus}
           value={query}
           onChange={(e) => {
@@ -109,9 +110,9 @@ export function AddressInput({ id, value, onChange, onBlur, invalid, describedBy
       </div>
       {open && (
         <ul role="listbox" className="street-input__menu fade-in">
-          {state === 'loading' && <li className="muted">Se caută…</li>}
-          {state === 'empty' && <li className="muted">Nicio adresă găsită. Încearcă doar strada și numărul.</li>}
-          {state === 'error' && <li className="muted">Căutarea nu răspunde. Încearcă din nou.</li>}
+          {state === 'loading' && <li className="muted">{t('Se caută…')}</li>}
+          {state === 'empty' && <li className="muted">{t('Nicio adresă găsită. Încearcă doar strada și numărul.')}</li>}
+          {state === 'error' && <li className="muted">{t('Căutarea nu răspunde. Încearcă din nou.')}</li>}
           {state === 'idle' &&
             results.map((r, i) => (
               <li

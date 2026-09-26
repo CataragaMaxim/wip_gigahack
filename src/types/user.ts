@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { CategoryKey, LatLng, Status } from './index';
+import { t } from '@/i18n';
 
 /** Roluri numerice: cu cât mai mare, cu atât mai multe drepturi. */
 export enum UserRole {
@@ -75,10 +76,10 @@ export const isGovernment = (u: UserProfile | null) => hasRole(u, UserRole.Gover
 export const isTrusted = (u: UserProfile | null) => hasRole(u, UserRole.Trusted);
 
 export function roleLabel(role: UserRole): string {
-  if (role >= UserRole.Admin) return 'Administrator';
-  if (role >= UserRole.Manager) return 'Manager';
-  if (role >= UserRole.Government) return 'Guvern';
-  if (role >= UserRole.Trusted) return 'Utilizator de încredere';
-  if (role >= UserRole.User) return 'Utilizator';
-  return 'Blocat';
+  if (role >= UserRole.Admin) return t('Administrator');
+  if (role >= UserRole.Manager) return t('Manager');
+  if (role >= UserRole.Government) return t('Guvern');
+  if (role >= UserRole.Trusted) return t('Utilizator de încredere');
+  if (role >= UserRole.User) return t('Utilizator');
+  return t('Blocat');
 }

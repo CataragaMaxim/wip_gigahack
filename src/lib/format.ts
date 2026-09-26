@@ -1,4 +1,9 @@
-const MONTHS = ['ian.', 'feb.', 'mar.', 'apr.', 'mai', 'iun.', 'iul.', 'aug.', 'sept.', 'oct.', 'nov.', 'dec.'];
+import { getLang, t, tp } from '@/i18n';
+
+const MONTHS = {
+  ro: ['ian.', 'feb.', 'mar.', 'apr.', 'mai', 'iun.', 'iul.', 'aug.', 'sept.', 'oct.', 'nov.', 'dec.'],
+  ru: ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'],
+};
 
 export const hm = (d: Date) =>
   `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -14,21 +19,21 @@ export const isToday = (d: Date) => dayDiff(d) === 0;
 /** „azi la 18:00”, „mâine la 09:00”, „10 oct., 20:00” */
 export function fmtAt(d: Date): string {
   const k = dayDiff(d);
-  if (k === 0) return `azi la ${hm(d)}`;
-  if (k === 1) return `mâine la ${hm(d)}`;
-  if (k === -1) return `ieri la ${hm(d)}`;
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${hm(d)}`;
+  if (k === 0) return t('azi la {time}', { time: hm(d) });
+  if (k === 1) return t('mâine la {time}', { time: hm(d) });
+  if (k === -1) return t('ieri la {time}', { time: hm(d) });
+  return `${d.getDate()} ${MONTHS[getLang()][d.getMonth()]}, ${hm(d)}`;
 }
 
 /** „acum 12 min”, „acum 3 h”, „ieri” */
 export function fmtAgo(d: Date): string {
   const m = Math.round((Date.now() - d.getTime()) / 6e4);
-  if (m < 1) return 'chiar acum';
-  if (m < 60) return `acum ${m} min`;
+  if (m < 1) return t('chiar acum');
+  if (m < 60) return t('acum {n} min', { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `acum ${h} h`;
+  if (h < 24) return t('acum {n} h', { n: h });
   const days = Math.floor(h / 24);
-  return days === 1 ? 'ieri' : `acum ${days} zile`;
+  return days === 1 ? t('ieri') : t('acum {n} zile', { n: days });
 }
 
 export function fmtDistance(m: number): string {
@@ -36,13 +41,8 @@ export function fmtDistance(m: number): string {
   return `${(m / 1000).toFixed(1).replace('.', ',')} km`;
 }
 
-/** Pluralul românesc: 1 eveniment, 5 evenimente, 20 de evenimente. */
-export function plural(n: number, one: string, many: string): string {
-  if (n === 1) return `1 ${one}`;
-  const r = n % 100;
-  if (n === 0 || (r >= 1 && r <= 19)) return `${n} ${many}`;
-  return `${n} de ${many}`;
-}
+/** Pluralul cu numărul în față, în limba curentă (1 eveniment / 5 evenimente / 20 de evenimente; rusa: 3 forme). */
+export const plural = tp;
 
 export const normalize = (s: string) =>
   (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
