@@ -1,8 +1,20 @@
-import { useId, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { initials } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { Dialog } from '@/components/ui/Dialog';
 import { StreetInput } from '@/components/ui/StreetInput';
+import { PROVIDER_NAME, SocialAuthError, socialAuth, type SocialProfile, type SocialProvider } from '@/services/socialAuth';
+import { FacebookIcon, GoogleIcon } from './ProviderIcons';
+
+function socialErrorText(e: unknown, provider: SocialProvider): string {
+  const p = PROVIDER_NAME[provider];
+  const code = e instanceof SocialAuthError ? e.code : 'failed';
+  if (code === 'cancelled') return `Ai închis fereastra ${p}. Poți încerca din nou oricând.`;
+  if (code === 'popup-blocked') return `Browserul a blocat fereastra ${p}. Permite ferestrele pop-up pentru acest site și încearcă din nou.`;
+  if (code === 'account-exists') return 'Există deja un cont cu acest email. Intră cu metoda folosită prima dată.';
+  return `Nu ne-am putut conecta la ${p}. Încearcă din nou sau folosește emailul.`;
+}
 
 type Field = 'name' | 'email' | 'password' | 'address' | 'terms';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -22,9 +34,21 @@ export function AuthDialog() {
   const [notify, setNotify] = useState(true);
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
+  // Google / Facebook: furnizorul în curs, eroarea și profilul unui cont nou (mai cere adresa și termenii).
+  const [pending, setPending] = useState<SocialProvider | null>(null);
+  const [socialError, setSocialError] = useState<string | null>(null);
+  const [social, setSocial] = useState<SocialProfile | null>(null);
+  const open = useRef(true);
+  useEffect(() => () => void (open.current = false), []);
 
   const errors = useMemo(() => {
     const e: Partial<Record<Field, string>> = {};
+    if (social) {
+      if (!address.trim()) e.address = 'Alege adresa ta din listă.';
+      else if (!streetId) e.address = 'Alege strada din sugestii, ca să o putem găsi pe hartă.';
+      if (!terms) e.terms = 'Pentru a crea contul, acceptă termenii.';
+      return e;
+    }
     if (mode === 'signup' && name.trim().length < 2) e.name = 'Introdu numele tău.';
     if (!email.trim()) e.email = 'Introdu adresa de email.';
     else if (!EMAIL_RE.test(email.trim())) e.email = 'Adresa de email nu pare corectă. Exemplu: nume@exemplu.md';
@@ -35,7 +59,7 @@ export function AuthDialog() {
       if (!terms) e.terms = 'Pentru a crea contul, acceptă termenii.';
     }
     return e;
-  }, [mode, name, email, password, address, streetId, terms]);
+  }, [social, mode, name, email, password, address, streetId, terms]);
 
   const show = (f: Field) => (submitted || touched[f] ? errors[f] : undefined);
   const touch = (f: Field) => setTouched((t) => ({ ...t, [f]: true }));
@@ -43,19 +67,43 @@ export function AuthDialog() {
     setAuthMode(m);
     setSubmitted(false);
     setTouched({});
+    setSocialError(null);
+  };
+
+  const startSocial = async (provider: SocialProvider) => {
+    if (pending) return;
+    setPending(provider);
+    setSocialError(null);
+    try {
+      const profile = await socialAuth.signIn(provider, mode === 'signup' ? 'signup' : 'login');
+      if (!open.current) return;
+      if (profile.isNewUser) {
+        setSocial(profile);
+        setSubmitted(false);
+        setTouched({});
+      } else {
+        logIn(profile.email);
+      }
+    } catch (e) {
+      if (open.current) setSocialError(socialErrorText(e, provider));
+    } finally {
+      if (open.current) setPending(null);
+    }
   };
 
   const onSubmit = (ev: FormEvent) => {
     ev.preventDefault();
     setSubmitted(true);
     if (Object.keys(errors).length) return;
+    if (social && streetId) return signUp(social.name, social.email, streetId, number);
     if (mode === 'forgot') return switchMode('sent');
     if (mode === 'signup' && streetId) signUp(name, email, streetId, number);
     if (mode === 'login') logIn(email);
   };
 
-  const title =
-    mode === 'signup' ? (authAfter === 'report' ? 'Creează un cont ca să raportezi' : 'Creează cont') : mode === 'login' ? 'Intră în cont' : 'Resetează parola';
+  const title = social
+    ? 'Aproape gata'
+    : mode === 'signup' ? (authAfter === 'report' ? 'Creează un cont ca să raportezi' : 'Creează cont') : mode === 'login' ? 'Intră în cont' : 'Resetează parola';
   const nErr = Object.keys(errors).length;
 
   const err = (f: Field) =>
@@ -66,9 +114,90 @@ export function AuthDialog() {
       </span>
     ) : null;
 
+  // Adresa „Acasă” și acordurile: la crearea contului cu email și la finalizarea unui cont Google / Facebook.
+  const addressFields = (
+    <>
+      <div className="field">
+        <label htmlFor={`${id}-addr`} className="field__label">
+          Adresă <span className="muted normal">— devine locația „Acasă”</span>
+        </label>
+        <div className="row gap-8 align-start">
+          <div className="grow min0">
+            <StreetInput
+              id={`${id}-addr`}
+              value={address}
+              streetId={streetId}
+              invalid={!!show('address')}
+              describedBy={`${id}-address-err`}
+              onChange={(t, s) => {
+                setAddress(t);
+                setStreetId(s);
+              }}
+              onBlur={() => touch('address')}
+            />
+          </div>
+          <label htmlFor={`${id}-nr`} className="sr-only">
+            Număr
+          </label>
+          <input id={`${id}-nr`} className="input input--nr" placeholder="Nr." inputMode="numeric" value={number} onChange={(e) => setNumber(e.target.value)} />
+        </div>
+        {err('address')}
+      </div>
+      <div className="stack gap-10">
+        <label className="check">
+          <input type="checkbox" checked={terms} onChange={() => setTerms(!terms)} aria-describedby={`${id}-terms-err`} />
+          <span>
+            Accept <a href="#termeni">Termenii de utilizare</a> și <a href="#confidentialitate">Politica de confidențialitate</a>.
+          </span>
+        </label>
+        {err('terms')}
+        <label className="check">
+          <input type="checkbox" checked={notify} onChange={() => setNotify(!notify)} />
+          <span>
+            Vreau notificări când apare o problemă la adresele mele. <span className="muted">Opțional, le poți opri oricând.</span>
+          </span>
+        </label>
+      </div>
+    </>
+  );
+
   return (
-    <Dialog title={title} onClose={() => setModal(null)} onBack={mode === 'forgot' || mode === 'sent' ? () => switchMode('login') : undefined} width={480}>
-      {mode === 'sent' ? (
+    <Dialog
+      title={title}
+      onClose={() => setModal(null)}
+      onBack={social ? () => setSocial(null) : mode === 'forgot' || mode === 'sent' ? () => switchMode('login') : undefined}
+      width={480}
+    >
+      {social ? (
+        <form className="stack gap-16" onSubmit={onSubmit} noValidate>
+          <div className="social-profile">
+            <span className="avatar avatar--lg" aria-hidden="true">
+              {initials(social.name)}
+              <span className={`social-profile__badge social-profile__badge--${social.provider}`}>
+                {social.provider === 'google' ? <GoogleIcon size={12} /> : <FacebookIcon size={12} />}
+              </span>
+            </span>
+            <span className="stack min0">
+              <strong>{social.name}</strong>
+              <span className="muted small ellipsis">{social.email}</span>
+              <span className="muted xsmall">Conectat cu {PROVIDER_NAME[social.provider]}</span>
+            </span>
+          </div>
+          <p className="muted small">Mai avem nevoie de adresa ta, ca să te anunțăm când apare o problemă în zonă.</p>
+          {addressFields}
+          {submitted && nErr > 0 && (
+            <p className="text-crit small strong" role="alert">
+              {nErr === 1 ? 'Verifică câmpul marcat.' : `Verifică cele ${nErr} câmpuri marcate.`}
+            </p>
+          )}
+          <button type="submit" className="btn btn--primary btn--xl">
+            Finalizează contul
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => setSocial(null)}>
+            Nu ești tu? Folosește alt cont
+          </button>
+        </form>
+      ) : mode === 'sent' ? (
         <div className="stack gap-10" role="status">
           <span className="done__icon done__icon--sm">
             <Icon name="check" size={22} strokeWidth={2.4} />
@@ -86,6 +215,34 @@ export function AuthDialog() {
               <Icon name="info" />
               <span>Contul e necesar doar pentru a raporta. Poți vedea harta fără cont.</span>
             </div>
+          )}
+          {(mode === 'signup' || mode === 'login') && (
+            <>
+              <div className="stack gap-8">
+                {(['google', 'facebook'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    className={`btn btn--lg social-btn social-btn--${p}`}
+                    onClick={() => void startSocial(p)}
+                    disabled={!!pending}
+                    aria-busy={pending === p}
+                  >
+                    {pending === p ? <span className="spinner" aria-hidden="true" /> : p === 'google' ? <GoogleIcon /> : <FacebookIcon size={20} />}
+                    {pending === p ? `Se conectează la ${PROVIDER_NAME[p]}…` : `Continuă cu ${PROVIDER_NAME[p]}`}
+                  </button>
+                ))}
+                {socialError && (
+                  <span className="field__error" role="alert">
+                    <Icon name="alert" size={14} strokeWidth={2.2} />
+                    {socialError}
+                  </span>
+                )}
+              </div>
+              <div className="divider" role="separator">
+                <span>sau cu email</span>
+              </div>
+            </>
           )}
           {mode === 'forgot' && <p className="muted small">Introdu adresa de email a contului. Îți trimitem un link pentru o parolă nouă.</p>}
 
@@ -139,51 +296,7 @@ export function AuthDialog() {
             </div>
           )}
 
-          {mode === 'signup' && (
-            <>
-              <div className="field">
-                <label htmlFor={`${id}-addr`} className="field__label">
-                  Adresă <span className="muted normal">— devine locația „Acasă”</span>
-                </label>
-                <div className="row gap-8 align-start">
-                  <div className="grow min0">
-                    <StreetInput
-                      id={`${id}-addr`}
-                      value={address}
-                      streetId={streetId}
-                      invalid={!!show('address')}
-                      describedBy={`${id}-address-err`}
-                      onChange={(t, s) => {
-                        setAddress(t);
-                        setStreetId(s);
-                      }}
-                      onBlur={() => touch('address')}
-                    />
-                  </div>
-                  <label htmlFor={`${id}-nr`} className="sr-only">
-                    Număr
-                  </label>
-                  <input id={`${id}-nr`} className="input input--nr" placeholder="Nr." inputMode="numeric" value={number} onChange={(e) => setNumber(e.target.value)} />
-                </div>
-                {err('address')}
-              </div>
-              <div className="stack gap-10">
-                <label className="check">
-                  <input type="checkbox" checked={terms} onChange={() => setTerms(!terms)} aria-describedby={`${id}-terms-err`} />
-                  <span>
-                    Accept <a href="#termeni">Termenii de utilizare</a> și <a href="#confidentialitate">Politica de confidențialitate</a>.
-                  </span>
-                </label>
-                {err('terms')}
-                <label className="check">
-                  <input type="checkbox" checked={notify} onChange={() => setNotify(!notify)} />
-                  <span>
-                    Vreau notificări când apare o problemă la adresele mele. <span className="muted">Opțional, le poți opri oricând.</span>
-                  </span>
-                </label>
-              </div>
-            </>
-          )}
+          {mode === 'signup' && addressFields}
 
           {submitted && nErr > 0 && (
             <p className="text-crit small strong" role="alert">
