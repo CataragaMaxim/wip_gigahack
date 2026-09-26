@@ -50,8 +50,8 @@ export function AuthDialog() {
     setSubmitted(true);
     if (Object.keys(errors).length) return;
     if (mode === 'forgot') return switchMode('sent');
-    if (mode === 'signup' && streetId) signUp(name, email, streetId, number);
-    if (mode === 'login') logIn(email);
+    if (mode === 'signup' && streetId) signUp(name, email, password, streetId, number);
+    if (mode === 'login') logIn(email, password);
   };
 
   const title =

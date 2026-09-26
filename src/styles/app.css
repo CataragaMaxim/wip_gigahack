@@ -597,6 +597,10 @@ textarea::placeholder {
 /* ---------- toast ---------- */
 .toast-region { position: fixed; left: 50%; bottom: 100px; z-index: 60; transform: translateX(-50%); pointer-events: none; }
 .toast { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: var(--radius-m); background: var(--ink); color: var(--on-ink); box-shadow: var(--shadow-lg); font-size: 14px; font-weight: 600; white-space: nowrap; animation: wip-fade 0.25s var(--ease) backwards; }
+.toast--error {
+  background: var(--crit);
+  color: var(--on-cat);
+}
 
 /* ==========================================================================
    Mobil (< 768 px): bottom sheet, dialoguri pe tot ecranul

@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDocs, addDoc, deleteDoc,
+  collection, doc, getDocs, addDoc,
   setDoc, getDoc, updateDoc, increment,
   query, orderBy, limit, serverTimestamp,
 } from 'firebase/firestore';
@@ -24,7 +24,9 @@ export const firebaseEventsService: EventsService = {
   async list() {
     const q = query(collection(db, EVENTS), orderBy('createdAt', 'desc'), limit(500));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => fromFirestore(d.id, d.data()));
+    return snap.docs
+      .map((d) => fromFirestore(d.id, d.data()))
+      .filter((e) => !e.deletedAt);   // ← hide soft-deleted
   },
 
   async create(event) {
@@ -37,7 +39,9 @@ export const firebaseEventsService: EventsService = {
   },
 
   async remove(id) {
-    await deleteDoc(doc(db, EVENTS, id));
+    await updateDoc(doc(db, EVENTS, id), {
+      deletedAt: serverTimestamp(),
+    });
   },
 
   async vote(eventId, vote) {

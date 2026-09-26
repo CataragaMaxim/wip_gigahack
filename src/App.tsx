@@ -13,7 +13,7 @@ import { Splash } from '@/components/layout/Splash';
 
 function Shell() {
   const app = useApp();
-  const { modal, report, panelOpen, sheetPx, mapInsets, toast } = app;
+  const { modal, report, panelOpen, sheetPx, mapInsets, toast, toastType, mode, sheetExpanded} = app;
   const isMobile = useIsMobile();
   const pinMode = modal === 'report' && report.step === 2;
 
@@ -52,8 +52,8 @@ function Shell() {
       <Splash />
       <div className="toast-region" aria-live="polite">
         {toast && (
-          <div className="toast" key={toast}>
-            <Icon name="check" size={16} strokeWidth={2.4} />
+          <div className={`toast ${toastType === 'error' ? 'toast--error' : ''}`} key={toast}>
+            <Icon name={toastType === 'error' ? 'alert' : 'check'} size={16} strokeWidth={2.4} />
             {toast}
           </div>
         )}

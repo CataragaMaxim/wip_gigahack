@@ -7,7 +7,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import {
-  doc, setDoc, getDoc, getDocs, collection, deleteDoc,
+  doc, setDoc, getDoc, getDocs, collection, deleteDoc, updateDoc, Timestamp 
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import type { User, SavedLocation } from '@/types';
@@ -27,6 +27,13 @@ export async function logInUser(email: string, password: string): Promise<User> 
   const cred = await signInWithEmailAndPassword(auth, email, password);
   const snap = await getDoc(doc(db, 'users', cred.user.uid));
   const data = snap.data();
+
+  // Block soft-deleted accounts
+  if (data?.deletedAt) {
+    await signOut(auth);
+    throw new Error('EMAIL_SAU_PAROLA_GRESITA');
+  }
+
   return {
     id: cred.user.uid,
     name: data?.name ?? cred.user.displayName ?? '',
@@ -69,4 +76,11 @@ export function watchAuth(cb: (u: User | null) => void) {
       email: fb.email ?? '',
     });
   });
+}
+
+export async function softDeleteUser(uid: string): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), {
+    deletedAt: Timestamp.now(),
+  });
+  await signOut(auth);
 }

@@ -37,6 +37,7 @@ export interface UrbanEvent {
   updatedAt?: string;
   reportedAt?: string;
   resolvedAt?: string;
+  deletedAt?: string;
   confirmations: number;
   denials: number;
   description?: string;
@@ -72,6 +73,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  deletedAt?: string;
 }
 
 export interface Street {

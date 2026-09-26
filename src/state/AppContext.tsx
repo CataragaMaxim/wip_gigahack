@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import L, { type Map as LeafletMap } from 'leaflet';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { SUBTYPES } from '@/config/categories';
-import { ALL_CATEGORIES_ON, DEMO_LOCATIONS, DEMO_USER } from '@/data/mockUser';
+import { ALL_CATEGORIES_ON} from '@/data/mockUser';
 import { STREETS } from '@/data/streets';
 import { distanceToEvent } from '@/lib/geo';
 import { deriveStatus, isClosed, isPublic } from '@/lib/status';
@@ -13,6 +13,8 @@ import { matchStreet, type StreetMatch } from '@/services/streetMatch';
 import type {
   CategoryKey, DerivedEvent, LatLng, SavedLocation, Severity, SubtypeKey, Theme, UrbanEvent, User, Vote,
 } from '@/types';
+
+import { signUpUser, logInUser, logOutUser, watchAuth, softDeleteUser } from '@/services/authService';
 
 /** Crește la fiecare schimbare a setului de alerte demonstrative: voturile, ștergerile și raportările vechi se golesc. */
 const DATA_VERSION = '2026-09-real-streets';
@@ -86,6 +88,12 @@ function useAppStore() {
 
   // ---------- sesiune ----------
   const [session, setSession] = useState<Session>(() => load<Session>('wip.session', { user: null, locations: [] }));
+  useEffect(() => {
+    return watchAuth((u) => {
+      if (u) setSession((s) => ({ ...s, user: u }));
+      else setSession({ user: null, locations: [] });
+    });
+  }, []);
   useEffect(() => save('wip.session', session), [session]);
   const { user, locations } = session;
 
@@ -213,10 +221,13 @@ function useAppStore() {
   const [deleteAsk, setDeleteAsk] = useState<string | null>(null);
   const [gpsNotice, setGpsNotice] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const toastTimer = useRef<number>();
-  const flash = useCallback((msg: string) => {
+
+  const flash = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     window.clearTimeout(toastTimer.current);
     setToast(msg);
+    setToastType(type);
     toastTimer.current = window.setTimeout(() => setToast(null), 2600);
   }, []);
 
@@ -432,39 +443,62 @@ function useAppStore() {
     },
     [authAfter],
   );
+
   const signUp = useCallback(
-    (name: string, email: string, streetId: string, number: string) => {
-      const s = STREETS.find((x) => x.id === streetId)!;
-      const home: SavedLocation = {
-        id: 'acasa', kind: 'home', name: 'Acasă',
-        address: `${s.name}${number.trim() ? ` ${number.trim()}` : ''}, ${s.district}`,
-        location: s.path[Math.floor(s.path.length / 2)], prefs: { ...ALL_CATEGORIES_ON },
-      };
-      signIn({ id: `u-${Date.now()}`, name: name.trim(), email: email.trim() }, [home]);
-      flash(`Cont creat. Bine ai venit, ${name.trim().split(' ')[0]}!`);
+    async (name: string, email: string, password: string, streetId: string, number: string) => {
+      try {
+        const s = STREETS.find((x) => x.id === streetId)!;
+        const u = await signUpUser(name, email, password);
+        const home: SavedLocation = {
+          id: 'acasa', kind: 'home', name: 'Acasă',
+          address: `${s.name}${number.trim() ? ` ${number.trim()}` : ''}, ${s.district}`,
+          location: s.path[Math.floor(s.path.length / 2)],
+          prefs: { ...ALL_CATEGORIES_ON },
+        };
+        setSession({ user: u, locations: [home] });
+        setModal(null);
+        flash(`Bine ai venit, ${name.split(' ')[0]}!`);
+        } catch (err) {
+          const msg = err instanceof Error && err.message.includes('email-already-in-use')
+            ? 'Există deja un cont cu acest email.'
+            : 'Nu am putut crea contul.';
+          flash(msg, 'error');
+        }
     },
-    [signIn, flash],
+    [flash],
   );
+
   const logIn = useCallback(
-    (email: string) => {
-      signIn({ ...DEMO_USER, email: email.trim() }, DEMO_LOCATIONS.map((l) => ({ ...l, prefs: { ...l.prefs } })));
-      flash('Te-ai autentificat');
+    async (email: string, password: string) => {
+      try {
+        const u = await logInUser(email, password);
+        setSession((s) => ({ ...s, user: u }));
+        setModal(null);
+        flash('Te-ai autentificat');
+      } catch (err) {
+        // Nu dezvăluim dacă emailul există sau nu — mesaj generic.
+        flash('Email sau parolă greșită.', 'error');
+      }
     },
-    [signIn, flash],
+    [flash],
   );
-  const logOut = useCallback(() => {
+
+  const logOut = useCallback(async () => {
+    await logOutUser();
     setSession({ user: null, locations: [] });
     setFollowing({});
     setMode('list');
     flash('Ai ieșit din cont');
   }, [flash]);
-  const deleteAccount = useCallback(() => {
+  const deleteAccount = useCallback(async () => {
+    if (!session.user) return;
+    await softDeleteUser(session.user.id);
     setSession({ user: null, locations: [] });
     setFollowing({});
     setUserReports([]);
     setMode('list');
     flash('Contul a fost șters');
-  }, [flash]);
+  }, [session.user, flash]);
 
   const addLocation = useCallback(
     (kind: 'work' | 'person', name: string, streetId: string) => {
@@ -591,7 +625,7 @@ function useAppStore() {
     report, patchReport, openReport, closeReport, goToPinStep, confirmPin, confirmDuplicate, submitReport, viewReportResult,
     // hartă
     mapRef, mapInsets, flyTo, fitRadius, visibleCenter, tilesReady, setTilesReady,
-    toast, flash,
+    toast, toastType, flash,
   };
 }
 
