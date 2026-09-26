@@ -222,6 +222,8 @@ function useAppStore() {
 
   // ---------- harta ----------
   const mapRef = useRef<LeafletMap | null>(null);
+  /** Toate dalele hărții din zona vizibilă s-au încărcat (folosit de ecranul de pornire). */
+  const [tilesReady, setTilesReady] = useState(false);
   /** Cât din hartă e acoperit de panou / bottom sheet / carduri (px), ca centrarea să țină cont de zona vizibilă. */
   const mapInsets = useRef({ left: 0, top: 0, bottom: 0 });
   const flyTo = useCallback((p: LatLng, zoom?: number) => {
@@ -577,7 +579,7 @@ function useAppStore() {
     modal, setModal, authMode, setAuthMode, authAfter, openAuth,
     report, patchReport, openReport, closeReport, goToPinStep, confirmPin, confirmDuplicate, submitReport, viewReportResult,
     // hartă
-    mapRef, mapInsets, flyTo, visibleCenter,
+    mapRef, mapInsets, flyTo, visibleCenter, tilesReady, setTilesReady,
     toast, flash,
   };
 }

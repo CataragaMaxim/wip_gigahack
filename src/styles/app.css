@@ -688,3 +688,33 @@ textarea::placeholder {
   .toast-region { bottom: var(--toast-b, 350px); }
   .toast { white-space: normal; max-width: calc(100vw - 32px); }
 }
+
+/* ---------- ecran de pornire ---------- */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  background: var(--bg);
+  text-align: center;
+  transition: opacity 0.35s var(--ease), visibility 0s;
+}
+.splash.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.35s var(--ease), visibility 0s 0.35s; }
+/* Logo-ul aplicației, mărit, cu bara de progres animată. */
+.splash__logo { width: 72px; height: 72px; margin-bottom: 14px; border-radius: 20px; background: var(--ink); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-lg); }
+.splash__track { position: relative; width: 40px; height: 11px; overflow: hidden; border-radius: 6px; }
+.splash__track::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--on-ink); opacity: 0.3; }
+.splash__bar { position: absolute; inset: 0 auto 0 0; width: 61%; border-radius: 6px; background: var(--on-ink); animation: wip-splash-bar 1.4s var(--ease) infinite; }
+@keyframes wip-splash-bar {
+  0% { width: 18%; }
+  60% { width: 100%; }
+  100% { width: 18%; }
+}
+.splash__name { font-size: 20px; letter-spacing: -0.01em; }
+.splash__loading { font-size: 15px; font-weight: 600; color: var(--text); }
+.splash__status { min-height: 18px; font-size: 13px; color: var(--text-2); }

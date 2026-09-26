@@ -53,7 +53,13 @@ export function MapView() {
         fadeAnimation
         className="map__canvas"
       >
-        <TileLayer key={theme} url={isDark ? MAP.TILES_DARK : MAP.TILES_LIGHT} attribution={MAP.ATTRIBUTION} subdomains="abcd" />
+        <TileLayer
+          key={theme}
+          url={isDark ? MAP.TILES_DARK : MAP.TILES_LIGHT}
+          attribution={MAP.ATTRIBUTION}
+          subdomains="abcd"
+          eventHandlers={{ loading: () => app.setTilesReady(false), load: () => app.setTilesReady(true) }}
+        />
 
         {events.map((e) => (
           <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e)} selected={selected?.id === e.id} />
