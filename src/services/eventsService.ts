@@ -1,3 +1,4 @@
+import { firebaseEventsService } from './firebaseEventsService';
 import { createMockEvents } from '@/data/mockEvents';
 import type { UrbanEvent } from '@/types';
 
@@ -33,4 +34,4 @@ export const mockEventsService: EventsService = {
   },
 };
 
-export const eventsService: EventsService = mockEventsService;
+export const eventsService: EventsService = firebaseEventsService;
