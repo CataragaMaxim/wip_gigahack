@@ -57,7 +57,7 @@ function useScheduledEvents(kind: Kind) {
       events
         .filter((e) => isScheduled(e) && e.status !== 'rezolvat' && types[e.subtype])
         .filter((e) => matchesKind(e, kind))
-        .filter((e) => radius === 'all' || e.distanceM == null || e.distanceM <= radius)
+        .filter((e) => radius === 'all' || e.nearM == null || e.nearM <= radius)
         // Un anunț cu mai multe adrese apare o singură dată (prima lui adresă din rază).
         .filter((e, i, all) => !e.parentId || all.findIndex((x) => x.parentId === e.parentId) === i)
         .sort((a, b) => a.startAt!.localeCompare(b.startAt!)),
@@ -94,7 +94,7 @@ function hoursOnDay(e: DerivedEvent, day: Date): string {
 
 export function OutageCalendar() {
   const cal = CAL[getLang()];
-  const { radius, userPos, gps, openSettings, openEvent, loadState } = useApp();
+  const { radius, anchors, gps, openSettings, openEvent, loadState } = useApp();
   const [kind, setKind] = useState<Kind>('all');
   const outages = useScheduledEvents(kind);
   const byDay = useMemo(() => groupByDay(outages), [outages]);
@@ -125,7 +125,8 @@ export function OutageCalendar() {
 
   const dayList = byDay.get(selected) ?? [];
   const next = [...byDay.keys()].sort().find((d) => d > selected);
-  const noGps = !userPos && gps !== 'pending';
+  // Fără locație și fără adrese salvate nu avem față de ce aplica raza.
+  const noGps = !anchors.length && gps !== 'pending';
   const upcoming = outages.filter((e) => new Date(e.endAt ?? e.startAt!) >= new Date()).length;
   const scope = radius === 'all' || noGps ? t('tot orașul') : t('rază {km} km', { km: radius / 1000 });
 

@@ -302,11 +302,16 @@ function useAppStore() {
     m.flyTo(m.unproject(pt, z), z, { duration: 0.6 });
   }, []);
 
-  const fitRadius = useCallback((center: LatLng, radiusM: number) => {
+  /** Încadrează cercurile razei în jurul tuturor punctelor (locația curentă și adresele salvate). */
+  const fitRadius = useCallback((centers: LatLng[], radiusM: number) => {
     const m = mapRef.current;
-    if (!m) return;
+    if (!m || !centers.length) return;
     const { left, top, bottom } = mapInsets.current;
-    m.flyToBounds(L.latLng(center.lat, center.lng).toBounds(radiusM * 2), {
+    const bounds = centers.reduce(
+      (b, c) => b.extend(L.latLng(c.lat, c.lng).toBounds(radiusM * 2)),
+      L.latLng(centers[0].lat, centers[0].lng).toBounds(radiusM * 2),
+    );
+    m.flyToBounds(bounds, {
       paddingTopLeft: [left + 24, top + 32],
       paddingBottomRight: [24, bottom + 24],
       duration: 0.6,
@@ -323,6 +328,9 @@ function useAppStore() {
   }, []);
 
   // ---------- evenimente derivate ----------
+  /** Punctele în jurul cărora se aplică raza: locația curentă și adresele salvate. */
+  const anchors = useMemo(() => [...(userPos ? [userPos] : []), ...locations.map((l) => l.location)], [userPos, locations]);
+
   const events: DerivedEvent[] = useMemo(() => {
     // Raportările proprii rămân local până le aduce și lista din Firestore (fără dubluri după reîncărcare).
     const rawIds = new Set(raw.map((e) => e.id));
@@ -342,6 +350,7 @@ function useAppStore() {
           conf: e.confirmations + yes,
           den: e.denials + no,
           distanceM: userPos ? distanceToEvent(userPos, e) : null,
+          nearM: anchors.length ? Math.min(...anchors.map((p) => distanceToEvent(p, e))) : null,
           affects:
             user && active
               ? locations
@@ -350,7 +359,7 @@ function useAppStore() {
               : [],
         };
       });
-  }, [raw, userReports, deletedIds, votes, userPos, user, locations]);
+  }, [raw, userReports, deletedIds, votes, userPos, anchors, user, locations]);
 
   const cityActiveCount = useMemo(
     () => events.filter((e) => e.status === 'oficial' || e.status === 'confirmat').length,
@@ -366,7 +375,8 @@ function useAppStore() {
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
         if (!isPublic(e)) return false;
-        if (radius !== 'all' && e.distanceM != null && e.distanceM > radius) return false;
+        // Raza se aplică în jurul locației curente și al fiecărei adrese salvate (Acasă + celelalte).
+        if (radius !== 'all' && e.nearM != null && e.nearM > radius) return false;
         if (q && !normalize(`${e.title} ${e.district} ${e.streets.join(' ')}`).includes(q)) return false;
         return true;
       })
@@ -374,8 +384,8 @@ function useAppStore() {
         const aa = a.affects.length ? 0 : 1;
         const bb = b.affects.length ? 0 : 1;
         if (aa !== bb) return aa - bb;
-        if (a.distanceM != null && b.distanceM != null && Math.abs(a.distanceM - b.distanceM) > 20) {
-          return a.distanceM - b.distanceM;
+        if (a.nearM != null && b.nearM != null && Math.abs(a.nearM - b.nearM) > 20) {
+          return a.nearM - b.nearM;
         }
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
@@ -809,7 +819,7 @@ function useAppStore() {
     logOut, deleteAccount, addLocation, setHomeLocation, removeLocation,
     // date
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
-    userPos, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
+    userPos, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
     types, fadingTypes, toggleType, resetFilters, search, setSearch,
     // panou

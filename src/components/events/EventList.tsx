@@ -75,8 +75,8 @@ function boldCount(text: string) {
  * `subtitle`: antetul din stările 'mid' și 'tall', cu rezumatul listei filtrate.
  */
 export function useSheetSummary() {
-  const { cityActiveCount: n, visible, radius, search, types, loadState, online, syncedAt, gps, userPos } = useApp();
-  const noGps = !userPos && gps !== 'pending';
+  const { cityActiveCount: n, visible, radius, search, types, loadState, online, syncedAt, gps, anchors } = useApp();
+  const noGps = !anchors.length && gps !== 'pending';
   const synced = syncedAt ? hm(syncedAt) : null;
   const active = plural(n, 'alertă activă', 'alerte active');
 

@@ -66,6 +66,8 @@ export interface DerivedEvent extends UrbanEvent {
   conf: number;
   den: number;
   distanceM: number | null;
+  /** Distanța până la cel mai apropiat punct al utilizatorului: locația curentă sau o adresă salvată (raza se aplică tuturor). */
+  nearM: number | null;
   affects: string[];
 }
 

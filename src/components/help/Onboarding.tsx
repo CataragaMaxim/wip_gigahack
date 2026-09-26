@@ -78,7 +78,7 @@ function Welcome() {
 const TYPE_SOURCES = {
   apa: 'Albastru · anunțuri Apă-Canal Chișinău și raportări',
   electricitate: 'Galben · lucrări Premier Energy și raportări',
-  gaz: 'Portocaliu · raportări ale vecinilor',
+  gaz: 'Portocaliu · anunțuri Energocom, Chișinău-Gaz și raportări',
 } as const;
 
 /** Un marcaj de exemplu, desenat ca pe hartă. */
@@ -98,7 +98,7 @@ function ReadTheMap() {
   const c = typeVar('electricitate');
   const tint = typeTint('electricitate');
   const rows: { sample: JSX.Element; title: string; text: string }[] = [
-    { sample: <Sample bg={c} fg="var(--on-cat)" border={c} badge="shield" />, title: 'Oficial', text: 'Anunț al furnizorului (Apă-Canal, Premier Energy). Plin = întrerupere totală.' },
+    { sample: <Sample bg={c} fg="var(--on-cat)" border={c} badge="shield" />, title: 'Oficial', text: 'Anunț al furnizorului (Apă-Canal, Premier Energy, Energocom, Chișinău-Gaz). Plin = întrerupere totală.' },
     { sample: <Sample bg={c} fg="var(--on-cat)" border={c} badge="3" />, title: 'Confirmat', text: 'Raportat de un vecin și confirmat de cel puțin 3 oameni din apropiere.' },
     { sample: <Sample bg="var(--surface)" fg={c} border={c} dashed />, title: 'Neconfirmat', text: 'Raportat recent, așteaptă confirmări. Expiră singur dacă nu le primește.' },
     { sample: <Sample bg={tint} fg={c} border={c} />, title: 'Parțial', text: 'Doar o parte din adrese sau presiune/tensiune slabă: posibil afectat.' },

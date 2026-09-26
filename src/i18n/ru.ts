@@ -43,6 +43,7 @@ export const RU: Record<string, string> = {
   // Titlurile fluxurilor oficiale (vin din Firestore în română)
   'Apă deconectată': 'Отключение воды',
   'Energie electrică deconectată': 'Отключение электроэнергии',
+  'Gaz deconectat': 'Отключение газа',
   'Filtrează după tip': 'Фильтр по типу',
   'Tipul evenimentului': 'Тип события',
 
@@ -386,6 +387,7 @@ export const RU: Record<string, string> = {
   'Rază afișată': 'Радиус отображения',
   'Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.': 'Какие события видны вокруг вашего местоположения. Круг на карте показывает выбранный радиус.',
   'Ce evenimente vezi în jurul locației tale.': 'Какие события видны вокруг вашего местоположения.',
+  'Ce evenimente vezi în jurul locației tale și al fiecărei adrese salvate. Cercurile de pe hartă arată raza aleasă.': 'Какие события видны вокруг вашего местоположения и каждого сохранённого адреса. Круги на карте показывают выбранный радиус.',
   'Raportările mele': 'Мои сообщения',
   'Nu ai trimis încă nicio raportare.': 'Вы ещё не отправили ни одного сообщения.',
   'Șterge raportarea: {title}': 'Удалить сообщение: {title}',
@@ -434,8 +436,8 @@ export const RU: Record<string, string> = {
   'Fiecare tip are culoarea lui': 'У каждого типа свой цвет',
   'Albastru · anunțuri Apă-Canal Chișinău și raportări': 'Синий · объявления Apă-Canal Chișinău и сообщения жителей',
   'Galben · lucrări Premier Energy și raportări': 'Жёлтый · работы Premier Energy и сообщения жителей',
-  'Portocaliu · raportări ale vecinilor': 'Оранжевый · сообщения соседей',
-  'Anunț al furnizorului (Apă-Canal, Premier Energy). Plin = întrerupere totală.': 'Объявление поставщика (Apă-Canal, Premier Energy). Заливка = полное отключение.',
+  'Portocaliu · anunțuri Energocom, Chișinău-Gaz și raportări': 'Оранжевый · объявления Energocom, Chișinău-Gaz и сообщения жителей',
+  'Anunț al furnizorului (Apă-Canal, Premier Energy, Energocom, Chișinău-Gaz). Plin = întrerupere totală.': 'Объявление поставщика (Apă-Canal, Premier Energy, Energocom, Chișinău-Gaz). Заливка = полное отключение.',
   'Confirmat': 'Подтверждено',
   'Raportat de un vecin și confirmat de cel puțin 3 oameni din apropiere.': 'Сообщено соседом и подтверждено как минимум 3 людьми поблизости.',
   'Raportat recent, așteaptă confirmări. Expiră singur dacă nu le primește.': 'Сообщено недавно, ждёт подтверждений. Истекает само, если их нет.',

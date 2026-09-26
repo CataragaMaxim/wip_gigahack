@@ -29,7 +29,7 @@ export function SettingsPanel() {
   const {
     user, theme, setTheme, lang, setLang, setModal, radius, setRadius, events, openAuth,
     logOut, deleteAccount, openEvent, deleteAsk, setDeleteAsk, deleteEvent,
-    userPos, fitRadius, setSheetSnap,
+    anchors, fitRadius, setSheetSnap,
   } = app;
   const isMobile = useIsMobile();
   const [confirmAccount, setConfirmAccount] = useState(false);
@@ -147,9 +147,11 @@ export function SettingsPanel() {
         <div className="stack">
           <h3 className="h3">{t('Rază afișată')}</h3>
           <span className="muted small">
-            {userPos
-              ? t('Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.')
-              : t('Ce evenimente vezi în jurul locației tale.')}
+            {anchors.length > 1
+              ? t('Ce evenimente vezi în jurul locației tale și al fiecărei adrese salvate. Cercurile de pe hartă arată raza aleasă.')
+              : anchors.length
+                ? t('Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.')
+                : t('Ce evenimente vezi în jurul locației tale.')}
           </span>
         </div>
         <div className="seg seg--4" role="group" aria-label={t('Rază afișată')}>
@@ -161,11 +163,10 @@ export function SettingsPanel() {
               aria-pressed={radius === r}
               onClick={() => {
                 setRadius(r);
-                if (r === 'all' || !userPos) return;
-                const center = userPos;
+                if (r === 'all' || !anchors.length) return;
                 const radiusM: number = r;
                 if (isMobile) setSheetSnap('mid');
-                window.setTimeout(() => fitRadius(center, radiusM), isMobile ? 350 : 0);
+                window.setTimeout(() => fitRadius(anchors, radiusM), isMobile ? 350 : 0);
               }}
             >
               {r === 'all' ? t('Tot orașul') : t('{km} km', { km: r / 1000 })}

@@ -43,12 +43,14 @@ USER_AGENT = 'wip-gigahack-acc-sync/1.0 (+https://github.com/CataragaMaxim/wip_g
 # Pentru site-urile sursă (unele țin la coadă cererile fără User-Agent de browser); geocodarea se identifică cu USER_AGENT.
 BROWSER_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
 NOMINATIM = 'https://nominatim.openstreetmap.org/search'
-# lng_min, lat_max, lng_max, lat_min — municipiul Chișinău, ca în src/services/geocoding.ts.
-CHISINAU_VIEWBOX = '28.68,47.12,29.02,46.90'
+# lng_min, lat_max, lng_max, lat_min — municipiul Chișinău cu suburbiile (Ciorescu, Cricova, Codru, Sîngera…).
+CHISINAU_VIEWBOX = '28.55,47.20,29.10,46.84'
 
 PHOTON = 'https://photon.komoot.io/api/'
 # lon_min, lat_min, lon_max, lat_max (aceeași zonă ca CHISINAU_VIEWBOX).
-CHISINAU_BBOX = '28.68,46.90,29.02,47.12'
+CHISINAU_BBOX = '28.55,46.84,29.10,47.20'
+# Toată Republica Moldova (pentru furnizorii naționali, ex. Energocom).
+MOLDOVA_BBOX = '26.6,45.4,30.2,48.5'
 FIREBASE_PROJECT_ID = os.environ.get('FIREBASE_PROJECT_ID', 'work-in-progress-d4ff1')
 
 TAB_PLANNED, TAB_CURRENT, TAB_WATER = '1', '2', '3'
@@ -69,15 +71,18 @@ ADDRESS_START = re.compile(r'^(str|strada|bd|b-dul|bulevardul|sos|soseaua|str-la
 ADDRESS_SPLIT = re.compile(r',\s*(?=(?:str|bd|b-dul|sos|str-la|calea|comuna|s|or)\.?\s)', re.I)
 
 
-def _install_https_certificates() -> None:
-    """Certificatele din `certifi` pentru toate cererile HTTPS: Python de pe python.org (macOS) nu are
-    certificate de sistem și altfel pică cu CERTIFICATE_VERIFY_FAILED."""
+def https_handler() -> urllib.request.HTTPSHandler:
+    """HTTPS cu certificatele din `certifi`: Python de pe python.org (macOS) nu are certificate de sistem
+    și altfel pică cu CERTIFICATE_VERIFY_FAILED."""
     try:
         import certifi
     except ImportError:
-        return
-    ctx = ssl.create_default_context(cafile=certifi.where())
-    urllib.request.install_opener(urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx)))
+        return urllib.request.HTTPSHandler()
+    return urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=certifi.where()))
+
+
+def _install_https_certificates() -> None:
+    urllib.request.install_opener(urllib.request.build_opener(https_handler()))
 
 
 _install_https_certificates()
@@ -237,6 +242,8 @@ class Outage:
     planned: bool = False
     subtype: str = 'apa'
     source: str = SOURCE
+    # Geocodare în toată țara (furnizori naționali), nu doar în Chișinău.
+    national: bool = False
 
     def to_event(self) -> dict:
         """Forma `UrbanEvent` (fără `location`, adăugată după geocodare)."""
@@ -446,10 +453,11 @@ def _get_json(service: str, url: str) -> object | None:
         _last_request[service] = time.monotonic()
 
 
-def _nominatim(q: str) -> dict | None:
+def _nominatim(q: str, national: bool = False) -> dict | None:
+    area = {} if national else {'viewbox': CHISINAU_VIEWBOX, 'bounded': '1'}
     params = urllib.parse.urlencode({
-        'q': f'{q}, Chișinău', 'format': 'jsonv2', 'addressdetails': '1', 'limit': '1',
-        'countrycodes': 'md', 'viewbox': CHISINAU_VIEWBOX, 'bounded': '1', 'accept-language': 'ro',
+        'q': q if national else f'{q}, Chișinău', 'format': 'jsonv2', 'addressdetails': '1', 'limit': '1',
+        'countrycodes': 'md', 'accept-language': 'ro', **area,
     })
     items = _get_json('nominatim', f'{NOMINATIM}?{params}')
     if not items:
@@ -464,9 +472,9 @@ def _nominatim(q: str) -> dict | None:
     }
 
 
-def _photon(q: str) -> dict | None:
+def _photon(q: str, national: bool = False) -> dict | None:
     """Rezervă (tot OpenStreetMap, altă infrastructură), dacă Nominatim refuză IP-urile runner-ului."""
-    params = urllib.parse.urlencode({'q': f'{q}, Chișinău', 'bbox': CHISINAU_BBOX, 'limit': '1'})
+    params = urllib.parse.urlencode({'q': q if national else f'{q}, Chișinău', 'bbox': MOLDOVA_BBOX if national else CHISINAU_BBOX, 'limit': '1'})
     data = _get_json('photon', f'{PHOTON}?{params}')
     feats = (data or {}).get('features') or []  # type: ignore[union-attr]
     if not feats:
@@ -478,6 +486,12 @@ def _photon(q: str) -> dict | None:
     found_name = ascii_fold(' '.join(str(p.get(k) or '') for k in ('name', 'street')))
     if words and not any(w in found_name for w in words):
         return None
+    # „Ion Creangă 16, Ciorescu”: rezultatul trebuie să fie chiar în Ciorescu, nu pe strada omonimă din oraș.
+    locality = ascii_fold(q.split(',')[1]).strip() if ',' in q else ''
+    if locality and not locality.startswith(('chisinau', 'raionul')):
+        found_place = ascii_fold(' '.join(str(p.get(k) or '') for k in ('city', 'locality', 'district', 'county', 'name')))
+        if locality not in found_place:
+            return None
     ext = p.get('extent')  # [lng_min, lat_max, lng_max, lat_min]
     return {
         'lat': float(lat), 'lng': float(lng),
@@ -491,7 +505,7 @@ def has_house_number(q: str) -> bool:
     return bool(re.search(r'\s\d+\S*$', q.split(',')[0].strip()))
 
 
-def geocode(queries: list[str]) -> dict | None:
+def geocode(queries: list[str], national: bool = False) -> dict | None:
     """
     Prima variantă găsită în Chișinău → {lat, lng, district, bbox}. Nominatim, apoi Photon.
     `bbox` [lat_min, lng_min, lat_max, lng_max] se păstrează doar când s-a găsit strada întreagă (fără număr):
@@ -499,7 +513,7 @@ def geocode(queries: list[str]) -> dict | None:
     """
     for lookup in (_nominatim, _photon):
         for q in queries:
-            found = lookup(q)
+            found = lookup(q, national)
             if found:
                 found['exact'] = has_house_number(q)
                 if found['exact']:
@@ -529,8 +543,8 @@ class GeoCache:
         except (OSError, ValueError):
             self.data = {}
 
-    def get(self, queries: list[str]) -> dict | None:
-        key = ascii_fold(queries[0])
+    def get(self, queries: list[str], national: bool = False) -> dict | None:
+        key = ('md:' if national else '') + ascii_fold(queries[0])
         hit = self.data.get(key)
         if hit and (not hit.get('miss') or datetime.now(timezone.utc) - datetime.fromisoformat(hit['at']) < self.MISS_RETRY):
             if not hit.get('miss') and 'exact' not in hit:
@@ -541,7 +555,7 @@ class GeoCache:
             self.pending += 1
             return self.PENDING
         self.looked_up += 1
-        found = geocode(queries)
+        found = geocode(queries, national)
         now = datetime.now(timezone.utc).isoformat()
         self.data[key] = {**found, 'at': now} if found else {'miss': True, 'at': now}
         return found
@@ -570,9 +584,11 @@ SAME_SPOT_M = 15
 MAX_OVERLAP = 0.8
 # O adresă la peste atât de mediana celorlalte e, cel mai probabil, o stradă omonimă găsită greșit.
 OUTLIER_M = 3000
+# La furnizorii naționali: o localitate la peste atât de restul anunțului e o omonimă găsită greșit.
+NATIONAL_OUTLIER_M = 60000
 
 
-def build_areas(found: list[tuple[str, dict]]) -> list[dict]:
+def build_areas(found: list[tuple[str, dict]], drop_outliers: bool = True) -> list[dict]:
     """
     [(etichetă, rezultat geocodare), …] → zonele afectate [{lat, lng, radiusM, label}], câte una pe adresă.
     Adresele vecine se unesc într-o zonă comună, ca cercurile să nu se suprapună; nicio zonă nu depășește AREA_MAX_M —
@@ -583,7 +599,27 @@ def build_areas(found: list[tuple[str, dict]]) -> list[dict]:
         return []
     mlat = statistics.median(f['lat'] for _, f in found)
     mlng = statistics.median(f['lng'] for _, f in found)
-    kept = [(l, f) for l, f in found if _meters((f['lat'], f['lng']), (mlat, mlng)) <= OUTLIER_M] or found[:1]
+    if drop_outliers:
+        kept = [(l, f) for l, f in found if _meters((f['lat'], f['lng']), (mlat, mlng)) <= OUTLIER_M] or found[:1]
+    else:
+        # Furnizor național: localitățile pot fi la kilometri una de alta, deci comparăm doar adresele
+        # din aceeași localitate (eticheta „Localitate: Str. …”), când sunt cel puțin 3.
+        groups: dict[str, list[tuple[str, dict]]] = {}
+        for l, f in found:
+            groups.setdefault(l.split(':')[0] if ':' in l else l, []).append((l, f))
+        kept = []
+        for g in groups.values():
+            if len(g) < 3:
+                kept += g
+                continue
+            glat = statistics.median(f['lat'] for _, f in g)
+            glng = statistics.median(f['lng'] for _, f in g)
+            kept += [(l, f) for l, f in g if _meters((f['lat'], f['lng']), (glat, glng)) <= OUTLIER_M] or g[:1]
+        # O localitate omonimă greșită (ex. „Costești” fără raion, găsită la 150 km) e departe de restul anunțului.
+        if len(groups) > 1 and len(kept) > 1:
+            clat = statistics.median(f['lat'] for _, f in kept)
+            clng = statistics.median(f['lng'] for _, f in kept)
+            kept = [(l, f) for l, f in kept if _meters((f['lat'], f['lng']), (clat, clng)) <= NATIONAL_OUTLIER_M] or kept[:1]
 
     # Grupare aglomerativă: pornim cu un cerc pe adresă și unim mereu perechea al cărei cerc comun e cel mai mic,
     # cât timp rămâne ≤ AREA_MAX_M. Adresele care nu mai încap rămân (sau încep) un grup separat.
@@ -862,7 +898,7 @@ def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_p
                     if (o.id, ascii_fold(queries[0])) in asked:
                         continue  # aceeași adresă de două ori în același anunț
                     asked.add((o.id, ascii_fold(queries[0])))
-                    r = cache.get(queries)
+                    r = cache.get(queries, o.national)
                     if r is GeoCache.PENDING:
                         deferred.add(o.id)
                     elif r:
@@ -874,7 +910,7 @@ def publish(outages: list[Outage], args: argparse.Namespace, source: str, keep_p
         prev = known.get(o.id)
         found = found_by[o.id]
         if found:
-            areas = build_areas(found)
+            areas = build_areas(found, drop_outliers=not o.national)
             district = next((f['district'] for _, f in found if f.get('district')), '')
         elif prev and prev['location'] and o.id in deferred:
             # Căutările au fost amânate (buget terminat / cache pierdut): păstrăm zonele calculate anterior.

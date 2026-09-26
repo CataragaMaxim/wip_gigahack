@@ -1,0 +1,62 @@
+name: Flux oficial — gaz
+
+# Preia sistările de gaze naturale de la Energocom (https://energocom.md/category/furnizare-ro/deconectari/)
+# și Chișinău-Gaz (https://chisinaugaz.md/ro/disconnection) și le scrie în Firestore (`events`, subtip `gaz`).
+# Rulează la 2 ore; separat de fluxul de apă/energie (alt program, altă coadă).
+# Necesită secretul FIREBASE_SERVICE_ACCOUNT.
+
+on:
+  schedule:
+    # La 2 ore, la minutul 37 (în afara orelor fixe, când GitHub întârzie rulările).
+    - cron: '37 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Doar citire (nu scrie în Firestore)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: gas-outages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gas:
+    name: Gaz (Energocom, Chișinău-Gaz)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/acc_outages/requirements.txt
+      - run: pip install -r scripts/acc_outages/requirements.txt
+      # Geocodarea fiecărei adrese se păstrează între rulări: doar adresele noi se caută.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .geocache
+          key: geocache-gas-${{ github.run_id }}
+          restore-keys: geocache-gas-
+      - name: Sincronizare
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GEOCACHE_PATH: .geocache/geocache.json
+        run: |
+          python scripts/acc_outages/sync_gas.py --out gas-events.json ${{ inputs.dry_run && '--dry-run' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gas-events
+          path: gas-events-*.json
+          retention-days: 3
+          if-no-files-found: ignore
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .geocache
+          key: geocache-gas-${{ github.run_id }}

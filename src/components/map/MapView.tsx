@@ -19,8 +19,8 @@ import { getLang, t } from '@/i18n';
 export function MapView() {
   const app = useApp();
   const { events, visible, selected, fadingTypes, isDark, user, locations, userPos, gps, loadState, report, modal, mode, radius, panelOpen } = app;
-  // În Setări, raza aleasă se vede ca un cerc în jurul utilizatorului.
-  const showRadius = mode === 'settings' && panelOpen && radius !== 'all' && !!userPos;
+  // În Setări, raza aleasă se vede ca un cerc în jurul locației curente și al fiecărei adrese salvate.
+  const showRadius = mode === 'settings' && panelOpen && radius !== 'all' && app.anchors.length > 0;
   const theme = isDark ? 'dark' : 'light';
   const shown = useMemo(() => new Set(visible.map((e) => e.id)), [visible]);
   const pinMode = modal === 'report' && report.step === 2;
@@ -68,7 +68,8 @@ export function MapView() {
           eventHandlers={{ loading: () => app.setTilesReady(false), load: () => app.setTilesReady(true) }}
         />
 
-        {showRadius && userPos && <RadiusCircle center={userPos} radiusM={radius} />}
+        {/* Raza se aplică în jurul locației curente și al fiecărei adrese salvate: câte un cerc pentru fiecare. */}
+        {showRadius && typeof radius === 'number' && app.anchors.map((p, i) => <RadiusCircle key={`r-${i}`} center={p} radiusM={radius} />)}
 
         {events.map((e) => (
           <EventShape key={`shape-${e.id}`} e={e} theme={theme} show={isShown(e)} selected={selected?.id === e.id} />
