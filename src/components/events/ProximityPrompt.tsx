@@ -16,7 +16,7 @@ const DISMISSED_KEY = 'wip.promptDismissed';
  * activă, pe care n-ai votat-o și n-ai închis-o. Una singură odată, cea mai apropiată.
  */
 export function ProximityPrompt() {
-  const { events, userPos, votes, vote, user, online, modal, openEvent } = useApp();
+  const { events, userPos, userAccuracy, votes, vote, user, online, modal, openEvent } = useApp();
   const [dismissed, setDismissed] = useState<Record<string, true>>(() => load(DISMISSED_KEY, {}));
   useEffect(() => save(DISMISSED_KEY, dismissed), [dismissed]);
 
@@ -28,13 +28,14 @@ export function ProximityPrompt() {
       if (e.sourceType !== 'citizen' || (e.status !== 'raportat' && e.status !== 'confirmat')) continue;
       if (votes[e.id] || dismissed[e.id] || (user && e.authorId === user.uid)) continue;
       const d = distance(userPos, e.location);
-      if (d <= CONFIG.PROMPT_RADIUS_M && d < bd) {
+      // 50 m + eroarea GPS (plafonată), ca un vecin aflat chiar lângă raportare să fie întrebat și cu GPS imprecis.
+      if (d <= CONFIG.PROMPT_RADIUS_M + Math.min(userAccuracy, CONFIG.PROMPT_ACCURACY_MAX_M) && d < bd) {
         bd = d;
         best = e;
       }
     }
     return best;
-  }, [events, userPos, votes, dismissed, user, online]);
+  }, [events, userPos, userAccuracy, votes, dismissed, user, online]);
 
   if (!target || modal) return null;
   const sub = SUBTYPES[target.subtype];

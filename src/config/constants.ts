@@ -10,6 +10,11 @@ export const CONFIG = {
   VOTE_RADIUS_M: 1000,
   /** La atâția metri de o raportare a vecinilor apare întrebarea „Ai și tu problema asta?”. */
   PROMPT_RADIUS_M: 50,
+  /**
+   * GPS-ul telefonului (mai ales în interior) are adesea o eroare de 50–200 m: raza întrebării crește cu precizia
+   * raportată de dispozitiv, dar cu cel mult atâția metri.
+   */
+  PROMPT_ACCURACY_MAX_M: 100,
   /** Raza în care căutăm raportări similare înainte de a crea una nouă. */
   DEDUP_RADIUS_M: 300,
   /** Pe hartă și în listă: evenimentele în curs și cele care încep în următoarele atâtea ore. Restul — în calendar. */

@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useId, useMemo, useState, type FormEvent } from 'react';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { Dialog } from '@/components/ui/Dialog';
@@ -7,24 +7,19 @@ import type { GeoResult } from '@/services/geocoding';
 import { GoogleIcon } from './ProviderIcons';
 import { t } from '@/i18n';
 
-type Field = 'name' | 'email' | 'password' | 'terms' | 'phone' | 'code';
+type Field = 'name' | 'email' | 'password' | 'terms';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-type AuthTab = 'email' | 'phone';
-const METHODS: { key: AuthTab; label: string; hint: string; icon: 'mail' | 'phone' }[] = [
-  { key: 'email', label: 'Email', hint: 'cu parolă', icon: 'mail' },
-  { key: 'phone', label: 'Telefon', hint: 'cod prin SMS', icon: 'phone' },
-];
+/** Autentificare: Google sau email + parolă. */
 
 export function AuthDialog() {
   const app = useApp();
   const {
     authMode: mode, setAuthMode, authAfter, setModal,
-    signUp, logIn, logInGoogle, requestPhoneCode, verifyPhoneCode,
+    signUp, logIn, logInGoogle,
   } = app;
   const id = useId();
 
-  const [tab, setTab] = useState<AuthTab>('email');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,28 +28,18 @@ export function AuthDialog() {
   const [home, setHome] = useState<GeoResult | null>(null);
   const [terms, setTerms] = useState(false);
   const [notify, setNotify] = useState(true);
-  const [phone, setPhone] = useState('+373');
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
-  const recaptchaRef = useRef<HTMLDivElement>(null);
 
   const errors = useMemo(() => {
     const e: Partial<Record<Field, string>> = {};
     if (mode === 'signup' && name.trim().length < 2) e.name = t('Introdu numele tău.');
-    if (tab === 'email') {
-      if (!email.trim()) e.email = t('Introdu adresa de email.');
-      else if (!EMAIL_RE.test(email.trim())) e.email = t('Adresa de email nu pare corectă.');
-      if ((mode === 'signup' || mode === 'login') && password.length < 8) e.password = t('Parola trebuie să aibă cel puțin 8 caractere.');
-    }
-    if (tab === 'phone') {
-      if (!/^\+\d{10,15}$/.test(phone.replace(/\s/g, ''))) e.phone = t('Introdu numărul în format internațional, ex. +37369123456.');
-      if (codeSent && !/^\d{4,8}$/.test(code)) e.code = t('Introdu codul din SMS.');
-    }
+    if (!email.trim()) e.email = t('Introdu adresa de email.');
+    else if (!EMAIL_RE.test(email.trim())) e.email = t('Adresa de email nu pare corectă.');
+    if ((mode === 'signup' || mode === 'login') && password.length < 8) e.password = t('Parola trebuie să aibă cel puțin 8 caractere.');
     if (mode === 'signup' && !terms) e.terms = t('Pentru a crea contul, acceptă termenii.');
     return e;
-  }, [mode, tab, name, email, password, terms, phone, code, codeSent]);
+  }, [mode, name, email, password, terms]);
 
   const show = (f: Field) => (submitted || touched[f] ? errors[f] : undefined);
   const touch = (f: Field) => setTouched((t) => ({ ...t, [f]: true }));
@@ -62,8 +47,6 @@ export function AuthDialog() {
     setAuthMode(m);
     setSubmitted(false);
     setTouched({});
-    setCodeSent(false);
-    setCode('');
   };
 
   const onSubmit = async (ev: FormEvent) => {
@@ -73,19 +56,8 @@ export function AuthDialog() {
 
     if (mode === 'forgot') return switchMode('sent');
 
-    if (tab === 'email') {
-      if (mode === 'signup') await signUp(name, email, password, home);
-      if (mode === 'login') await logIn(email, password);
-      return;
-    }
-
-    // phone
-    if (!codeSent) {
-      await requestPhoneCode(phone, `${id}-recaptcha`);
-      setCodeSent(true);
-      return;
-    }
-    await verifyPhoneCode(code);
+    if (mode === 'signup') await signUp(name, email, password, home);
+    if (mode === 'login') await logIn(email, password);
   };
 
   const title =
@@ -115,9 +87,7 @@ export function AuthDialog() {
         mode === 'sent' ? undefined : (
           <div className="stack gap-4 grow">
             <button type="submit" form={`${id}-form`} className="btn btn--primary btn--xl">
-              {tab === 'phone' && mode !== 'forgot'
-                ? codeSent ? t('Verifică codul') : t('Trimite codul SMS')
-                : mode === 'signup'
+              {mode === 'signup'
                   ? t('Creează cont')
                   : mode === 'login'
                     ? t('Intră în cont')
@@ -137,16 +107,13 @@ export function AuthDialog() {
         )
       }
     >
-      {/* Container pentru Recaptcha invizibil (phone) */}
-      <div id={`${id}-recaptcha`} ref={recaptchaRef} style={{ position: 'absolute' }} />
-
       {mode === 'sent' ? (
         <div className="stack gap-10" role="status">
           <span className="done__icon done__icon--sm">
             <Icon name="check" size={22} strokeWidth={2.4} />
           </span>
           <strong>{t('Verifică emailul')}</strong>
-          <span className="muted">Dacă există un cont pentru {email}, vei primi un link de resetare.</span>
+          <span className="muted">{t('Dacă există un cont pentru {email}, vei primi un link de resetare.', { email })}</span>
           <button type="button" className="btn btn--primary btn--lg" onClick={() => switchMode('login')}>
             {t('Înapoi la autentificare')}
           </button>
@@ -161,52 +128,12 @@ export function AuthDialog() {
                 {t('Continuă cu Google')}
               </button>
               <div className="divider" role="separator">
-                {mode === 'signup' ? t('sau creează contul cu') : t('sau intră cu')}
-              </div>
-              {/* Metoda: două carduri, cel ales e marcat clar; câmpurile lui stau în cadrul de dedesubt. */}
-              <div className="method" role="tablist" aria-label={t('Metodă de autentificare')}>
-                {METHODS.map((m) => {
-                  const on = tab === m.key;
-                  return (
-                    <button
-                      key={m.key}
-                      id={`${id}-tab-${m.key}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      aria-controls={`${id}-panel`}
-                      className={`method__card ${on ? 'is-on' : ''}`}
-                      onClick={() => {
-                        setTab(m.key);
-                        setSubmitted(false);
-                        setCodeSent(false);
-                      }}
-                    >
-                      <span className="method__icon">
-                        <Icon name={m.icon} size={18} />
-                      </span>
-                      <span className="stack">
-                        <strong>{t(m.label)}</strong>
-                        <span className="xsmall muted">{t(m.hint)}</span>
-                      </span>
-                      <span className="method__check" aria-hidden="true">
-                        {on && <Icon name="check" size={14} strokeWidth={3} />}
-                      </span>
-                    </button>
-                  );
-                })}
+                {mode === 'signup' ? t('sau creează contul cu emailul') : t('sau intră cu emailul')}
               </div>
             </>
           )}
 
-          <div
-            id={`${id}-panel`}
-            className={mode === 'signup' || mode === 'login' ? 'method__panel stack gap-12' : 'stack gap-12'}
-            role={mode === 'signup' || mode === 'login' ? 'tabpanel' : undefined}
-            aria-labelledby={mode === 'signup' || mode === 'login' ? `${id}-tab-${tab}` : undefined}
-          >
-            {tab === 'email' && (
-              <>
+          <div className={mode === 'signup' || mode === 'login' ? 'method__panel stack gap-12' : 'stack gap-12'}>
                 {mode === 'signup' && (
                   <div className="field">
                     <label htmlFor={`${id}-name`} className="field__label">{t('Nume')}</label>
@@ -274,53 +201,12 @@ export function AuthDialog() {
                 {mode === 'signup' && (
                   <div className="field">
                     <label htmlFor={`${id}-addr`} className="field__label">
-                      Adresa de acasă <span className="muted normal">{t('— opțional')}</span>
+                      {t('Adresa de acasă')} <span className="muted normal">{t('— opțional')}</span>
                     </label>
                     <AddressInput id={`${id}-addr`} value={home} onChange={setHome} />
                     <span className="field__hint">{t('Te anunțăm când apare o problemă aici. Mai poți adăuga 5 adrese din Setări.')}</span>
                   </div>
                 )}
-              </>
-            )}
-
-            {tab === 'phone' && (
-              <>
-                <div className="field">
-                  <label htmlFor={`${id}-phone`} className="field__label">{t('Număr de telefon')}</label>
-                  <input
-                    id={`${id}-phone`}
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="+37369123456"
-                    className={`input ${show('phone') ? 'is-invalid' : ''}`}
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    onBlur={() => touch('phone')}
-                    disabled={codeSent}
-                  />
-                  {err('phone') ?? <span className="field__hint">{t('Îți trimitem un cod prin SMS.')}</span>}
-                </div>
-                {codeSent && (
-                  <div className="field">
-                    <label htmlFor={`${id}-code`} className="field__label">{t('Cod SMS')}</label>
-                    <input
-                      id={`${id}-code`}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      className={`input ${show('code') ? 'is-invalid' : ''}`}
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                      onBlur={() => touch('code')}
-                    />
-                    {err('code')}
-                  </div>
-                )}
-                {mode === 'signup' && (
-                  <span className="field__hint">{t('Adresa de acasă și încă 5 adrese le poți seta după, din Setări.')}</span>
-                )}
-              </>
-            )}
           </div>
 
           {mode === 'signup' && (

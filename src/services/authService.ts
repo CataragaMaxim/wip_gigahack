@@ -7,9 +7,8 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
+  signInWithRedirect,
+  getRedirectResult,
   type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth } from './firebase';
@@ -52,8 +51,26 @@ export async function logInWithEmail(email: string, password: string): Promise<U
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export async function logInWithGoogle(): Promise<UserProfile> {
-  const cred = await signInWithPopup(auth, googleProvider);
+/** Codul unei erori Firebase Auth („auth/unauthorized-domain” etc.), sau „” dacă nu e una. */
+export const authErrorCode = (e: unknown) => (typeof e === 'object' && e && 'code' in e ? String((e as { code: unknown }).code) : '');
+
+/**
+ * Google: fereastră pop-up; dacă browserul o blochează (sau nu o suportă, ex. în unele aplicații mobile),
+ * trecem la redirect — pagina merge la Google și revine, iar `completeGoogleRedirect` încheie autentificarea.
+ * Întoarce null când a pornit redirectul.
+ */
+export async function logInWithGoogle(): Promise<UserProfile | null> {
+  let cred;
+  try {
+    cred = await signInWithPopup(auth, googleProvider);
+  } catch (e) {
+    const code = authErrorCode(e);
+    if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-environment') {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw e;
+  }
   const u = cred.user;
   return ensureUserProfile(u.uid, {
     email: u.email,
@@ -63,35 +80,9 @@ export async function logInWithGoogle(): Promise<UserProfile> {
   });
 }
 
-// ---------- Phone ----------
-
-let recaptcha: RecaptchaVerifier | null = null;
-let confirmation: ConfirmationResult | null = null;
-
-/** Pregătește Recaptcha (invizibil). Apelează o singură dată per pagină. */
-export function initRecaptcha(containerId: string): RecaptchaVerifier {
-  if (recaptcha) return recaptcha;
-  recaptcha = new RecaptchaVerifier(auth, containerId, { size: 'invisible' });
-  return recaptcha;
-}
-
-/** Trimite SMS. Întoarce true dacă s-a trimis. */
-export async function sendPhoneCode(phone: string, containerId: string): Promise<boolean> {
-  const verifier = initRecaptcha(containerId);
-  confirmation = await signInWithPhoneNumber(auth, phone, verifier);
-  return true;
-}
-
-/** Verifică codul SMS și creează/încarcă profilul. */
-export async function confirmPhoneCode(code: string): Promise<UserProfile> {
-  if (!confirmation) throw new Error('Nu ai cerut un cod.');
-  const cred = await confirmation.confirm(code);
-  const u = cred.user;
-  return ensureUserProfile(u.uid, {
-    phone: u.phoneNumber,
-    name: u.displayName ?? u.phoneNumber ?? 'Utilizator',
-    userType: UserRole.User,
-  });
+/** După redirectul Google: aruncă eroarea (ex. domeniu neautorizat), dacă a fost una; profilul îl creează `watchAuth`. */
+export async function completeGoogleRedirect(): Promise<boolean> {
+  return !!(await getRedirectResult(auth));
 }
 
 // ---------- reset parolă / logout ----------

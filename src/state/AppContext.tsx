@@ -18,8 +18,8 @@ import {
   logInWithEmail,
   signUpWithEmail,
   logInWithGoogle,
-  sendPhoneCode,
-  confirmPhoneCode,
+  completeGoogleRedirect,
+  authErrorCode,
   logOutUser,
 } from '@/services/authService';
 import {
@@ -217,6 +217,8 @@ function useAppStore() {
   // ---------- locație ----------
   const [gps, setGps] = useState<GpsState>(USE_DEMO_LOCATION ? 'demo' : 'pending');
   const [userPos, setUserPos] = useState<LatLng | null>(USE_DEMO_LOCATION ? DEMO_USER_LOCATION : null);
+  /** Precizia GPS (m) a poziției curente; 0 = adresă introdusă manual (exactă). */
+  const [userAccuracy, setUserAccuracy] = useState(0);
   const [manualPlace, setManualPlace] = useState<ManualPlace | null>(() => load<ManualPlace | null>('wip.manualPlace', null));
   useEffect(() => save('wip.manualPlace', manualPlace), [manualPlace]);
 
@@ -241,6 +243,7 @@ function useAppStore() {
       navigator.geolocation.getCurrentPosition(
         (p) => {
           const pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+          setUserAccuracy(p.coords.accuracy ?? 0);
           setUserPos(pos);
           setGps('granted');
           setModal((m) => (m === 'location' ? null : m));
@@ -266,6 +269,7 @@ function useAppStore() {
       (p) => {
         hadFix = true;
         setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+        setUserAccuracy(p.coords.accuracy ?? 0);
         setGps('granted');
       },
       (err) => {
@@ -529,6 +533,7 @@ function useAppStore() {
     (place: ManualPlace, opts: { fly?: boolean } = {}) => {
       setManualPlace(place);
       setUserPos(place.location);
+      setUserAccuracy(0);
       setGps('manual');
       setGpsNotice(false);
       setModal((m) => (m === 'location' ? null : m));
@@ -632,9 +637,36 @@ function useAppStore() {
     [authAfter, flash],
   );
 
+  /** Mesajul pentru o eroare Google (fereastra închisă de utilizator nu e o eroare). */
+  const googleError = useCallback(
+    (e: unknown) => {
+      const code = authErrorCode(e);
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/user-cancelled') return;
+      if (code === 'auth/unauthorized-domain') {
+        // Domeniul site-ului trebuie adăugat în Firebase → Authentication → Settings → Authorized domains.
+        console.error(`Google: domeniul „${window.location.hostname}” nu e autorizat în Firebase Authentication.`);
+        flash(t('Autentificarea cu Google nu e activată încă pe acest site. Folosește emailul.'));
+        return;
+      }
+      if (code === 'auth/network-request-failed') {
+        flash(t('Fără conexiune la internet. Încearcă din nou.'));
+        return;
+      }
+      console.error('Google sign-in:', code || e);
+      flash(t('Autentificarea cu Google a eșuat.'));
+    },
+    [flash],
+  );
+  // Revenirea din redirectul Google (când browserul a blocat fereastra pop-up).
+  useEffect(() => {
+    completeGoogleRedirect()
+      .then((ok) => ok && flash(t('Te-ai autentificat cu Google')))
+      .catch(googleError);
+  }, [flash, googleError]);
+
   const logInGoogle = useCallback(async () => {
     try {
-      await logInWithGoogle();
+      if (!(await logInWithGoogle())) return; // a pornit redirectul
       setModal(null);
       if (authAfter === 'report') {
         setReport(emptyReport());
@@ -644,42 +676,12 @@ function useAppStore() {
       }
       setAuthAfter(null);
       flash(t('Te-ai autentificat cu Google'));
-    } catch {
-      flash(t('Autentificarea cu Google a eșuat.'));
+    } catch (e) {
+      googleError(e);
     }
-  }, [authAfter, flash]);
+  }, [authAfter, flash, googleError]);
 
-  const requestPhoneCode = useCallback(
-    async (phone: string, containerId: string) => {
-      try {
-        await sendPhoneCode(phone, containerId);
-        flash(t('Codul a fost trimis prin SMS.'));
-      } catch {
-        flash(t('Nu am putut trimite codul. Verifică numărul.'));
-      }
-    },
-    [flash],
-  );
 
-  const verifyPhoneCode = useCallback(
-    async (code: string) => {
-      try {
-        await confirmPhoneCode(code);
-        setModal(null);
-        if (authAfter === 'report') {
-          setReport(emptyReport());
-          setModal('report');
-        } else if (authAfter && typeof authAfter === 'object') {
-          setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
-        }
-        setAuthAfter(null);
-        flash(t('Te-ai autentificat cu telefonul'));
-      } catch {
-        flash(t('Cod incorect.'));
-      }
-    },
-    [authAfter, flash],
-  );
 
   const logOut = useCallback(async () => {
     await logOutUser();
@@ -867,11 +869,11 @@ function useAppStore() {
     theme, setTheme, isDark, radius, setRadius, lang, setLang,
     // sesiune
     user, locations,
-    signUp, logIn, logInGoogle, requestPhoneCode, verifyPhoneCode,
+    signUp, logIn, logInGoogle,
     logOut, deleteAccount, addLocation, setHomeLocation, removeLocation,
     // date
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
-    userPos, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
+    userPos, userAccuracy, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
     types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, preview, setPreview,
     // panou
