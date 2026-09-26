@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function myType() {
+      return get(/databases/$(database)/documents/users/$(uid())).data.userType;
+    }
+    function isAdmin() { return isSignedIn() && myType() >= 10000; }
+    function isManager() { return isSignedIn() && myType() >= 1000; }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || isManager());
+      allow create: if isSignedIn() && uid() == userId;
+      // Clientul poate schimba doar câmpuri "sigure" (nume, poză, locale, notificări).
+      allow update: if isSignedIn() && (
+        (uid() == userId &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['userType', 'credibilityScore', 'banned', 'stats', 'createdAt'])
+        ) || isAdmin()
+      );
+      allow delete: if isSignedIn() && uid() == userId;
+
+      match /locations/{locId} {
+        allow read, write: if isSignedIn() && uid() == userId;
+      }
+
+      match /history/{eventId} {
+        allow read: if isSignedIn() && uid() == userId;
+        allow create, update: if isSignedIn() && uid() == userId;
+        allow delete: if false; // istoricul nu se șterge
+      }
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.authorId == uid() || isManager());
+      allow delete: if isSignedIn() && resource.data.authorId == uid();
+
+      match /votes/{deviceId} {
+        allow read: if true;
+        allow create: if true;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

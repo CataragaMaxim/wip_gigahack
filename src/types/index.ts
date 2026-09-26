@@ -25,9 +25,7 @@ export interface UrbanEvent {
   subtype: SubtypeKey;
   title: string;
   sourceType: SourceType;
-  /** Numele sursei oficiale (ex. „Premier Energy”). */
   source?: string;
-  /** „live” = flux oficial automat. */
   feed?: 'live';
   /** Deconectare anunțată din timp (ex. „Sistări planificate” de pe acc.md) — apare în calendar. */
   planned?: boolean;
@@ -42,10 +40,10 @@ export interface UrbanEvent {
   confirmations: number;
   denials: number;
   description?: string;
-  photo?: boolean;
+  /** URL extern sau dataURL (base64) pentru fotografie; lipsă = fără fotografie. */
+  photo?: string;
   authorId?: string;
   location: LatLng;
-  /** Segmentul de stradă afectat. */
   path?: LatLng[];
 }
 
@@ -58,22 +56,14 @@ export interface DerivedEvent extends UrbanEvent {
   affects: string[];
 }
 
-export type LocationKind = 'home' | 'work' | 'person';
-
-/** Documentul `users/{uid}/locations/{id}`. */
+/** Documentul `users/{uid}/locations/{id}` — formă veche păstrată pentru compatibilitate cu mockUser. */
 export interface SavedLocation {
   id: string;
-  kind: LocationKind;
+  kind: 'home' | 'work' | 'person';
   name: string;
   address: string;
   location: LatLng;
   prefs: Record<CategoryKey, boolean>;
-}
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
 }
 
 export interface Street {
@@ -82,3 +72,6 @@ export interface Street {
   district: string;
   path: LatLng[];
 }
+
+/** Re-exportă tipurile de user. */
+export * from './user';

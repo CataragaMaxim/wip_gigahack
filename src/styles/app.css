@@ -797,3 +797,4 @@ textarea::placeholder {
   .cal__item { flex-wrap: wrap; }
   .cal__when { width: 100%; flex-direction: row; align-items: center; }
 }
+.seg--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

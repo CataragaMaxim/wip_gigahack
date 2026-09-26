@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import L, { type Map as LeafletMap } from 'leaflet';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { SUBTYPES } from '@/config/categories';
-import { ALL_CATEGORIES_ON, DEMO_LOCATIONS, DEMO_USER } from '@/data/mockUser';
+import { ALL_CATEGORIES_ON } from '@/data/mockUser';
 import { STREETS } from '@/data/streets';
 import { distanceToEvent } from '@/lib/geo';
 import { deriveStatus, isClosed, isPublic } from '@/lib/status';
@@ -10,11 +10,28 @@ import { load, resetIfStale, save } from '@/lib/storage';
 import { normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
 import { matchStreet, type StreetMatch } from '@/services/streetMatch';
+import {
+  watchAuth,
+  logInWithEmail,
+  signUpWithEmail,
+  logInWithGoogle,
+  sendPhoneCode,
+  confirmPhoneCode,
+  logOutUser,
+} from '@/services/authService';
+import {
+  upsertUserLocation,
+  deleteUserLocation,
+  deleteUserProfile,
+  bumpUserStats,
+  recordHistory,
+} from '@/services/userService';
+import type { UserProfile, SavedLocationDoc } from '@/types/user';
 import type {
-  CategoryKey, DerivedEvent, LatLng, SavedLocation, Severity, SubtypeKey, Theme, UrbanEvent, User, Vote,
+  CategoryKey, DerivedEvent, LatLng, Severity, SubtypeKey, Theme, UrbanEvent, Vote,
 } from '@/types';
 
-/** Crește la fiecare schimbare a setului de alerte demonstrative: voturile, ștergerile și raportările vechi se golesc. */
+/** Crește la fiecare schimbare a setului de alerte demonstrative. */
 const DATA_VERSION = '2026-09-real-streets';
 resetIfStale(DATA_VERSION, ['wip.userReports', 'wip.deleted', 'wip.votes']);
 
@@ -31,38 +48,37 @@ export interface ReportDraft {
   category: CategoryKey | null;
   subtype: SubtypeKey | null;
   pin: LatLng | null;
-  /** Strada reală a pinului (OpenStreetMap); null = fără stradă cu nume în apropiere. */
   street: StreetMatch | null;
-  /** Se caută strada pinului (după „Confirmă locația”). */
   locating: boolean;
   pinChoice: string | null;
   duplicateId: string | null;
   duplicateDistanceM: number | null;
   noDuplicate: boolean;
   description: string;
-  photo: boolean;
+  /** URL / dataURL; null = fără fotografie. */
+  photo: string | null;
   severity: Severity;
   resultId: string | null;
   confirmedDuplicate: boolean;
 }
 
 const emptyReport = (): ReportDraft => ({
-  step: 1, category: null, subtype: null, pin: null, street: null, locating: false, pinChoice: null, duplicateId: null, duplicateDistanceM: null,
-  noDuplicate: false, description: '', photo: false, severity: 'total', resultId: null, confirmedDuplicate: false,
+  step: 1, category: null, subtype: null, pin: null, street: null, locating: false, pinChoice: null,
+  duplicateId: null, duplicateDistanceM: null,
+  noDuplicate: false, description: '', photo: null, severity: 'total', resultId: null, confirmedDuplicate: false,
 });
 
 type LoadState = 'loading' | 'ready' | 'error';
 type GpsState = 'demo' | 'pending' | 'granted' | 'manual' | 'denied' | 'unsupported';
 
-/** Adresa introdusă manual când GPS-ul nu e disponibil (păstrată între vizite). */
 export interface ManualPlace {
   label: string;
   location: LatLng;
 }
 
 interface Session {
-  user: User | null;
-  locations: SavedLocation[];
+  user: UserProfile | null;
+  locations: SavedLocationDoc[];
 }
 
 function useAppStore() {
@@ -84,10 +100,17 @@ function useAppStore() {
     document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
   }, [isDark]);
 
-  // ---------- sesiune ----------
-  const [session, setSession] = useState<Session>(() => load<Session>('wip.session', { user: null, locations: [] }));
-  useEffect(() => save('wip.session', session), [session]);
+  // ---------- sesiune (Firebase Auth) ----------
+  const [session, setSession] = useState<Session>({ user: null, locations: [] });
   const { user, locations } = session;
+
+  // Ascultă schimbările de auth din Firebase.
+  useEffect(() => {
+    const unsub = watchAuth(({ profile, locations: locs }) => {
+      setSession({ user: profile, locations: locs });
+    });
+    return () => unsub();
+  }, []);
 
   // ---------- date ----------
   const [raw, setRaw] = useState<UrbanEvent[]>([]);
@@ -135,7 +158,7 @@ function useAppStore() {
   const [userPos, setUserPos] = useState<LatLng | null>(USE_DEMO_LOCATION ? DEMO_USER_LOCATION : null);
   const [manualPlace, setManualPlace] = useState<ManualPlace | null>(() => load<ManualPlace | null>('wip.manualPlace', null));
   useEffect(() => save('wip.manualPlace', manualPlace), [manualPlace]);
-  /** Fără GPS: folosim adresa salvată sau cerem una (dialog obligatoriu). */
+
   const fallBackToManual = useCallback((state: 'denied' | 'unsupported') => {
     const saved = load<ManualPlace | null>('wip.manualPlace', null);
     if (saved) {
@@ -146,6 +169,7 @@ function useAppStore() {
     setGps(state);
     setModal((m) => m ?? 'location');
   }, []);
+
   const requestLocation = useCallback((): Promise<LatLng | null> => {
     if (USE_DEMO_LOCATION) return Promise.resolve(DEMO_USER_LOCATION);
     if (!('geolocation' in navigator)) {
@@ -169,7 +193,7 @@ function useAppStore() {
       );
     });
   }, []);
-  // La pornire cerem locația live și o urmărim; dacă e refuzată, trecem la adresa introdusă manual.
+
   useEffect(() => {
     if (USE_DEMO_LOCATION) return;
     if (!('geolocation' in navigator)) {
@@ -184,7 +208,6 @@ function useAppStore() {
         setGps('granted');
       },
       (err) => {
-        // Erorile trecătoare după un fix reușit nu schimbă nimic.
         if (hadFix && err.code !== err.PERMISSION_DENIED) return;
         navigator.geolocation.clearWatch(watchId);
         fallBackToManual('denied');
@@ -205,8 +228,10 @@ function useAppStore() {
   const [detailFrom, setDetailFrom] = useState<'list' | 'calendar'>('list');
   const [panelOpen, setPanelOpen] = useState(true);
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('mini');
-  const cycleSheet = useCallback(() => setSheetSnap((s) => SHEET_SNAPS[(SHEET_SNAPS.indexOf(s) + 1) % SHEET_SNAPS.length]), []);
-  /** Înălțimea reală (px) a bottom sheet-ului, actualizată de BottomSheet prin ResizeObserver. */
+  const cycleSheet = useCallback(
+    () => setSheetSnap((s) => SHEET_SNAPS[(SHEET_SNAPS.indexOf(s) + 1) % SHEET_SNAPS.length]),
+    [],
+  );
   const sheetPx = useRef(92);
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [authAfter, setAuthAfter] = useState<AuthAfter>(null);
@@ -224,10 +249,9 @@ function useAppStore() {
 
   // ---------- harta ----------
   const mapRef = useRef<LeafletMap | null>(null);
-  /** Toate dalele hărții din zona vizibilă s-au încărcat (folosit de ecranul de pornire). */
   const [tilesReady, setTilesReady] = useState(false);
-  /** Cât din hartă e acoperit de panou / bottom sheet / carduri (px), ca centrarea să țină cont de zona vizibilă. */
   const mapInsets = useRef({ left: 0, top: 0, bottom: 0 });
+
   const flyTo = useCallback((p: LatLng, zoom?: number) => {
     const m = mapRef.current;
     if (!m) return;
@@ -236,7 +260,7 @@ function useAppStore() {
     const pt = m.project([p.lat, p.lng], z).subtract([left / 2, (top - bottom) / 2]);
     m.flyTo(m.unproject(pt, z), z, { duration: 0.6 });
   }, []);
-  /** Încadrează cercul razei alese în jurul utilizatorului, în zona vizibilă a hărții. */
+
   const fitRadius = useCallback((center: LatLng, radiusM: number) => {
     const m = mapRef.current;
     if (!m) return;
@@ -247,7 +271,7 @@ function useAppStore() {
       duration: 0.6,
     });
   }, []);
-  /** Centrul zonei vizibile a hărții (unde stă pinul de raportare). */
+
   const visibleCenter = useCallback((): LatLng | null => {
     const m = mapRef.current;
     if (!m) return null;
@@ -276,25 +300,28 @@ function useAppStore() {
           distanceM: userPos ? distanceToEvent(userPos, e) : null,
           affects:
             user && active
-              ? locations.filter((l) => l.prefs[e.category] && distanceToEvent(l.location, e) <= CONFIG.IMPACT_RADIUS_M).map((l) => l.name)
+              ? locations
+                  .filter((l) => l.prefs[e.category] && distanceToEvent(l.location, e) <= CONFIG.IMPACT_RADIUS_M)
+                  .map((l) => l.name)
               : [],
         };
       });
   }, [raw, userReports, deletedIds, votes, userPos, user, locations]);
 
-  /** Alertele publice active din tot orașul (oficiale + confirmate), fără rază, căutare sau filtre. */
-  const cityActiveCount = useMemo(() => events.filter((e) => e.status === 'oficial' || e.status === 'confirmat').length, [events]);
+  const cityActiveCount = useMemo(
+    () => events.filter((e) => e.status === 'oficial' || e.status === 'confirmat').length,
+    [events],
+  );
 
   const byId = useMemo(() => Object.fromEntries(events.map((e) => [e.id, e])), [events]);
   const selected = selectedId ? byId[selectedId] ?? null : null;
 
-  /** Evenimentele din listă (sortate: adresele mele, distanță, recență). */
   const visible = useMemo(() => {
     const q = normalize(search.trim());
     return events
       .filter((e) => {
         if (!cats[e.category] && !fadingCats[e.category]) return false;
-        if (!isPublic(e, user?.id)) return false;
+        if (!isPublic(e, user?.uid)) return false;
         if (radius !== 'all' && e.distanceM != null && e.distanceM > radius) return false;
         if (q && !normalize(`${e.title} ${e.district} ${e.streets.join(' ')}`).includes(q)) return false;
         return true;
@@ -303,7 +330,9 @@ function useAppStore() {
         const aa = a.affects.length ? 0 : 1;
         const bb = b.affects.length ? 0 : 1;
         if (aa !== bb) return aa - bb;
-        if (a.distanceM != null && b.distanceM != null && Math.abs(a.distanceM - b.distanceM) > 20) return a.distanceM - b.distanceM;
+        if (a.distanceM != null && b.distanceM != null && Math.abs(a.distanceM - b.distanceM) > 20) {
+          return a.distanceM - b.distanceM;
+        }
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
@@ -333,6 +362,7 @@ function useAppStore() {
       return { ...c, [k]: !on };
     });
   }, []);
+
   const resetFilters = useCallback(() => {
     setCats({ ...ALL_CATEGORIES_ON });
     setRadius('all');
@@ -352,6 +382,7 @@ function useAppStore() {
     },
     [byId, flyTo],
   );
+
   const backToList = useCallback(() => {
     setMode('list');
     setSelectedId(null);
@@ -387,7 +418,7 @@ function useAppStore() {
   }, [userPos, requestLocation, flyTo]);
 
   const openLocationPicker = useCallback(() => setModal('location'), []);
-  /** Setează locația din adresa introdusă (sau din marcajul mutat pe hartă). */
+
   const setManualLocation = useCallback(
     (place: ManualPlace, opts: { fly?: boolean } = {}) => {
       setManualPlace(place);
@@ -401,13 +432,27 @@ function useAppStore() {
   );
 
   const vote = useCallback(
-    (id: string, v: Vote) => {
+    async (id: string, v: Vote) => {
       if (votes[id]) return;
+      const ev = byId[id];
+      if (!ev) return;
       setVotes((s) => ({ ...s, [id]: v }));
-      void eventsService.vote(id, v);
+      await eventsService.vote(id, v);
+
+      if (user) {
+        await Promise.all([
+          bumpUserStats(user.uid, { [v === 'yes' ? 'confirmations' : 'denials']: 1 }),
+          recordHistory(user.uid, {
+            eventId: id,
+            kind: v === 'yes' ? 'confirmed' : 'denied',
+            title: ev.title,
+            category: ev.category,
+          }),
+        ]);
+      }
       flash('Mulțumim! Răspunsul tău a fost înregistrat.');
     },
-    [votes, flash],
+    [votes, byId, user, flash],
   );
 
   const openAuth = useCallback((m: AuthMode, after: AuthAfter = null) => {
@@ -433,9 +478,63 @@ function useAppStore() {
     [user, openAuth, flash],
   );
 
-  const signIn = useCallback(
-    (u: User, locs: SavedLocation[]) => {
-      setSession({ user: u, locations: locs });
+  const signUp = useCallback(
+    async (name: string, email: string, password: string, streetId: string, number: string) => {
+      try {
+        const profile = await signUpWithEmail(name, email, password);
+        const s = STREETS.find((x) => x.id === streetId);
+        if (s) {
+          const home: Omit<SavedLocationDoc, 'id'> = {
+            kind: 'home',
+            name: 'Acasă',
+            address: `${s.name}${number.trim() ? ` ${number.trim()}` : ''}, ${s.district}`,
+            location: s.path[Math.floor(s.path.length / 2)],
+            prefs: { ...ALL_CATEGORIES_ON },
+          };
+          await upsertUserLocation(profile.uid, 'acasa', home);
+        }
+        setModal(null);
+        if (authAfter === 'report') {
+          setReport(emptyReport());
+          setModal('report');
+        } else if (authAfter && typeof authAfter === 'object') {
+          setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
+        }
+        setAuthAfter(null);
+        flash(`Cont creat. Bine ai venit, ${name.split(' ')[0]}!`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '';
+        flash(msg.includes('email-already-in-use')
+          ? 'Există deja un cont cu acest email.'
+          : 'Nu am putut crea contul. Încearcă din nou.');
+      }
+    },
+    [authAfter, flash],
+  );
+
+  const logIn = useCallback(
+    async (email: string, password: string) => {
+      try {
+        await logInWithEmail(email, password);
+        setModal(null);
+        if (authAfter === 'report') {
+          setReport(emptyReport());
+          setModal('report');
+        } else if (authAfter && typeof authAfter === 'object') {
+          setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
+        }
+        setAuthAfter(null);
+        flash('Te-ai autentificat');
+      } catch {
+        flash('Email sau parolă incorectă.');
+      }
+    },
+    [authAfter, flash],
+  );
+
+  const logInGoogle = useCallback(async () => {
+    try {
+      await logInWithGoogle();
       setModal(null);
       if (authAfter === 'report') {
         setReport(emptyReport());
@@ -444,73 +543,101 @@ function useAppStore() {
         setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
       }
       setAuthAfter(null);
+      flash('Te-ai autentificat cu Google');
+    } catch {
+      flash('Autentificarea cu Google a eșuat.');
+    }
+  }, [authAfter, flash]);
+
+  const requestPhoneCode = useCallback(
+    async (phone: string, containerId: string) => {
+      try {
+        await sendPhoneCode(phone, containerId);
+        flash('Codul a fost trimis prin SMS.');
+      } catch {
+        flash('Nu am putut trimite codul. Verifică numărul.');
+      }
     },
-    [authAfter],
+    [flash],
   );
-  const signUp = useCallback(
-    (name: string, email: string, streetId: string, number: string) => {
-      const s = STREETS.find((x) => x.id === streetId)!;
-      const home: SavedLocation = {
-        id: 'acasa', kind: 'home', name: 'Acasă',
-        address: `${s.name}${number.trim() ? ` ${number.trim()}` : ''}, ${s.district}`,
-        location: s.path[Math.floor(s.path.length / 2)], prefs: { ...ALL_CATEGORIES_ON },
-      };
-      signIn({ id: `u-${Date.now()}`, name: name.trim(), email: email.trim() }, [home]);
-      flash(`Cont creat. Bine ai venit, ${name.trim().split(' ')[0]}!`);
+
+  const verifyPhoneCode = useCallback(
+    async (code: string) => {
+      try {
+        await confirmPhoneCode(code);
+        setModal(null);
+        if (authAfter === 'report') {
+          setReport(emptyReport());
+          setModal('report');
+        } else if (authAfter && typeof authAfter === 'object') {
+          setFollowing((f) => ({ ...f, [authAfter.follow]: true }));
+        }
+        setAuthAfter(null);
+        flash('Te-ai autentificat cu telefonul');
+      } catch {
+        flash('Cod incorect.');
+      }
     },
-    [signIn, flash],
+    [authAfter, flash],
   );
-  const logIn = useCallback(
-    (email: string) => {
-      signIn({ ...DEMO_USER, email: email.trim() }, DEMO_LOCATIONS.map((l) => ({ ...l, prefs: { ...l.prefs } })));
-      flash('Te-ai autentificat');
-    },
-    [signIn, flash],
-  );
-  const logOut = useCallback(() => {
-    setSession({ user: null, locations: [] });
+
+  const logOut = useCallback(async () => {
+    await logOutUser();
     setFollowing({});
     setMode('list');
     flash('Ai ieșit din cont');
   }, [flash]);
-  const deleteAccount = useCallback(() => {
-    setSession({ user: null, locations: [] });
-    setFollowing({});
+
+  const deleteAccount = useCallback(async () => {
+    if (!user) return;
+    await deleteUserProfile(user.uid);
+    await logOutUser();
     setUserReports([]);
     setMode('list');
     flash('Contul a fost șters');
-  }, [flash]);
+  }, [user, flash]);
 
   const addLocation = useCallback(
-    (kind: 'work' | 'person', name: string, streetId: string) => {
-      const s = STREETS.find((x) => x.id === streetId)!;
-      const loc: SavedLocation = {
-        id: kind === 'work' ? 'serviciu' : `l-${Date.now()}`, kind, name: kind === 'work' ? 'Serviciu' : name.trim(),
-        address: `${s.name}, ${s.district}`, location: s.path[Math.floor(s.path.length / 2)], prefs: { ...ALL_CATEGORIES_ON },
+    async (kind: 'work' | 'person', name: string, streetId: string) => {
+      if (!user) return;
+      const s = STREETS.find((x) => x.id === streetId);
+      if (!s) return;
+      const locId = kind === 'work' ? 'serviciu' : `l-${Date.now()}`;
+      const loc: Omit<SavedLocationDoc, 'id'> = {
+        kind,
+        name: kind === 'work' ? 'Serviciu' : name.trim(),
+        address: `${s.name}, ${s.district}`,
+        location: s.path[Math.floor(s.path.length / 2)],
+        prefs: { ...ALL_CATEGORIES_ON },
       };
-      setSession((ss) => ({ ...ss, locations: [...ss.locations, loc] }));
+      await upsertUserLocation(user.uid, locId, loc);
+      setSession((ss) => ({ ...ss, locations: [...ss.locations, { ...loc, id: locId }] }));
       flash(`Adresa „${loc.name}” a fost salvată`);
     },
-    [flash],
+    [user, flash],
   );
+
   const removeLocation = useCallback(
-    (id: string) => {
+    async (id: string) => {
+      if (!user) return;
+      await deleteUserLocation(user.uid, id);
       setSession((ss) => ({ ...ss, locations: ss.locations.filter((l) => l.id !== id) }));
       flash('Adresa a fost ștearsă');
     },
-    [flash],
+    [user, flash],
   );
 
   const deleteEvent = useCallback(
-    (id: string) => {
+    async (id: string) => {
       setDeletedIds((d) => ({ ...d, [id]: true }));
       setUserReports((r) => r.filter((e) => e.id !== id));
-      void eventsService.remove(id);
+      await eventsService.remove(id);
+      if (user) await bumpUserStats(user.uid, { reports: -1 });
       setDeleteAsk(null);
       if (selectedId === id) backToList();
       flash('Raportarea a fost ștearsă');
     },
-    [selectedId, backToList, flash],
+    [selectedId, backToList, user, flash],
   );
 
   // ---------- raportare ----------
@@ -527,22 +654,28 @@ function useAppStore() {
     setSheetSnap('mini');
     setModal('report');
   }, [online, user, openAuth, flash]);
+
   const closeReport = useCallback(() => {
     setModal(null);
     setReport(emptyReport());
   }, []);
-  const patchReport = useCallback((p: Partial<ReportDraft>) => setReport((r) => ({ ...r, ...p })), []);
+
+  const patchReport = useCallback(
+    (p: Partial<ReportDraft>) => setReport((r) => ({ ...r, ...p })),
+    [],
+  );
+
   const goToPinStep = useCallback(() => {
     const home = locations.find((l) => l.kind === 'home');
     const start = userPos ?? home?.location ?? null;
     patchReport({ step: 2, pinChoice: userPos ? 'gps' : home ? home.id : null });
     if (start) window.setTimeout(() => flyTo(start, 16), 50);
   }, [locations, userPos, patchReport, flyTo]);
+
   const confirmPin = useCallback(async () => {
     const raw = visibleCenter();
     if (!raw || report.locating) return;
     patchReport({ locating: true });
-    // Pinul se lipește de strada reală cea mai apropiată; segmentul afectat urmează strada.
     const street = await matchStreet(raw);
     const pin = street ? street.snapped : raw;
     let best: DerivedEvent | null = null;
@@ -555,33 +688,67 @@ function useAppStore() {
         best = e;
       }
     }
-    // Dacă raportarea a fost închisă între timp, nu mai schimbăm nimic.
     setReport((r) =>
       r.locating
-        ? { ...r, pin, street, locating: false, step: best ? 3 : 4, duplicateId: best?.id ?? null, duplicateDistanceM: best ? bd : null, noDuplicate: !best }
+        ? {
+            ...r,
+            pin,
+            street,
+            locating: false,
+            step: best ? 3 : 4,
+            duplicateId: best?.id ?? null,
+            duplicateDistanceM: best ? bd : null,
+            noDuplicate: !best,
+          }
         : r,
     );
   }, [events, report.category, report.locating, patchReport, visibleCenter]);
+
   const confirmDuplicate = useCallback(() => {
     const id = report.duplicateId;
     if (!id) return;
     if (!votes[id]) setVotes((s) => ({ ...s, [id]: 'yes' }));
     patchReport({ step: 'done', confirmedDuplicate: true, resultId: id });
   }, [report.duplicateId, votes, patchReport]);
+
   const submitReport = useCallback(async () => {
     if (!report.pin || !report.category || !report.subtype || !user) return;
     const st = report.street;
     const e: UrbanEvent = {
-      id: `u-${Date.now()}`, category: report.category, subtype: report.subtype, title: SUBTYPES[report.subtype].title,
-      sourceType: 'citizen', authorId: user.id, severity: report.severity, district: st?.district ?? '',
-      streets: st ? [st.label] : [], reportedAt: new Date().toISOString(), confirmations: 0, denials: 0,
-      description: report.description.trim() || undefined, photo: report.photo, location: report.pin,
+      id: `u-${Date.now()}`,
+      category: report.category,
+      subtype: report.subtype,
+      title: SUBTYPES[report.subtype].title,
+      sourceType: 'citizen',
+      authorId: user.uid,
+      severity: report.severity,
+      district: st?.district ?? '',
+      streets: st ? [st.label] : [],
+      reportedAt: new Date().toISOString(),
+      confirmations: 0,
+      denials: 0,
+      description: report.description.trim() || undefined,
+      photo: report.photo ?? undefined,
+      location: report.pin,
       path: st && st.path.length > 1 ? st.path : [report.pin],
     };
     const saved = await eventsService.create(e);
     setUserReports((r) => [...r, saved]);
+
+    await Promise.all([
+      bumpUserStats(user.uid, { reports: 1 }),
+      recordHistory(user.uid, {
+        eventId: saved.id,
+        kind: 'created',
+        title: saved.title,
+        category: saved.category,
+        status: 'raportat',
+      }),
+    ]);
+
     patchReport({ step: 'done', resultId: saved.id });
   }, [report, user, patchReport]);
+
   const viewReportResult = useCallback(() => {
     const id = report.resultId;
     closeReport();
@@ -592,7 +759,9 @@ function useAppStore() {
     // preferințe
     theme, setTheme, isDark, radius, setRadius,
     // sesiune
-    user, locations, signUp, logIn, logOut, deleteAccount, addLocation, removeLocation,
+    user, locations,
+    signUp, logIn, logInGoogle, requestPhoneCode, verifyPhoneCode,
+    logOut, deleteAccount, addLocation, removeLocation,
     // date
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,

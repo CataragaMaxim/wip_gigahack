@@ -23,7 +23,11 @@ export function ReportDialog() {
   const stepper = r.step !== 'done' && (
     <ol className="stepper" aria-label="Pașii raportării">
       {STEPS.map((s, i) => (
-        <li key={s} className={i + 1 < idx ? 'is-done' : i + 1 === idx ? 'is-current' : ''} aria-current={i + 1 === idx ? 'step' : undefined}>
+        <li
+          key={s}
+          className={i + 1 < idx ? 'is-done' : i + 1 === idx ? 'is-current' : ''}
+          aria-current={i + 1 === idx ? 'step' : undefined}
+        >
           <span />
           {s}
         </li>
@@ -31,9 +35,10 @@ export function ReportDialog() {
     </ol>
   );
 
-  let body = null;
-  let footer = null;
+  let body: React.ReactNode = null;
+  let footer: React.ReactNode = null;
 
+  // ---------- Pas 1: Categorie + subtip ----------
   if (r.step === 1) {
     body = (
       <>
@@ -95,6 +100,7 @@ export function ReportDialog() {
     );
   }
 
+  // ---------- Pas 3: Duplicat ----------
   if (r.step === 3 && dup) {
     const d = r.duplicateDistanceM ?? 0;
     const dist = `${Math.max(10, Math.round(d / 10) * 10)} m`;
@@ -135,6 +141,7 @@ export function ReportDialog() {
     );
   }
 
+  // ---------- Pas 4: Detalii (severitate, descriere, foto) ----------
   if (r.step === 4) {
     body = (
       <>
@@ -144,23 +151,37 @@ export function ReportDialog() {
             Nu există raportări similare în apropiere.
           </p>
         )}
+
         <div className="stack gap-8">
           <h3 className="h3">Cât de gravă este?</h3>
           <div className="grid-2" role="group" aria-label="Gravitate">
-            {([['total', 'Nu funcționează deloc', 'Întrerupere totală'], ['partial', 'Funcționează parțial', 'Posibil afectat']] as const).map(([k, l, h]) => (
-              <button key={k} type="button" className={`option ${r.severity === k ? 'is-on' : ''}`} aria-pressed={r.severity === k} onClick={() => patchReport({ severity: k })}>
+            {([
+              ['total', 'Nu funcționează deloc', 'Întrerupere totală'],
+              ['partial', 'Funcționează parțial', 'Posibil afectat'],
+            ] as const).map(([k, l, h]) => (
+              <button
+                key={k}
+                type="button"
+                className={`option ${r.severity === k ? 'is-on' : ''}`}
+                aria-pressed={r.severity === k}
+                onClick={() => patchReport({ severity: k })}
+              >
                 <strong>{l}</strong>
                 <span className="muted xsmall">{h}</span>
               </button>
             ))}
           </div>
         </div>
+
         <div className="field">
           <div className="row between">
             <label htmlFor={`${id}-desc`} className="field__label">
               Descriere <span className="muted normal">(opțional)</span>
             </label>
-            <span className={`xsmall ${r.description.length > CONFIG.DESCRIPTION_MAX - 20 ? 'text-crit' : 'muted'}`} aria-live="polite">
+            <span
+              className={`xsmall ${r.description.length > CONFIG.DESCRIPTION_MAX - 20 ? 'text-crit' : 'muted'}`}
+              aria-live="polite"
+            >
               {r.description.length} / {CONFIG.DESCRIPTION_MAX}
             </span>
           </div>
@@ -174,25 +195,44 @@ export function ReportDialog() {
             onChange={(e) => patchReport({ description: e.target.value.slice(0, CONFIG.DESCRIPTION_MAX) })}
           />
         </div>
+
+        {/* Fotografie ca URL — fără Firebase Storage */}
         <div className="stack gap-8">
           <span className="field__label">
             Fotografie <span className="muted normal">(opțional)</span>
           </span>
           {r.photo ? (
             <div className="card card--outline row gap-12">
-              <span className="photo-thumb" />
-              <span className="stack grow">
-                <strong className="small">fotografie.jpg</strong>
-                <span className="muted xsmall">Încărcarea se conectează la stocare (Firebase Storage)</span>
+              <img
+                src={r.photo}
+                alt="Previzualizare"
+                style={{ width: 64, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+              />
+              <span className="stack grow min0">
+                <strong className="small">Fotografie atașată</strong>
+                <span className="muted xsmall" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.photo}
+                </span>
               </span>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => patchReport({ photo: false })}>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => patchReport({ photo: null })}
+              >
                 Elimină
               </button>
             </div>
           ) : (
-            <button type="button" className="btn btn--dashed btn--lg" onClick={() => patchReport({ photo: true })}>
+            <button
+              type="button"
+              className="btn btn--dashed btn--lg"
+              onClick={() => {
+                const url = window.prompt('URL-ul imaginii (fără Firebase Storage pentru demo):');
+                if (url && /^https?:\/\//i.test(url)) patchReport({ photo: url });
+              }}
+            >
               <Icon name="camera" />
-              Adaugă o fotografie
+              Adaugă o fotografie (URL)
             </button>
           )}
         </div>
@@ -200,7 +240,11 @@ export function ReportDialog() {
     );
     footer = (
       <>
-        <button type="button" className="btn btn--secondary btn--lg" onClick={() => (r.duplicateId ? patchReport({ step: 3 }) : goToPinStep())}>
+        <button
+          type="button"
+          className="btn btn--secondary btn--lg"
+          onClick={() => (r.duplicateId ? patchReport({ step: 3 }) : goToPinStep())}
+        >
           Înapoi
         </button>
         <button type="button" className="btn btn--primary btn--lg grow" onClick={() => patchReport({ step: 5 })}>
@@ -210,6 +254,7 @@ export function ReportDialog() {
     );
   }
 
+  // ---------- Pas 5: Review + trimite ----------
   if (r.step === 5 && r.category && r.subtype) {
     const rows: [string, string][] = [
       ['Categorie', `${CATEGORY[r.category].label} · ${SUBTYPES[r.subtype].label}`],
@@ -250,6 +295,7 @@ export function ReportDialog() {
     );
   }
 
+  // ---------- Done ----------
   if (r.step === 'done') {
     const expires = new Date(Date.now() + CONFIG.REPORT_EXPIRY_H * 36e5);
     body = (
@@ -285,7 +331,13 @@ export function ReportDialog() {
   }
 
   return (
-    <Dialog title="Semnalează o avarie" subtitle="Un semnal rapid îi avertizează pe vecini din timp." onClose={closeReport} header={stepper} footer={footer}>
+    <Dialog
+      title="Semnalează o avarie"
+      subtitle="Un semnal rapid îi avertizează pe vecini din timp."
+      onClose={closeReport}
+      header={stepper}
+      footer={footer}
+    >
       {body}
     </Dialog>
   );
@@ -293,9 +345,15 @@ export function ReportDialog() {
 
 /** Pasul 2: harta devine selector — utilizatorul o trage sub pinul fix din centru. */
 export function PinCard() {
-  const { report: r, patchReport, closeReport, confirmPin, userPos, locations, flyTo, mapRef, visibleCenter, setGpsNotice } = useApp();
-  // Strada reală de sub pin, căutată după ce harta se oprește din mișcare (cu debounce, ca să nu încărcăm serviciile OSM).
-  const [where, setWhere] = useState<{ state: 'moving' | 'loading' | 'done'; match: StreetMatch | null }>({ state: 'moving', match: null });
+  const {
+    report: r, patchReport, closeReport, confirmPin, userPos, locations,
+    flyTo, mapRef, visibleCenter, setGpsNotice,
+  } = useApp();
+  const [where, setWhere] = useState<{ state: 'moving' | 'loading' | 'done'; match: StreetMatch | null }>({
+    state: 'moving',
+    match: null,
+  });
+
   useEffect(() => {
     const m = mapRef.current;
     if (!m || r.step !== 2) return;
@@ -327,12 +385,19 @@ export function PinCard() {
       m.off('moveend', onEnd);
     };
   }, [mapRef, r.step, visibleCenter]);
+
   if (r.step !== 2) return null;
   const ns = where.match;
   const choices = [
     ...(userPos ? [{ id: 'gps', label: 'Locația mea', icon: 'locate' as const, pos: userPos }] : []),
-    ...locations.map((l) => ({ id: l.id, label: l.name, icon: (l.kind === 'home' ? 'home' : l.kind === 'work' ? 'briefcase' : 'user') as 'home', pos: l.location })),
+    ...locations.map((l) => ({
+      id: l.id,
+      label: l.name,
+      icon: (l.kind === 'home' ? 'home' : l.kind === 'work' ? 'briefcase' : 'user') as 'home',
+      pos: l.location,
+    })),
   ];
+
   return (
     <section className="pin-card fade-up" aria-label="Alege locația problemei">
       <div className="row between">
@@ -350,15 +415,21 @@ export function PinCard() {
         <span className="stack">
           <strong>
             {where.state !== 'done'
-              ? where.state === 'moving' ? 'Mută harta pentru a alege locul' : 'Se identifică strada…'
-              : ns ? [ns.label, ns.district].filter(Boolean).join(', ') : 'Nicio stradă în apropiere'}
+              ? where.state === 'moving'
+                ? 'Mută harta pentru a alege locul'
+                : 'Se identifică strada…'
+              : ns
+                ? [ns.label, ns.district].filter(Boolean).join(', ')
+                : 'Nicio stradă în apropiere'}
           </strong>
           {where.state === 'done' && (
             <span className="muted xsmall">
               {ns
                 ? !ns.onStreet
                   ? `La circa ${Math.round(ns.distanceM / 10) * 10} m de stradă`
-                  : ns.distanceM <= 15 ? 'Pe stradă' : `Pinul va fi mutat pe stradă (circa ${Math.round(ns.distanceM / 5) * 5} m)`
+                  : ns.distanceM <= 15
+                    ? 'Pe stradă'
+                    : `Pinul va fi mutat pe stradă (circa ${Math.round(ns.distanceM / 5) * 5} m)`
                 : 'Apropie pinul de strada unde este problema'}
             </span>
           )}
@@ -391,7 +462,13 @@ export function PinCard() {
         <button type="button" className="btn btn--secondary btn--lg" onClick={() => patchReport({ step: 1 })}>
           Înapoi
         </button>
-        <button type="button" className="btn btn--primary btn--lg grow" onClick={() => void confirmPin()} disabled={r.locating} aria-busy={r.locating}>
+        <button
+          type="button"
+          className="btn btn--primary btn--lg grow"
+          onClick={() => void confirmPin()}
+          disabled={r.locating}
+          aria-busy={r.locating}
+        >
           {r.locating ? 'Se verifică strada…' : 'Confirmă locația'}
         </button>
       </div>

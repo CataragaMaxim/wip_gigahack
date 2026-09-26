@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { CONFIG } from '@/config/constants';
 import { SUBTYPES, catTint, catVar } from '@/config/categories';
 import { fmtAt, initials } from '@/lib/format';
@@ -9,6 +9,8 @@ import { StatusBadge } from '@/components/events/EventBits';
 import { DeleteConfirm } from '@/components/events/EventDetail';
 import { StreetInput } from '@/components/ui/StreetInput';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { roleLabel, type HistoryEntry } from '@/types/user';
+import { listUserHistory } from '@/services/userService';
 
 const THEMES: { key: Theme; label: string; icon: IconName }[] = [
   { key: 'light', label: 'Luminoasă', icon: 'sun' },
@@ -16,25 +18,75 @@ const THEMES: { key: Theme; label: string; icon: IconName }[] = [
   { key: 'system', label: 'Sistem', icon: 'monitor' },
 ];
 const KIND_ICON = { home: 'home', work: 'briefcase', person: 'user' } as const;
+const HISTORY_ICON = { created: 'plus', confirmed: 'check', denied: 'x' } as const;
+const HISTORY_LABEL = { created: 'Ai raportat', confirmed: 'Ai confirmat', denied: 'Ai negat' } as const;
 
 export function SettingsPanel() {
   const app = useApp();
-  const { user, theme, setTheme, radius, setRadius, locations, events, openAuth, logOut, deleteAccount, removeLocation, openEvent, deleteAsk, setDeleteAsk, deleteEvent } = app;
-  const { userPos, fitRadius, setSheetSnap } = app;
+  const {
+    user, theme, setTheme, radius, setRadius, locations, events, openAuth,
+    logOut, deleteAccount, removeLocation, openEvent, deleteAsk, setDeleteAsk, deleteEvent,
+    userPos, fitRadius, setSheetSnap,
+  } = app;
   const isMobile = useIsMobile();
   const [confirmAccount, setConfirmAccount] = useState(false);
   const [adding, setAdding] = useState<null | 'work' | 'person'>(null);
-  const myReports = user ? events.filter((e) => e.authorId === user.id).sort((a, b) => (b.reportedAt ?? '').localeCompare(a.reportedAt ?? '')) : [];
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  const myReports = user
+    ? events
+        .filter((e) => e.authorId === user.uid)
+        .sort((a, b) => (b.reportedAt ?? '').localeCompare(a.reportedAt ?? ''))
+    : [];
+
+  // Istoricul se încarcă la nevoie.
+  useEffect(() => {
+    if (!user) {
+      setHistory([]);
+      return;
+    }
+    let cancelled = false;
+    void listUserHistory(user.uid, 50)
+      .then((h) => {
+        if (!cancelled) setHistory(h);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <div className="settings fade-in">
       {user ? (
         <>
           <div className="profile">
-            <span className="avatar avatar--lg">{initials(user.name)}</span>
+            <span className="avatar avatar--lg">
+              {user.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt=""
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials(user.name)
+              )}
+            </span>
             <div className="stack">
               <strong className="profile__name">{user.name}</strong>
-              <span className="muted">{user.email}</span>
+              <span className="muted">{user.email ?? user.phone ?? ''}</span>
+              <div className="row gap-6 wrap">
+                <span className="badge badge--outline">
+                  <Icon name="shield" size={12} />
+                  {roleLabel(user.userType)}
+                </span>
+                <span className="badge badge--outline">
+                  <Icon name="check" size={12} />
+                  Credibilitate: {user.credibilityScore}/100
+                </span>
+              </div>
             </div>
           </div>
 
@@ -47,11 +99,18 @@ export function SettingsPanel() {
               <div key={l.id} className="address-row">
                 <Icon name={KIND_ICON[l.kind]} />
                 <span className="stack grow">
-                  <span className="muted xsmall">{l.kind === 'home' ? 'Acasă' : l.kind === 'work' ? 'Serviciu' : `${l.name} · persoană dragă`}</span>
+                  <span className="muted xsmall">
+                    {l.kind === 'home' ? 'Acasă' : l.kind === 'work' ? 'Serviciu' : `${l.name} · persoană dragă`}
+                  </span>
                   <strong className="small">{l.address}</strong>
                 </span>
                 {l.kind !== 'home' && (
-                  <button type="button" className="icon-btn icon-btn--muted" aria-label={`Șterge adresa ${l.name}`} onClick={() => removeLocation(l.id)}>
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn--muted"
+                    aria-label={`Șterge adresa ${l.name}`}
+                    onClick={() => void removeLocation(l.id)}
+                  >
                     <Icon name="trash" size={16} />
                   </button>
                 )}
@@ -106,7 +165,9 @@ export function SettingsPanel() {
         <div className="stack">
           <h3 className="h3">Rază afișată</h3>
           <span className="muted small">
-            {userPos ? 'Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.' : 'Ce evenimente vezi în jurul locației tale.'}
+            {userPos
+              ? 'Ce evenimente vezi în jurul locației tale. Cercul de pe hartă arată raza aleasă.'
+              : 'Ce evenimente vezi în jurul locației tale.'}
           </span>
         </div>
         <div className="seg seg--4" role="group" aria-label="Rază afișată">
@@ -121,7 +182,6 @@ export function SettingsPanel() {
                 if (r === 'all' || !userPos) return;
                 const center = userPos;
                 const radiusM: number = r;
-                // Pe mobil, setările acoperă harta: coborâm foaia ca cercul să se vadă.
                 if (isMobile) setSheetSnap('mid');
                 window.setTimeout(() => fitRadius(center, radiusM), isMobile ? 350 : 0);
               }}
@@ -141,7 +201,10 @@ export function SettingsPanel() {
               <div key={e.id} className="stack gap-8">
                 <div className="row gap-6">
                   <button type="button" className="report-row" onClick={() => openEvent(e.id)}>
-                    <span className="tile tile--sm" style={{ background: catTint(e.category), color: catVar(e.category), borderColor: 'transparent' }}>
+                    <span
+                      className="tile tile--sm"
+                      style={{ background: catTint(e.category), color: catVar(e.category), borderColor: 'transparent' }}
+                    >
                       <Icon name={SUBTYPES[e.subtype].icon} size={18} />
                     </span>
                     <span className="stack grow min0">
@@ -154,29 +217,65 @@ export function SettingsPanel() {
                       </span>
                     </span>
                   </button>
-                  <button type="button" className="icon-btn icon-btn--danger icon-btn--boxed" aria-label={`Șterge raportarea: ${e.title}`} onClick={() => setDeleteAsk(e.id)}>
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn--danger icon-btn--boxed"
+                    aria-label={`Șterge raportarea: ${e.title}`}
+                    onClick={() => setDeleteAsk(e.id)}
+                  >
                     <Icon name="trash" size={16} />
                   </button>
                 </div>
-                {deleteAsk === e.id && <DeleteConfirm onCancel={() => setDeleteAsk(null)} onConfirm={() => deleteEvent(e.id)} />}
+                {deleteAsk === e.id && (
+                  <DeleteConfirm onCancel={() => setDeleteAsk(null)} onConfirm={() => void deleteEvent(e.id)} />
+                )}
               </div>
             ))}
           </section>
 
+          {history.length > 0 && (
+            <section className="stack gap-8">
+              <h3 className="h3">Istoricul meu</h3>
+              {history.map((h) => (
+                <button
+                  key={`${h.eventId}-${h.kind}`}
+                  type="button"
+                  className="report-row"
+                  onClick={() => openEvent(h.eventId)}
+                >
+                  <span
+                    className="tile tile--sm"
+                    style={{ background: catTint(h.category), color: catVar(h.category), borderColor: 'transparent' }}
+                  >
+                    <Icon name={HISTORY_ICON[h.kind]} size={16} />
+                  </span>
+                  <span className="stack grow min0">
+                    <strong className="small">{h.title}</strong>
+                    <span className="muted xsmall">
+                      {HISTORY_LABEL[h.kind]} · {h.at ? fmtAt(h.at.toDate()) : ''}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </section>
+          )}
+
           <section className="stack gap-10 pb-12">
-            <button type="button" className="btn btn--secondary btn--lg" onClick={logOut}>
+            <button type="button" className="btn btn--secondary btn--lg" onClick={() => void logOut()}>
               <Icon name="logout" />
               Ieși din cont
             </button>
             {confirmAccount ? (
               <div className="danger-box fade-in" role="alertdialog" aria-label="Confirmă ștergerea contului">
                 <strong>Ștergi contul definitiv?</strong>
-                <span className="muted small">Se șterg adresele salvate și setările. Raportările trimise rămân anonime. Acțiunea nu poate fi anulată.</span>
+                <span className="muted small">
+                  Se șterg adresele salvate și setările. Raportările trimise rămân anonime. Acțiunea nu poate fi anulată.
+                </span>
                 <div className="grid-2">
                   <button type="button" className="btn btn--secondary" onClick={() => setConfirmAccount(false)}>
                     Anulează
                   </button>
-                  <button type="button" className="btn btn--danger" onClick={deleteAccount}>
+                  <button type="button" className="btn btn--danger" onClick={() => void deleteAccount()}>
                     Șterge definitiv
                   </button>
                 </div>
@@ -209,7 +308,13 @@ function AddAddressForm({ kind, onDone }: { kind: 'work' | 'person'; onDone: () 
           <label htmlFor={`${id}-n`} className="field__label">
             Cine locuiește aici?
           </label>
-          <input id={`${id}-n`} className="input" placeholder="ex.: Mama, Bunicii" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            id={`${id}-n`}
+            className="input"
+            placeholder="ex.: Mama, Bunicii"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
       )}
       <div className="field">
@@ -236,7 +341,7 @@ function AddAddressForm({ kind, onDone }: { kind: 'work' | 'person'; onDone: () 
           disabled={!ok}
           onClick={() => {
             if (!streetId) return;
-            addLocation(kind, name, streetId);
+            void addLocation(kind, name, streetId);
             onDone();
           }}
         >

@@ -17,7 +17,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
   const cd = countdown(e);
   const myVote = votes[e.id];
   const near = e.distanceM != null && e.distanceM <= CONFIG.VOTE_RADIUS_M;
-  const isMine = !!user && e.authorId === user.id;
+  const isMine = !!user && e.authorId === user.uid;
 
   let voteBlocked = '';
   if (!myVote) {
@@ -163,10 +163,11 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
           </div>
           {e.description && <p className="body-text">{e.description}</p>}
           {e.photo && (
-            <div className="photo-placeholder">
-              <Icon name="camera" size={22} strokeWidth={1.8} />
-              Fotografie atașată de autor
-            </div>
+            <img
+              src={typeof e.photo === 'string' ? e.photo : ''}
+              alt="Fotografie atașată de autor"
+              style={{ width: '100%', borderRadius: 12 }}
+            />
           )}
           {e.status === 'raportat' && e.reportedAt && (
             <p className="muted small row gap-6">
