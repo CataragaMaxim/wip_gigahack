@@ -153,7 +153,7 @@ function ReadTheMap() {
 function HowToHelp() {
   const rows: { icon: IconName; title: string; text: string; vars?: Record<string, number> }[] = [
     { icon: 'plus', title: 'Raportează o problemă', text: 'Butonul „Raportează o problemă”: alegi tipul, pui pinul pe hartă și trimiți.' },
-    { icon: 'check', title: 'Confirmă ce vezi', text: 'Când ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.', vars: { m: CONFIG.PROMPT_RADIUS_M } },
+    { icon: 'check', title: 'Confirmă ce vezi', text: 'Dacă ai cont și ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.', vars: { m: CONFIG.PROMPT_RADIUS_M } },
     { icon: 'calendar', title: 'Calendarul', text: 'Butonul calendar din bara de sus arată deconectările planificate, pe zile.' },
     { icon: 'home', title: 'Adresele tale', text: 'În Setări salvezi adresa de acasă și încă 5 adrese; alertele care le ating apar primele.' },
     { icon: 'settings', title: 'Limba și tema', text: 'Română, rusă sau engleză, temă luminoasă sau întunecată, din bara de sus sau din Setări.' },

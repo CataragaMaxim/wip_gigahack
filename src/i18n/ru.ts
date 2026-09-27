@@ -483,6 +483,7 @@ export const RU: Record<string, string> = {
   'Butonul „Raportează o problemă”: alegi tipul, pui pinul pe hartă și trimiți.': 'Кнопка «Сообщить о проблеме»: выберите тип, поставьте метку на карте и отправьте.',
   'Confirmă ce vezi': 'Подтверждайте то, что видите',
   'Când ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.': 'Когда вы в пределах {m} м от сообщения, мы спросим, есть ли у вас эта проблема. Один ответ с устройства.',
+  'Dacă ai cont și ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.': 'Если вы вошли в аккаунт и находитесь не дальше {m} м от сообщения, мы спросим, есть ли проблема и у вас. Один ответ с устройства.',
   'Calendarul': 'Календарь',
   'Butonul calendar din bara de sus arată deconectările planificate, pe zile.': 'Кнопка календаря в верхней панели показывает плановые отключения по дням.',
   'Adresele tale': 'Ваши адреса',

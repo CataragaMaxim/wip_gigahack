@@ -109,7 +109,7 @@ Citizen reports ─────► real-time database ─────► live ma
 **Trust rules on the slide:**
 - 🛡 **Official:** published immediately, source named
 - ⏳ **Unconfirmed:** a new report shows right away with a dotted outline, so neighbours can check it
-- 👥 **Confirmed:** after **3 × "Me too"** from people within **1 km**, one answer per device. Anyone who walks within 50 m is asked "Do you have this problem too?"
+- 👥 **Confirmed:** after **3 × "Me too"** from people within **1 km**, one answer per device. Signed-in users who walk within 50 m are asked "Do you have this problem too?"; anyone can also answer on the event page
 - ❓ **Disputed:** if at least **3 people answer "No, mine works"** and they outnumber the "Me too" answers, the report is **taken off the map**. Example: 1 yes / 3 no → removed; 4 yes / 3 no → stays confirmed. False alarms and pranks correct themselves, with no moderator.
 - ⏱ **Expires automatically:** after 6 h if unconfirmed, 24 h if there's no further activity
 - 🔁 **No duplicates:** the app checks for similar reports within 300 m
@@ -278,7 +278,7 @@ The daily outage forecast in Telegram is still a concept.
 |---|---|---|
 | Confirmations to become "Confirmed" | **3** | One person can't make a report credible alone. A few neighbours are enough to be quick. |
 | Who can vote | Only within **1 km**, checked by GPS | Only people who can actually see the problem |
-| When the app asks "Do you have this too?" | Within **50 m** of a report (grows with GPS inaccuracy, max. +100 m) | Asks the right people at the right moment, with no searching |
+| When the app asks "Do you have this too?" | Signed-in users within **50 m** of a report (grows with GPS inaccuracy, max. +100 m) | Asks the right people at the right moment, with no searching |
 | Votes per person | **One per device**, no account needed | Confirming is effortless, and it's still hard to game |
 | Who can report | Signed-in users only (email / Google) | Accountability for new reports |
 | Disputed | "No, mine works" > "Me too", **min. 3** | False alarms and pranks leave the map without a moderator |

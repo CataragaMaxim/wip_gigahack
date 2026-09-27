@@ -13,7 +13,7 @@ const DISMISSED_KEY = 'wip.promptDismissed';
 
 /**
  * „Ai și tu problema asta?” — apare când ești la cel mult PROMPT_RADIUS_M de o raportare a vecinilor
- * activă, pe care n-ai votat-o și n-ai închis-o. Una singură odată, cea mai apropiată.
+ * activă, pe care n-ai votat-o și n-ai închis-o. Una singură odată, cea mai apropiată. Doar pentru cine e autentificat.
  */
 export function ProximityPrompt() {
   const { events, userPos, userAccuracy, votes, vote, user, online, modal, openEvent, consentOpen } = useApp();
@@ -21,12 +21,13 @@ export function ProximityPrompt() {
   useEffect(() => save(DISMISSED_KEY, dismissed), [dismissed]);
 
   const target = useMemo(() => {
-    if (!userPos || !online) return null;
+    // Doar utilizatorii autentificați primesc întrebarea; ceilalți pot confirma din pagina evenimentului.
+    if (!user || !userPos || !online) return null;
     let best = null;
     let bd = Infinity;
     for (const e of events) {
       if (e.sourceType !== 'citizen' || (e.status !== 'raportat' && e.status !== 'confirmat')) continue;
-      if (votes[e.id] || dismissed[e.id] || (user && e.authorId === user.uid)) continue;
+      if (votes[e.id] || dismissed[e.id] || e.authorId === user.uid) continue;
       const d = distance(userPos, e.location);
       // 50 m + eroarea GPS (plafonată), ca un vecin aflat chiar lângă raportare să fie întrebat și cu GPS imprecis.
       if (d <= CONFIG.PROMPT_RADIUS_M + Math.min(userAccuracy, CONFIG.PROMPT_ACCURACY_MAX_M) && d < bd) {

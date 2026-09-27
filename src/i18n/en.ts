@@ -483,6 +483,7 @@ export const EN: Record<string, string> = {
   'Confirmă ce vezi': 'Confirm what you see',
   'Când ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.':
     'When you are within {m} m of a report, we ask whether you have it too. One answer per device.',
+  'Dacă ai cont și ești la cel mult {m} m de o raportare, te întrebăm dacă o ai și tu. Un răspuns pe dispozitiv.': 'If you\'re signed in and within {m} m of a report, we ask whether you have it too. One answer per device.',
   'Calendarul': 'The calendar',
   'Butonul calendar din bara de sus arată deconectările planificate, pe zile.': 'The calendar button in the top bar shows planned outages by day.',
   'Adresele tale': 'Your addresses',
