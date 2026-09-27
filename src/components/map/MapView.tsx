@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { RESOLVED_HEX, SUBTYPES, TYPE_HEX } from '@/config/categories';
+import { STATUS_HEX, SUBTYPES } from '@/config/categories';
 import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
-import { eventTitle, isClosed, statusBadge } from '@/lib/status';
+import { eventTitle, statusBadge, tone } from '@/lib/status';
 import { areaRadius } from '@/lib/geo';
 import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
@@ -163,7 +163,7 @@ function ManualMarker() {
 
 /** Zona afectată: cercul care cuprinde toate adresele anunțului (sau o zonă implicită în jurul raportării). */
 const EventShape = memo(function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'light' | 'dark'; show: boolean; selected: boolean }) {
-  const color = isClosed(e.status) ? RESOLVED_HEX[theme] : TYPE_HEX[theme][e.subtype];
+  const color = STATUS_HEX[theme][tone(e)];
   const partial = e.severity === 'partial';
   const base = e.status === 'contestat' ? 0.35 : 1;
   return (

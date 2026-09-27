@@ -1,14 +1,16 @@
 import { useState, type CSSProperties } from 'react';
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES, TYPES } from '@/config/categories';
 import { Icon, type IconName } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
 import { t } from '@/i18n';
 import { Dialog } from '@/components/ui/Dialog';
 
 export const ONBOARDED_KEY = 'wip.onboarded';
+/** Crește când ghidul se schimbă (ex. noile culori ale statusurilor): cine l-a văzut îl primește din nou, o dată. */
+export const ONBOARDING_VERSION = 2;
 
-/** Ghidul de la prima vizită (redeschis din Setări): tipurile și culorile, cum citești harta, cum ajuți. */
+/** Ghidul de la prima vizită (redeschis din Setări): culorile statusurilor, cum citești harta, cum ajuți. */
 export function Onboarding() {
   const { setModal } = useApp();
   const [step, setStep] = useState(0);
@@ -52,34 +54,52 @@ export function Onboarding() {
 }
 
 function Welcome() {
+  const rows: { sample: JSX.Element; title: string; text: string }[] = [
+    {
+      sample: <Sample bg="var(--s-official)" fg="var(--on-cat)" border="var(--s-official)" badge="shield" icon="droplet" />,
+      title: 'Oficial · albastru',
+      text: 'Anunț al furnizorului: Apă-Canal, Premier Energy, Energocom sau Chișinău-Gaz.',
+    },
+    {
+      sample: <Sample bg="var(--s-confirmed)" fg="var(--on-cat)" border="var(--s-confirmed)" badge="3" icon="bolt" />,
+      title: 'Confirmat · verde',
+      text: 'Raportat de un vecin și confirmat de cel puțin 3 oameni din apropiere.',
+    },
+    {
+      sample: <Sample bg="var(--s-partial)" fg="var(--on-cat)" border="var(--s-partial)" icon="flame" />,
+      title: 'Parțial · galben',
+      text: 'Doar o parte din adrese sau presiune/tensiune slabă: posibil afectat.',
+    },
+  ];
   return (
     <>
       <p className="body-text">
         {t('Harta arată deconectările de apă, energie electrică și gaz din Chișinău: anunțurile oficiale ale furnizorilor și problemele raportate de vecini.')}
       </p>
-      <h3 className="h3">{t('Fiecare tip are culoarea lui')}</h3>
+      <h3 className="h3">{t('Culoarea arată statusul')}</h3>
       <ul className="onb__list">
-        {TYPES.map((k) => (
-          <li key={k}>
-            <span className="tile" style={{ width: 40, height: 40, background: typeVar(k), color: 'var(--on-cat)', borderColor: typeVar(k), borderStyle: 'solid' }}>
-              <Icon name={SUBTYPES[k].icon} size={20} />
-            </span>
+        {rows.map((r) => (
+          <li key={r.title}>
+            {r.sample}
             <span className="stack">
-              <strong>{SUBTYPES[k].label}</strong>
-              <span className="muted small">{t(TYPE_SOURCES[k])}</span>
+              <strong>{t(r.title)}</strong>
+              <span className="muted small">{t(r.text)}</span>
             </span>
           </li>
         ))}
       </ul>
+      <p className="muted small row gap-6 wrap">
+        {t('Iconița arată tipul:')}
+        {TYPES.map((k) => (
+          <span key={k} className="row gap-4">
+            <Icon name={SUBTYPES[k].icon} size={16} />
+            {SUBTYPES[k].label}
+          </span>
+        ))}
+      </p>
     </>
   );
 }
-
-const TYPE_SOURCES = {
-  apa: 'Albastru · anunțuri Apă-Canal Chișinău și raportări',
-  electricitate: 'Galben · lucrări Premier Energy și raportări',
-  gaz: 'Portocaliu · anunțuri Energocom, Chișinău-Gaz și raportări',
-} as const;
 
 /** Un marcaj de exemplu, desenat ca pe hartă. */
 function Sample({ bg, fg, border, dashed, badge, icon = 'bolt' }: { bg: string; fg: string; border: string; dashed?: boolean; badge?: string | IconName; icon?: IconName }) {
@@ -95,14 +115,9 @@ function Sample({ bg, fg, border, dashed, badge, icon = 'bolt' }: { bg: string; 
 }
 
 function ReadTheMap() {
-  const c = typeVar('electricitate');
-  const tint = typeTint('electricitate');
   const rows: { sample: JSX.Element; title: string; text: string }[] = [
-    { sample: <Sample bg={c} fg="var(--on-cat)" border={c} badge="shield" />, title: 'Oficial', text: 'Anunț al furnizorului (Apă-Canal, Premier Energy, Energocom, Chișinău-Gaz). Plin = întrerupere totală.' },
-    { sample: <Sample bg={c} fg="var(--on-cat)" border={c} badge="3" />, title: 'Confirmat', text: 'Raportat de un vecin și confirmat de cel puțin 3 oameni din apropiere.' },
-    { sample: <Sample bg="var(--surface)" fg={c} border={c} dashed />, title: 'Neconfirmat', text: 'Raportat recent, așteaptă confirmări. Expiră singur dacă nu le primește.' },
-    { sample: <Sample bg={tint} fg={c} border={c} />, title: 'Parțial', text: 'Doar o parte din adrese sau presiune/tensiune slabă: posibil afectat.' },
-    { sample: <Sample bg="var(--resolved)" fg="var(--surface)" border="var(--resolved)" />, title: 'Rezolvat sau expirat', text: 'Problema s-a încheiat; dispare de pe hartă.' },
+    { sample: <Sample bg="var(--surface)" fg="var(--s-reported)" border="var(--s-reported)" dashed />, title: 'Neconfirmat', text: 'Raportat recent, așteaptă confirmări. Expiră singur dacă nu le primește.' },
+    { sample: <Sample bg="var(--s-closed)" fg="var(--surface)" border="var(--s-closed)" />, title: 'Rezolvat sau expirat', text: 'Problema s-a încheiat; dispare de pe hartă.' },
   ];
   return (
     <>
@@ -117,10 +132,17 @@ function ReadTheMap() {
           </li>
         ))}
         <li>
-          <span className="onb__circle" style={{ borderColor: c, background: tint }} />
+          <span className="onb__circle" style={{ borderColor: 'var(--s-official)', background: 'var(--s-official-t)' }} />
           <span className="stack">
             <strong>{t('Cercul din jurul marcajului')}</strong>
-            <span className="muted small">{t('Zona afectată: câte un cerc mic (25–55 m) pentru fiecare adresă din anunț.')}</span>
+            <span className="muted small">{t('Zona afectată, în culoarea statusului: câte un cerc mic (25–55 m) pentru fiecare adresă din anunț.')}</span>
+          </span>
+        </li>
+        <li>
+          <span className="onb__circle" style={{ borderColor: 'var(--s-confirmed)', background: 'var(--s-official)', borderWidth: 4 }} />
+          <span className="stack">
+            <strong>{t('Cercul mare cu număr')}</strong>
+            <span className="muted small">{t('Mai multe evenimente apropiate. Inelul arată câte sunt oficiale, confirmate sau parțiale; apasă ca să le vezi separat.')}</span>
           </span>
         </li>
       </ul>

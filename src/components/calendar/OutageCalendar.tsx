@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SUBTYPES, TYPES, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES, TYPES } from '@/config/categories';
 import { hm, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
@@ -8,7 +8,7 @@ import type { DerivedEvent, SubtypeKey } from '@/types';
 import { SeverityBadge } from '@/components/events/EventBits';
 import { getLang, t } from '@/i18n';
 import { CAL, addDays, dayKey, fromKey, startOfDay } from '@/lib/days';
-import { districtName, eventTitle, streetLine } from '@/lib/status';
+import { districtName, eventColor, eventTint, eventTitle, streetLine } from '@/lib/status';
 
 
 
@@ -208,9 +208,9 @@ export function OutageCalendar() {
           <ul className="cal__agenda">
             {dayList.map((e) => (
               <li key={e.id}>
-                <button type="button" className="cal__item" style={{ borderLeftColor: typeVar(e.subtype) }} onClick={() => openEvent(e.id, 'calendar')}>
+                <button type="button" className="cal__item" style={{ borderLeftColor: eventColor(e) }} onClick={() => openEvent(e.id, 'calendar')}>
                   <span className="stack gap-6 cal__when">
-                    <span className="cal__kind" style={{ background: typeTint(e.subtype), color: typeVar(e.subtype) }} title={SUBTYPES[e.subtype].label}>
+                    <span className="cal__kind" style={{ background: eventTint(e), color: eventColor(e) }} title={SUBTYPES[e.subtype].label}>
                       <Icon name={SUBTYPES[e.subtype].icon} size={16} />
                     </span>
                     <span className="cal__time">{hoursOnDay(e, selDate)}</span>

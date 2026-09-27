@@ -25,14 +25,26 @@
 
   --c-utilitati: #1f5fc9;
   --c-utilitati-t: #e7eefa;
-  /* Tipurile de eveniment: apă = albastru, electricitate = galben, gaz = portocaliu. Alb pe culoare ≥ 4,9:1. */
-  --c-apa: #1f5fc9;
-  --c-apa-t: #e7eefa;
-  --c-electricitate: #a16207;
-  --c-electricitate-t: #fdf3d7;
-  --c-gaz: #c2410c;
-  --c-gaz-t: #fdebe1;
+  /* Tipurile de eveniment (apă, electricitate, gaz) sunt neutre: le deosebește iconița. Culoarea e rezervată statusului. */
+  --c-apa: #555a61;
+  --c-apa-t: #ecedea;
+  --c-electricitate: #555a61;
+  --c-electricitate-t: #ecedea;
+  --c-gaz: #555a61;
+  --c-gaz-t: #ecedea;
   --on-cat: #ffffff;
+
+  /* Statusul: oficial = albastru, confirmat = verde, parțial = galben. Alb pe culoare ≥ 4,9:1. */
+  --s-official: #1f5fc9;
+  --s-official-t: #e7eefa;
+  --s-confirmed: #1c7340;
+  --s-confirmed-t: #e3f3ea;
+  --s-partial: #a16207;
+  --s-partial-t: #fdf3d7;
+  --s-reported: #555a61;
+  --s-reported-t: #ecedea;
+  --s-closed: #7a7f86;
+  --s-closed-t: #ecedea;
 
   --crit: #b42318;
   --crit-t: #fce9e7;
@@ -68,13 +80,24 @@
 
   --c-utilitati: #7aa7ff;
   --c-utilitati-t: #1c2940;
-  --c-apa: #7aa7ff;
-  --c-apa-t: #1c2940;
-  --c-electricitate: #facc15;
-  --c-electricitate-t: #3a3113;
-  --c-gaz: #fb923c;
-  --c-gaz-t: #3b2417;
+  --c-apa: #a9b0b9;
+  --c-apa-t: #23282f;
+  --c-electricitate: #a9b0b9;
+  --c-electricitate-t: #23282f;
+  --c-gaz: #a9b0b9;
+  --c-gaz-t: #23282f;
   --on-cat: #0f1216;
+
+  --s-official: #7aa7ff;
+  --s-official-t: #1c2940;
+  --s-confirmed: #5cc98a;
+  --s-confirmed-t: #16301f;
+  --s-partial: #facc15;
+  --s-partial-t: #3a3113;
+  --s-reported: #a9b0b9;
+  --s-reported-t: #23282f;
+  --s-closed: #8e959f;
+  --s-closed-t: #23282f;
 
   --crit: #ff8a80;
   --crit-t: #3a1f1e;

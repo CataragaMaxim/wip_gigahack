@@ -3,8 +3,8 @@
 ## Principii
 
 - **Harta e ecranul principal.** Aplicația se deschide direct pe hartă.
-- **Verificat vs. neverificat, dintr-o privire.** Culoarea arată categoria, iar forma markerului și insigna arată statusul.
-- **Niciodată doar culoare.** Fiecare categorie are și iconiță, și etichetă text.
+- **Statusul, dintr-o privire.** Culoarea arată statusul: oficial = albastru, confirmat = verde, parțial = galben; neconfirmat = gri cu contur punctat. Iconița arată tipul (apă, electricitate, gaz).
+- **Niciodată doar culoare.** Fiecare status are și insignă text, iar fiecare tip are iconiță și etichetă.
 - **Roșul e rezervat** pentru erori și stări critice. Nu e culoare de categorie.
 - **Calm și minimalist.** Text scurt, ierarhie clară, spațiere generoasă.
 
@@ -34,6 +34,15 @@ Onest (Google Fonts), cu fallback pe fontul sistemului.
 Textul secundar: `#555A61` pe alb 6,95:1 (luminos), `#A9B0B9` pe `#171B21` 7,90:1 (întunecat).
 
 ## Statusuri
+
+| Status | Culoare (luminos / întunecat) | Alb pe culoare |
+| --- | --- | --- |
+| Oficial | `#1F5FC9` / `#7AA7FF` | 5,93:1 |
+| Confirmat | `#1C7340` / `#5CC98A` | 5,87:1 |
+| Parțial | `#A16207` / `#FACC15` | 4,9:1 |
+| Neconfirmat | `#555A61` / `#A9B0B9` (contur punctat) | — |
+
+Tokeni: `--s-official`, `--s-confirmed`, `--s-partial`, `--s-reported`, `--s-closed` (și `-t` pentru nuanța deschisă), în `src/styles/tokens.css`.
 
 | Status | Marker | Insignă |
 | --- | --- | --- |

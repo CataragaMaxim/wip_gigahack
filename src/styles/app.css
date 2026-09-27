@@ -444,8 +444,9 @@ textarea::placeholder {
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid transparent; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
 .badge--lg { height: 28px; padding: 0 10px; font-size: 13px; gap: 5px; }
-.badge--official { background: var(--ink); color: var(--on-ink); }
-.badge--confirmed { background: var(--surface); color: var(--text); border-color: var(--text); }
+/* Statusurile au culoarea lor: oficial = albastru, confirmat = verde, parțial = galben. */
+.badge--official { background: var(--s-official); color: var(--on-cat); }
+.badge--confirmed { background: var(--s-confirmed); color: var(--on-cat); }
 .badge--reported { color: var(--text-2); border: 1px dashed var(--text-2); }
 .badge--contested { background: var(--sunk); color: var(--text-2); border-color: var(--border-strong); }
 .badge--closed { background: var(--resolved-t); color: var(--text-2); border-color: var(--border-strong); }
@@ -454,6 +455,7 @@ textarea::placeholder {
 .badge--muted { color: var(--text-2) !important; }
 .sev-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
 .sev-dot.is-full { background: currentColor; }
+.badge.badge--partial, .badge--lg.badge--partial { color: var(--s-partial); border-color: var(--s-partial); background: var(--s-partial-t); }
 
 .skeleton-row { display: flex; gap: 12px; padding: 12px; }
 .skel { display: block; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--sunk) 0%, var(--border) 50%, var(--sunk) 100%); background-size: 200% 100%; animation: wip-shimmer 1.4s ease-in-out infinite; }

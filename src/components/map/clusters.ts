@@ -1,4 +1,6 @@
 import type { Map as LeafletMap } from 'leaflet';
+import type { Tone } from '@/config/categories';
+import { tone } from '@/lib/status';
 import type { DerivedEvent, SubtypeKey } from '@/types';
 
 /** Markerele mai apropiate de atât (pixeli pe ecran) se suprapun și se unesc într-un grup. */
@@ -16,10 +18,14 @@ export interface MarkerCluster {
   members: DerivedEvent[];
   lat: number;
   lng: number;
-  /** Câte evenimente de fiecare tip (pentru culoarea și inelul grupului). */
+  /** Câte evenimente de fiecare tip. */
   byType: Partial<Record<SubtypeKey, number>>;
-  /** Tipul cel mai frecvent (culoarea și iconița grupului). */
+  /** Tipul cel mai frecvent (iconița grupului). */
   main: SubtypeKey;
+  /** Câte evenimente are fiecare status (inelul grupului). */
+  byTone: Partial<Record<Tone, number>>;
+  /** Statusul cel mai frecvent (culoarea grupului). */
+  mainTone: Tone;
 }
 
 /**
@@ -92,6 +98,9 @@ export function clusterMarkers(map: LeafletMap, events: DerivedEvent[], zoom: nu
     const byType: Partial<Record<SubtypeKey, number>> = {};
     for (const e of evs) byType[e.subtype] = (byType[e.subtype] ?? 0) + 1;
     const main = (Object.entries(byType) as [SubtypeKey, number][]).sort((x, y) => y[1] - x[1])[0][0];
+    const byTone: Partial<Record<Tone, number>> = {};
+    for (const e of evs) byTone[tone(e)] = (byTone[tone(e)] ?? 0) + 1;
+    const mainTone = (Object.entries(byTone) as [Tone, number][]).sort((x, y) => y[1] - x[1])[0][0];
     clusters.push({
       id: evs.map((e) => e.id).sort()[0],
       members: evs,
@@ -99,6 +108,8 @@ export function clusterMarkers(map: LeafletMap, events: DerivedEvent[], zoom: nu
       lng: evs.reduce((s, e) => s + e.location.lng, 0) / evs.length,
       byType,
       main,
+      byTone,
+      mainTone,
     });
   }
   return clusters;

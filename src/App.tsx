@@ -11,7 +11,7 @@ import { AuthDialog } from '@/components/auth/AuthDialog';
 import { LocationDialog } from '@/components/location/LocationDialog';
 import { Splash } from '@/components/layout/Splash';
 import { ProximityPrompt } from '@/components/events/ProximityPrompt';
-import { ONBOARDED_KEY, Onboarding } from '@/components/help/Onboarding';
+import { ONBOARDED_KEY, ONBOARDING_VERSION, Onboarding } from '@/components/help/Onboarding';
 import { ConsentBanner } from '@/components/legal/ConsentBanner';
 import { LegalDialog } from '@/components/legal/LegalDialog';
 import { load, save } from '@/lib/storage';
@@ -34,11 +34,11 @@ function Shell() {
     }
   }, [isMobile, pinMode, panelOpen, sheetPx, mapInsets]);
 
-  // Prima vizită: ghidul „cum funcționează” (o singură dată; se redeschide din Setări).
+  // Prima vizită: ghidul „cum funcționează” (o singură dată pe versiune; se redeschide din Setări).
   useEffect(() => {
     // Întâi alegerea privind cookie-urile (bannerul de la prima deschidere), apoi ghidul.
-    if (app.loadState !== 'ready' || modal || app.consentOpen || load(ONBOARDED_KEY, false)) return;
-    save(ONBOARDED_KEY, true);
+    if (app.loadState !== 'ready' || modal || app.consentOpen || load<number | boolean>(ONBOARDED_KEY, false) === ONBOARDING_VERSION) return;
+    save(ONBOARDED_KEY, ONBOARDING_VERSION);
     app.setModal('help');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app.loadState, app.consentOpen]);

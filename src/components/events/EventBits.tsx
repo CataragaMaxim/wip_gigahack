@@ -36,7 +36,7 @@ export function StatusBadge({ e, large = false }: { e: DerivedEvent; large?: boo
 export function SeverityBadge({ e, large = false }: { e: DerivedEvent; large?: boolean }) {
   const s = severityLabel(e);
   return (
-    <span className={`badge badge--outline ${large ? 'badge--lg' : ''}`}>
+    <span className={`badge badge--outline ${e.severity === 'partial' ? 'badge--partial' : ''} ${large ? 'badge--lg' : ''}`}>
       <span className={`sev-dot ${e.severity === 'total' ? 'is-full' : ''}`} />
       {large ? s.label : s.short}
     </span>

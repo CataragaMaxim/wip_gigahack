@@ -1,5 +1,5 @@
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES, toneTint, toneVar, type Tone } from '@/config/categories';
 import type { DerivedEvent, Status, UrbanEvent } from '@/types';
 import { fmtAgo, fmtAt } from './format';
 import { t } from '@/i18n';
@@ -82,16 +82,26 @@ export function sourceLabel(e: UrbanEvent): { label: string; icon: IconName } {
   return { label: t('Raportat de vecini'), icon: 'user' };
 }
 
-/** Aspectul markerului/plăcuței: culoarea = categoria, forma = statusul, umplerea = gravitatea. */
+/**
+ * Culoarea statusului: oficial = albastru, confirmat = verde, parțial (doar o parte din adrese sau presiune slabă) = galben.
+ * Raportările neconfirmate și cele contestate sunt gri; cele încheiate, gri deschis.
+ */
+export function tone(e: Pick<UrbanEvent, 'severity'> & { status: Status }): Tone {
+  if (isClosed(e.status)) return 'closed';
+  if (e.status === 'raportat' || e.status === 'contestat') return 'reported';
+  if (e.severity === 'partial') return 'partial';
+  return e.status === 'confirmat' ? 'confirmed' : 'official';
+}
+export const eventColor = (e: Pick<UrbanEvent, 'severity'> & { status: Status }) => toneVar(tone(e));
+export const eventTint = (e: Pick<UrbanEvent, 'severity'> & { status: Status }) => toneTint(tone(e));
+
+/** Aspectul markerului/plăcuței: culoarea = statusul, iconița = tipul, conturul punctat = neconfirmat. */
 export function tileStyle(e: DerivedEvent) {
-  const color = typeVar(e.subtype);
-  const tint = typeTint(e.subtype);
-  if (isClosed(e.status))
-    return { bg: 'var(--resolved)', fg: 'var(--surface)', border: 'var(--resolved)', dashed: false, faded: false };
-  if (e.status === 'raportat') return { bg: 'var(--surface)', fg: color, border: color, dashed: true, faded: false };
-  const faded = e.status === 'contestat';
-  if (e.severity === 'partial') return { bg: tint, fg: color, border: color, dashed: false, faded };
-  return { bg: color, fg: 'var(--on-cat)', border: color, dashed: false, faded };
+  const k = tone(e);
+  if (k === 'closed') return { bg: toneVar(k), fg: 'var(--surface)', border: toneVar(k), dashed: false, faded: false };
+  if (k === 'reported')
+    return { bg: 'var(--surface)', fg: toneVar(k), border: toneVar(k), dashed: e.status === 'raportat', faded: e.status === 'contestat' };
+  return { bg: toneVar(k), fg: 'var(--on-cat)', border: toneVar(k), dashed: false, faded: false };
 }
 
 export function timeInfo(e: DerivedEvent): string {

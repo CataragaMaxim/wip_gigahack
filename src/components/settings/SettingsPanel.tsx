@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from 'react';
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, catTint, catVar, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES, catTint, catVar } from '@/config/categories';
 import { fmtAt, initials } from '@/lib/format';
 import { Icon, type IconName } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
-import { districtName, eventTitle } from '@/lib/status';
+import { districtName, eventColor, eventTint, eventTitle } from '@/lib/status';
 import type { Theme } from '@/types';
 import { StatusBadge } from '@/components/events/EventBits';
 import { DeleteConfirm } from '@/components/events/EventDetail';
@@ -208,7 +208,7 @@ export function SettingsPanel() {
                   <button type="button" className="report-row" onClick={() => openEvent(e.id)}>
                     <span
                       className="tile tile--sm"
-                      style={{ background: typeTint(e.subtype), color: typeVar(e.subtype), borderColor: 'transparent' }}
+                      style={{ background: eventTint(e), color: eventColor(e), borderColor: 'transparent' }}
                     >
                       <Icon name={SUBTYPES[e.subtype].icon} size={18} />
                     </span>

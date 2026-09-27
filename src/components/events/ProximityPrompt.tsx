@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES } from '@/config/categories';
 import { fmtAgo } from '@/lib/format';
 import { distance } from '@/lib/geo';
 import { Icon } from '@/lib/icons';
 import { load, save } from '@/lib/storage';
 import { useApp } from '@/state/AppContext';
 import { t } from '@/i18n';
-import { eventTitle } from '@/lib/status';
+import { eventColor, eventTint, eventTitle } from '@/lib/status';
 
 const DISMISSED_KEY = 'wip.promptDismissed';
 
@@ -43,9 +43,9 @@ export function ProximityPrompt() {
 
   return (
     <div className="nearby" role="dialog" aria-live="polite" aria-labelledby="nearby-title" key={target.id}>
-      <span className="nearby__pulse" style={{ background: typeVar(target.subtype) }} aria-hidden="true" />
+      <span className="nearby__pulse" style={{ background: eventColor(target) }} aria-hidden="true" />
       <div className="nearby__head">
-        <span className="nearby__icon" style={{ background: typeTint(target.subtype), color: typeVar(target.subtype) }}>
+        <span className="nearby__icon" style={{ background: eventTint(target), color: eventColor(target) }}>
           <Icon name={sub.icon} size={22} />
         </span>
         <span className="stack grow">
