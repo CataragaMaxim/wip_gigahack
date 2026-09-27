@@ -17,7 +17,7 @@ export function Logo() {
 }
 
 export function TopBar() {
-  const { user, mode, openSettings, openCalendar, openAuth, backToList, mapRef } = useApp();
+  const { user, mode, openSettings, openCalendar, openAuth, backToList, mapRef, setModal } = useApp();
   const isMobile = useIsMobile();
   const goHome = () => {
     backToList();
@@ -35,6 +35,15 @@ export function TopBar() {
       {!isMobile && <SearchBox className="topbar__search" />}
       <div className="topbar__actions">
         <LangSwitch />
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setModal('help')}
+          aria-label={t('Cum funcționează aplicația')}
+          title={t('Cum funcționează aplicația')}
+        >
+          <Icon name="help" size={20} strokeWidth={1.8} />
+        </button>
         <button
           type="button"
           className={`icon-btn ${mode === 'calendar' ? 'is-active' : ''}`}

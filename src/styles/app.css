@@ -512,6 +512,7 @@ textarea::placeholder {
 .seg__btn[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
 .report-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius-m); border: 1px solid var(--border); background: transparent; text-align: left; transition: background-color 0.2s ease; }
 .report-row:hover { background: var(--hover); }
+.report-row--static, .report-row--static:hover { background: transparent; cursor: default; }
 
 /* ---------- formulare ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; }

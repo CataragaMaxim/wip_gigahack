@@ -241,13 +241,9 @@ export function SettingsPanel() {
           {history.length > 0 && (
             <section className="stack gap-8">
               <h3 className="h3">{t('Istoricul meu')}</h3>
+              {/* Istoricul e doar pentru citit: evenimentele vechi pot să nu mai existe, deci nu se deschid. */}
               {history.map((h) => (
-                <button
-                  key={`${h.eventId}-${h.kind}`}
-                  type="button"
-                  className="report-row"
-                  onClick={() => openEvent(h.eventId)}
-                >
+                <div key={`${h.eventId}-${h.kind}`} className="report-row report-row--static">
                   <span
                     className="tile tile--sm"
                     style={{ background: catTint(h.category), color: catVar(h.category), borderColor: 'transparent' }}
@@ -260,7 +256,7 @@ export function SettingsPanel() {
                       {t(HISTORY_LABEL[h.kind])} · {h.at ? fmtAt(h.at.toDate()) : ''}
                     </span>
                   </span>
-                </button>
+                </div>
               ))}
             </section>
           )}
