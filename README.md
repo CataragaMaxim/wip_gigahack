@@ -433,7 +433,12 @@ Echipa a acoperit:
 
 ## Licență
 
-MVP de hackathon. Pentru detalii despre licențiere, contactați echipa.
+Copyright (c) 2026 "Work In Progress". All rights reserved.
+
+This source code and its associated intellectual property are proprietary. 
+No part of this project may be copied, reproduced, distributed, modified, 
+or used to create derivative works without the express written permission 
+of the copyright holder.
 
 ---
 
