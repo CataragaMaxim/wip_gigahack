@@ -34,16 +34,22 @@
   --c-gaz-t: #ecedea;
   --on-cat: #ffffff;
 
-  /* Statusul: oficial = albastru, confirmat = verde, parțial = galben. Alb pe culoare ≥ 4,9:1. */
-  --s-official: #1f5fc9;
-  --s-official-t: #e7eefa;
-  --s-confirmed: #1c7340;
-  --s-confirmed-t: #e3f3ea;
-  --s-partial: #a16207;
+  /*
+   * Culoarea arată gravitatea: întrerupere totală = roșu, parțial = galben. Raportările vecinilor au aceleași
+   * culori, cu dungi oblice. Pentru fiecare: fundal, iconiță (-fg), contur și text (-line), nuanță deschisă (-t).
+   * Roșu cu alb 5,9:1 · galben cu iconiță închisă 12:1; luminozități diferite, deci se deosebesc și la daltonism.
+   */
+  --s-full: #c0271d;
+  --s-full-fg: #ffffff;
+  --s-full-line: #c0271d;
+  --s-full-t: #fbe9e7;
+  --s-partial: #facc15;
+  --s-partial-fg: #16181b;
+  --s-partial-line: #a16207;
   --s-partial-t: #fdf3d7;
-  --s-reported: #555a61;
-  --s-reported-t: #ecedea;
   --s-closed: #7a7f86;
+  --s-closed-fg: #ffffff;
+  --s-closed-line: #7a7f86;
   --s-closed-t: #ecedea;
 
   --crit: #b42318;
@@ -88,15 +94,17 @@
   --c-gaz-t: #23282f;
   --on-cat: #0f1216;
 
-  --s-official: #7aa7ff;
-  --s-official-t: #1c2940;
-  --s-confirmed: #5cc98a;
-  --s-confirmed-t: #16301f;
+  --s-full: #ff7a6b;
+  --s-full-fg: #0f1216;
+  --s-full-line: #ff7a6b;
+  --s-full-t: #3a1f1c;
   --s-partial: #facc15;
+  --s-partial-fg: #0f1216;
+  --s-partial-line: #facc15;
   --s-partial-t: #3a3113;
-  --s-reported: #a9b0b9;
-  --s-reported-t: #23282f;
   --s-closed: #8e959f;
+  --s-closed-fg: #171b21;
+  --s-closed-line: #8e959f;
   --s-closed-t: #23282f;
 
   --crit: #ff8a80;

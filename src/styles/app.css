@@ -296,6 +296,10 @@ textarea::placeholder {
 .wip-marker:hover .wip-marker__dot { transform: scale(1.08); }
 .wip-marker.is-selected .wip-marker__dot { width: 42px; height: 42px; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink), 0 6px 16px rgba(0, 0, 0, 0.25); }
 .wip-marker.is-faded .wip-marker__dot { opacity: 0.5; }
+/* Raportările vecinilor: dungi oblice în culoarea iconiței (albe pe roșu, închise pe galben). */
+.wip-marker.is-striped .wip-marker__dot {
+  background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--m-fg) 34%, transparent) 0 3px, transparent 3px 7px);
+}
 .wip-marker__badge {
   position: absolute;
   right: -2px;
@@ -444,9 +448,8 @@ textarea::placeholder {
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid transparent; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
 .badge--lg { height: 28px; padding: 0 10px; font-size: 13px; gap: 5px; }
-/* Statusurile au culoarea lor: oficial = albastru, confirmat = verde, parțial = galben. */
-.badge--official { background: var(--s-official); color: var(--on-cat); }
-.badge--confirmed { background: var(--s-confirmed); color: var(--on-cat); }
+.badge--official { background: var(--ink); color: var(--on-ink); }
+.badge--confirmed { background: var(--surface); color: var(--text); border-color: var(--text); }
 .badge--reported { color: var(--text-2); border: 1px dashed var(--text-2); }
 .badge--contested { background: var(--sunk); color: var(--text-2); border-color: var(--border-strong); }
 .badge--closed { background: var(--resolved-t); color: var(--text-2); border-color: var(--border-strong); }
@@ -455,7 +458,9 @@ textarea::placeholder {
 .badge--muted { color: var(--text-2) !important; }
 .sev-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
 .sev-dot.is-full { background: currentColor; }
-.badge.badge--partial, .badge--lg.badge--partial { color: var(--s-partial); border-color: var(--s-partial); background: var(--s-partial-t); }
+/* Gravitatea are culoarea ei: totală = roșu, parțial = galben. */
+.badge.badge--full, .badge--lg.badge--full { color: var(--s-full-line); border-color: var(--s-full-line); background: var(--s-full-t); }
+.badge.badge--partial, .badge--lg.badge--partial { color: var(--s-partial-line); border-color: var(--s-partial-line); background: var(--s-partial-t); }
 
 .skeleton-row { display: flex; gap: 12px; padding: 12px; }
 .skel { display: block; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--sunk) 0%, var(--border) 50%, var(--sunk) 100%); background-size: 200% 100%; animation: wip-shimmer 1.4s ease-in-out infinite; }
@@ -896,7 +901,7 @@ textarea::placeholder {
 .wip-cluster__dot {
   position: relative; width: calc(100% - 10px); height: calc(100% - 10px); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--cl-bg); color: var(--on-cat); border: 2px solid var(--surface);
+  background: var(--cl-bg); color: var(--cl-fg, var(--on-cat)); border: 2px solid var(--surface);
   transition: transform 0.15s ease;
 }
 .wip-cluster:hover .wip-cluster__dot { transform: scale(1.06); }

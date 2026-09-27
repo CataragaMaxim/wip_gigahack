@@ -294,6 +294,8 @@ function useAppStore() {
   /** Filtrele de pe hartă: câte unul pe tip (apă, gaz, electricitate). */
   const [types, setTypes] = useState<Record<SubtypeKey, boolean>>({ ...ALL_TYPES_ON });
   const [fadingTypes, setFadingTypes] = useState<Partial<Record<SubtypeKey, true>>>({});
+  /** Doar evenimentele care ating direct o adresă salvată (Acasă, Serviciu…), la cel mult IMPACT_RADIUS_M. */
+  const [mineOnly, setMineOnly] = useState(false);
   const fadeTimers = useRef<Partial<Record<SubtypeKey, number>>>({});
   const [search, setSearch] = useState('');
   /** Lista arată doar aceste evenimente (grupul de pe hartă cu mai multe evenimente în același loc). */
@@ -427,6 +429,7 @@ function useAppStore() {
     return events
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
+        if (mineOnly && e.affects.length === 0) return false;
         if (previewDay) {
           // Ziua aleasă din calendar: tot ce e programat sau raportat atunci (fără ce a fost rezolvat sau contestat).
           if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(previewDay))) return false;
@@ -451,7 +454,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search, focusIds, now, previewDay]);
+  }, [events, types, fadingTypes, mineOnly, user, radius, search, focusIds, now, previewDay]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -478,8 +481,15 @@ function useAppStore() {
     });
   }, []);
 
+  const toggleMineOnly = useCallback(() => setMineOnly((v) => !v), []);
+  // Fără cont sau fără adrese salvate filtrul n-are sens (lista ar rămâne goală): îl oprim.
+  useEffect(() => {
+    if (!user || locations.length === 0) setMineOnly(false);
+  }, [user, locations.length]);
+
   const resetFilters = useCallback(() => {
     setTypes({ ...ALL_TYPES_ON });
+    setMineOnly(false);
     setRadius('all');
     setSearch('');
   }, []);
@@ -551,7 +561,8 @@ function useAppStore() {
     async (id: string, v: Vote) => {
       if (votes[id]) return;
       const ev = byId[id];
-      if (!ev) return;
+      // Doar cine e la cel mult VOTE_RADIUS_M de raportare o poate confirma sau nega.
+      if (!ev || ev.distanceM == null || ev.distanceM > CONFIG.VOTE_RADIUS_M) return;
       setVotes((s) => ({ ...s, [id]: v }));
       await eventsService.vote(id, v);
 
@@ -905,7 +916,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, userAccuracy, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
+    types, fadingTypes, toggleType, mineOnly, toggleMineOnly, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount, laterCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,

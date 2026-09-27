@@ -3,9 +3,9 @@
 ## Principii
 
 - **Harta e ecranul principal.** Aplicația se deschide direct pe hartă.
-- **Statusul, dintr-o privire.** Culoarea arată statusul: oficial = albastru, confirmat = verde, parțial = galben; neconfirmat = gri cu contur punctat. Iconița arată tipul (apă, electricitate, gaz).
+- **Gravitatea, dintr-o privire.** Culoarea arată gravitatea: întrerupere totală = roșu, parțial = galben. Raportările vecinilor au aceleași culori, cu dungi oblice; cât sunt neconfirmate, conturul e punctat. Iconița arată tipul (apă, electricitate, gaz).
 - **Niciodată doar culoare.** Fiecare status are și insignă text, iar fiecare tip are iconiță și etichetă.
-- **Roșul e rezervat** pentru erori și stări critice. Nu e culoare de categorie.
+- **Roșul înseamnă „fără serviciu”** (întrerupere totală); erorile folosesc `--crit`, cu iconiță și text.
 - **Calm și minimalist.** Text scurt, ierarhie clară, spațiere generoasă.
 
 ## Tipografie
@@ -35,14 +35,17 @@ Textul secundar: `#555A61` pe alb 6,95:1 (luminos), `#A9B0B9` pe `#171B21` 7,90:
 
 ## Statusuri
 
-| Status | Culoare (luminos / întunecat) | Alb pe culoare |
+| Aspect | Culoare (luminos / întunecat) | Iconiță pe culoare |
 | --- | --- | --- |
-| Oficial | `#1F5FC9` / `#7AA7FF` | 5,93:1 |
-| Confirmat | `#1C7340` / `#5CC98A` | 5,87:1 |
-| Parțial | `#A16207` / `#FACC15` | 4,9:1 |
-| Neconfirmat | `#555A61` / `#A9B0B9` (contur punctat) | — |
+| Întrerupere totală | roșu `#C0271D` / `#FF7A6B` | albă 5,9:1 / închisă 7,4:1 |
+| Parțial | galben `#FACC15` (contur `#A16207`) / `#FACC15` | închisă 12:1 |
+| Raportare a vecinilor | aceleași culori + dungi oblice în culoarea iconiței | — |
+| Neconfirmat | contur punctat | — |
+| Rezolvat / expirat | gri `#7A7F86` / `#8E959F` | — |
 
-Tokeni: `--s-official`, `--s-confirmed`, `--s-partial`, `--s-reported`, `--s-closed` (și `-t` pentru nuanța deschisă), în `src/styles/tokens.css`.
+Roșul și galbenul au luminozități foarte diferite, deci se deosebesc și la daltonism. Erorile folosesc `--crit`.
+
+Tokeni: `--s-full`, `--s-partial`, `--s-closed`, fiecare cu `-fg` (iconița), `-line` (contur, text) și `-t` (nuanța deschisă), în `src/styles/tokens.css`.
 
 | Status | Marker | Insignă |
 | --- | --- | --- |

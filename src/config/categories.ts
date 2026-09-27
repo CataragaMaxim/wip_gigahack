@@ -62,15 +62,22 @@ export const ALL_TYPES_ON: Record<SubtypeKey, boolean> = { apa: true, gaz: true,
 /** Documentele vechi din Firestore pot avea tipuri care nu mai există (telecom, drumuri etc.): nu le afișăm. */
 export const isKnownType = (subtype: string): subtype is SubtypeKey => subtype in SUBTYPES;
 
-/** Culoarea unui eveniment arată statusul: oficial = albastru, confirmat = verde, parțial = galben. */
-export type Tone = 'official' | 'confirmed' | 'partial' | 'reported' | 'closed';
+/** Culoarea unui eveniment arată gravitatea: totală = roșu, parțial = galben; încheiat = gri. */
+export type Tone = 'full' | 'partial' | 'closed';
 /** Ordinea din inelul grupurilor de pe hartă. */
-export const TONES: Tone[] = ['official', 'confirmed', 'partial', 'reported'];
+export const TONES: Tone[] = ['full', 'partial'];
 
-/** Culorile statusurilor ca valori concrete (Leaflet desenează ca atribute SVG, unde variabilele CSS nu funcționează). Aceleași valori ca în src/styles/tokens.css. */
-export const STATUS_HEX: Record<'light' | 'dark', Record<Tone, string>> = {
-  light: { official: '#1F5FC9', confirmed: '#1C7340', partial: '#A16207', reported: '#555A61', closed: '#7A7F86' },
-  dark: { official: '#7AA7FF', confirmed: '#5CC98A', partial: '#FACC15', reported: '#A9B0B9', closed: '#8E959F' },
+/**
+ * Culorile ca valori concrete pentru zonele de pe hartă (Leaflet desenează ca atribute SVG, unde variabilele CSS
+ * nu funcționează): conturul și umplerea. Aceleași valori ca în src/styles/tokens.css.
+ */
+export const STATUS_LINE: Record<'light' | 'dark', Record<Tone, string>> = {
+  light: { full: '#C0271D', partial: '#A16207', closed: '#7A7F86' },
+  dark: { full: '#FF7A6B', partial: '#FACC15', closed: '#8E959F' },
+};
+export const STATUS_FILL: Record<'light' | 'dark', Record<Tone, string>> = {
+  light: { full: '#C0271D', partial: '#FACC15', closed: '#7A7F86' },
+  dark: { full: '#FF7A6B', partial: '#FACC15', closed: '#8E959F' },
 };
 
 /** Variabilele CSS pentru HTML (markere, liste). */
@@ -79,6 +86,8 @@ export const catTint = (k: CategoryKey) => `var(--c-${k}-t)`;
 /** Culoarea fiecărui tip (apă, electricitate, gaz): neutră, pentru filtre și alegerea tipului. Evenimentele folosesc culoarea statusului. */
 export const typeVar = (k: SubtypeKey) => `var(--c-${k})`;
 export const typeTint = (k: SubtypeKey) => `var(--c-${k}-t)`;
-/** Culoarea unui status (CSS). */
+/** Culorile unei gravități (CSS): fundalul, iconița de pe fundal, conturul/textul și nuanța deschisă. */
 export const toneVar = (k: Tone) => `var(--s-${k})`;
+export const toneFg = (k: Tone) => `var(--s-${k}-fg)`;
+export const toneLine = (k: Tone) => `var(--s-${k}-line)`;
 export const toneTint = (k: Tone) => `var(--s-${k}-t)`;

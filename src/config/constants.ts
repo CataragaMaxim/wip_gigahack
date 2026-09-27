@@ -6,8 +6,8 @@ export const CONFIG = {
   CONFIRM_THRESHOLD: 3,
   /** „Contestat” = negări > confirmări și cel puțin atâtea negări. */
   CONTEST_MIN_DENIALS: 3,
-  /** Poți vota doar dacă ești la cel mult atâția metri. */
-  VOTE_RADIUS_M: 1000,
+  /** Poți confirma sau nega o raportare doar dacă ești la cel mult atâția metri de ea. */
+  VOTE_RADIUS_M: 100,
   /** La atâția metri de o raportare a vecinilor apare întrebarea „Ai și tu problema asta?”. */
   PROMPT_RADIUS_M: 50,
   /**

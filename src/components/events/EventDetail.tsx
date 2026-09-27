@@ -25,7 +25,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
     if (!online) voteBlocked = t('Confirmarea necesită conexiune la internet.');
     else if (!userPos) voteBlocked = t('Poți confirma doar dacă ești în apropiere. Activează locația pentru a vota.');
     else if (!near)
-      voteBlocked = t('Poți confirma doar dacă ești în apropiere (până la {km} km).', { km: CONFIG.VOTE_RADIUS_M / 1000 });
+      voteBlocked = t('Poți confirma doar dacă ești în apropiere (până la {m} m).', { m: CONFIG.VOTE_RADIUS_M });
   }
 
   const hash = [...e.id].reduce((a, c) => a + c.charCodeAt(0), 0);

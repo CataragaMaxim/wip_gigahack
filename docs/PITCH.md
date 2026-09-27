@@ -109,7 +109,7 @@ Citizen reports ─────► real-time database ─────► live ma
 **Trust rules on the slide:**
 - 🛡 **Official:** published immediately, source named
 - ⏳ **Unconfirmed:** a new report shows right away with a dotted outline, so neighbours can check it
-- 👥 **Confirmed:** after **3 × "Me too"** from people within **1 km**, one answer per device. Signed-in users who walk within 50 m are asked "Do you have this problem too?"; anyone can also answer on the event page
+- 👥 **Confirmed:** after **3 × "Me too"** from people within **100 m**, one answer per device. Signed-in users who walk within 50 m are asked "Do you have this problem too?"; anyone can also answer on the event page
 - ❓ **Disputed:** if at least **3 people answer "No, mine works"** and they outnumber the "Me too" answers, the report is **taken off the map**. Example: 1 yes / 3 no → removed; 4 yes / 3 no → stays confirmed. False alarms and pranks correct themselves, with no moderator.
 - ⏱ **Expires automatically:** after 6 h if unconfirmed, 24 h if there's no further activity
 - 🔁 **No duplicates:** the app checks for similar reports within 300 m
@@ -239,15 +239,20 @@ flowchart LR
 
 ---
 
-## Status colours (used across the deck)
+## Map colours (same in the app and the deck)
 
-| Colour | Status | Meaning |
-|---|---|---|
-| 🔵 Blue | **Official** | Announced by the provider; on the map right away, source named |
-| 🟢 Green | **Confirmed** | Citizen report with 3 × "Me too" from people within 1 km |
-| 🟡 Yellow | **Partial** | Only some buildings, or low pressure: you may be affected |
-| ⚪ Dotted grey | Unconfirmed | New citizen report, visible so neighbours can check it; expires after 6 h |
-| ⚪ Grey | Disputed | More "Mine works" than "Me too" (at least 3) → taken off the map |
+| Look | Meaning |
+|---|---|
+| 🔴 Red | **Full outage**: no water, power or gas at these addresses |
+| 🟡 Yellow | **Partial**: only some buildings, or low pressure: you may be affected |
+| Diagonal stripes | **Resident report** (same red / yellow); plain = official notice from the provider |
+| Dotted outline | Resident report still **unconfirmed** (needs 3 × "Me too"); expires after 6 h |
+| Grey | Resolved or expired |
+| Icon | Type: drop = water, bolt = power, flame = gas |
+
+On the map, the circle around each address has a solid line for official notices and a dotted line for resident reports.
+
+---
 
 ## New way to report: Telegram bot (working prototype)
 
@@ -277,7 +282,7 @@ The daily outage forecast in Telegram is still a concept.
 | Rule | Value | Why |
 |---|---|---|
 | Confirmations to become "Confirmed" | **3** | One person can't make a report credible alone. A few neighbours are enough to be quick. |
-| Who can vote | Only within **1 km**, checked by GPS | Only people who can actually see the problem |
+| Who can vote | Only within **100 m**, checked by GPS | Only people who can actually see the problem |
 | When the app asks "Do you have this too?" | Signed-in users within **50 m** of a report (grows with GPS inaccuracy, max. +100 m) | Asks the right people at the right moment, with no searching |
 | Votes per person | **One per device**, no account needed | Confirming is effortless, and it's still hard to game |
 | Who can report | Signed-in users only (email / Google) | Accountability for new reports |

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { SUBTYPES } from '@/config/categories';
 import { Icon } from '@/lib/icons';
-import { severityLabel, sourceLabel, statusBadge, tileStyle } from '@/lib/status';
+import { severityLabel, sourceLabel, statusBadge, stripes, tileStyle } from '@/lib/status';
 import type { DerivedEvent } from '@/types';
 
 /** Plăcuța cu iconița subtipului, stilizată ca markerul de pe hartă. */
@@ -11,6 +11,7 @@ export function EventTile({ e, size = 40 }: { e: DerivedEvent; size?: number }) 
     width: size,
     height: size,
     background: t.bg,
+    backgroundImage: t.striped ? stripes(t.fg) : undefined,
     color: t.fg,
     borderColor: t.border,
     borderStyle: t.dashed ? 'dashed' : 'solid',
@@ -36,7 +37,7 @@ export function StatusBadge({ e, large = false }: { e: DerivedEvent; large?: boo
 export function SeverityBadge({ e, large = false }: { e: DerivedEvent; large?: boolean }) {
   const s = severityLabel(e);
   return (
-    <span className={`badge badge--outline ${e.severity === 'partial' ? 'badge--partial' : ''} ${large ? 'badge--lg' : ''}`}>
+    <span className={`badge badge--outline ${e.severity === 'partial' ? 'badge--partial' : 'badge--full'} ${large ? 'badge--lg' : ''}`}>
       <span className={`sev-dot ${e.severity === 'total' ? 'is-full' : ''}`} />
       {large ? s.label : s.short}
     </span>

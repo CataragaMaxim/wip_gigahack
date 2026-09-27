@@ -1,5 +1,5 @@
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, toneTint, toneVar, type Tone } from '@/config/categories';
+import { SUBTYPES, toneFg, toneLine, toneTint, toneVar, type Tone } from '@/config/categories';
 import type { DerivedEvent, Status, UrbanEvent } from '@/types';
 import { fmtAgo, fmtAt } from './format';
 import { t } from '@/i18n';
@@ -83,25 +83,38 @@ export function sourceLabel(e: UrbanEvent): { label: string; icon: IconName } {
 }
 
 /**
- * Culoarea statusului: oficial = albastru, confirmat = verde, parțial (doar o parte din adrese sau presiune slabă) = galben.
- * Raportările neconfirmate și cele contestate sunt gri; cele încheiate, gri deschis.
+ * Gravitatea, arătată prin culoare: întrerupere totală = roșu, parțial (doar o parte din adrese sau presiune slabă) = galben.
+ * Anunțurile oficiale și raportările vecinilor au aceleași culori; raportările se deosebesc prin dungi oblice.
  */
 export function tone(e: Pick<UrbanEvent, 'severity'> & { status: Status }): Tone {
   if (isClosed(e.status)) return 'closed';
-  if (e.status === 'raportat' || e.status === 'contestat') return 'reported';
-  if (e.severity === 'partial') return 'partial';
-  return e.status === 'confirmat' ? 'confirmed' : 'official';
+  return e.severity === 'partial' ? 'partial' : 'full';
 }
-export const eventColor = (e: Pick<UrbanEvent, 'severity'> & { status: Status }) => toneVar(tone(e));
-export const eventTint = (e: Pick<UrbanEvent, 'severity'> & { status: Status }) => toneTint(tone(e));
+type ToneInput = Pick<UrbanEvent, 'severity'> & { status: Status };
+/** Culoarea pentru text, contururi și puncte (lizibilă pe fundal deschis). */
+export const eventColor = (e: ToneInput) => toneLine(tone(e));
+export const eventTint = (e: ToneInput) => toneTint(tone(e));
 
-/** Aspectul markerului/plăcuței: culoarea = statusul, iconița = tipul, conturul punctat = neconfirmat. */
+/** Dungile oblice ale raportărilor vecinilor, în culoarea iconiței (albe pe roșu, închise pe galben). */
+export const stripes = (fg: string) =>
+  `repeating-linear-gradient(-45deg, color-mix(in srgb, ${fg} 34%, transparent) 0 3px, transparent 3px 7px)`;
+
+/**
+ * Aspectul markerului/plăcuței: culoarea = gravitatea, dungile = raportare a vecinilor, conturul punctat = încă neconfirmată,
+ * estompat = contestată, iconița = tipul.
+ */
 export function tileStyle(e: DerivedEvent) {
   const k = tone(e);
-  if (k === 'closed') return { bg: toneVar(k), fg: 'var(--surface)', border: toneVar(k), dashed: false, faded: false };
-  if (k === 'reported')
-    return { bg: 'var(--surface)', fg: toneVar(k), border: toneVar(k), dashed: e.status === 'raportat', faded: e.status === 'contestat' };
-  return { bg: toneVar(k), fg: 'var(--on-cat)', border: toneVar(k), dashed: false, faded: false };
+  if (k === 'closed')
+    return { bg: toneVar(k), fg: toneFg(k), border: toneLine(k), dashed: false, faded: false, striped: false };
+  return {
+    bg: toneVar(k),
+    fg: toneFg(k),
+    border: toneLine(k),
+    dashed: e.status === 'raportat',
+    faded: e.status === 'contestat',
+    striped: e.sourceType === 'citizen',
+  };
 }
 
 export function timeInfo(e: DerivedEvent): string {

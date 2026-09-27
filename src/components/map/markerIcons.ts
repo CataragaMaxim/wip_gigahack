@@ -7,7 +7,7 @@ import { clusterSize, type MarkerCluster } from './clusters';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-/** Markerul unui eveniment: culoarea = statusul, iconița = tipul, insigna = verificarea. */
+/** Markerul unui eveniment: culoarea = gravitatea, dungile = raportare a vecinilor, iconița = tipul, insigna = verificarea. */
 export function eventIcon(e: DerivedEvent, selected: boolean): L.DivIcon {
   const t = tileStyle(e);
   const badge =
@@ -18,7 +18,7 @@ export function eventIcon(e: DerivedEvent, selected: boolean): L.DivIcon {
         : e.status === 'contestat'
           ? '<span class="wip-marker__badge">?</span>'
           : '';
-  const cls = ['wip-marker', selected ? 'is-selected' : '', t.faded ? 'is-faded' : ''].join(' ');
+  const cls = ['wip-marker', selected ? 'is-selected' : '', t.faded ? 'is-faded' : '', t.striped ? 'is-striped' : ''].join(' ');
   const style = `--m-bg:${t.bg};--m-fg:${t.fg};--m-bc:${t.border};--m-bs:${t.dashed ? 'dashed' : 'solid'}`;
   return L.divIcon({
     className: 'wip-marker-host',
@@ -49,8 +49,8 @@ export const meIcon = L.divIcon({
 });
 
 /**
- * Grupul de markere suprapuse (zoom depărtat): cerc mai mare în culoarea statusului dominant, inel cu proporția
- * statusurilor (oficial / confirmat / parțial / neconfirmat), iconița tipului dominant și numărul de evenimente.
+ * Grupul de markere suprapuse (zoom depărtat): cerc mai mare în culoarea gravității dominante, inel cu proporția
+ * întreruperilor totale (roșu) și parțiale (galben), iconița tipului dominant și numărul de evenimente.
  */
 export function clusterIcon(c: MarkerCluster): L.DivIcon {
   const total = c.members.length;
@@ -61,7 +61,7 @@ export function clusterIcon(c: MarkerCluster): L.DivIcon {
     at += ((c.byTone[k] ?? 0) / total) * 360;
     return `var(--s-${k}) ${from}deg ${at}deg`;
   });
-  const style = `--cl-size:${size}px;--cl-bg:var(--s-${c.mainTone});--cl-ring:conic-gradient(${stops.join(',')})`;
+  const style = `--cl-size:${size}px;--cl-bg:var(--s-${c.mainTone});--cl-fg:var(--s-${c.mainTone}-fg);--cl-ring:conic-gradient(${stops.join(',')})`;
   return L.divIcon({
     className: 'wip-marker-host',
     html: `<div class="wip-cluster" style="${style}"><span class="wip-cluster__dot">${iconSvg(SUBTYPES[c.main].icon, 20)}</span><span class="wip-cluster__count">${total > 99 ? '99+' : total}</span></div>`,

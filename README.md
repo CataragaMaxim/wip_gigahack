@@ -98,7 +98,7 @@ Toate sunt în `src/config/constants.ts`:
 | --- | --- | --- |
 | `CONFIRM_THRESHOLD` | 3 | Confirmări necesare ca o raportare să devină publică |
 | `CONTEST_MIN_DENIALS` | 3 | Negări minime pentru statusul „Contestat” |
-| `VOTE_RADIUS_M` | 1000 | Raza în care poți confirma |
+| `VOTE_RADIUS_M` | 100 | Raza în care poți confirma |
 | `DEDUP_RADIUS_M` | 300 | Raza de căutare a raportărilor similare |
 | `REPORT_EXPIRY_H` | 6 | Expirarea raportărilor neconfirmate |
 | `CONFIRMED_EXPIRY_H` | 24 | Expirarea raportărilor confirmate fără activitate |

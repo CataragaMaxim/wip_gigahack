@@ -1,16 +1,17 @@
 import { useState, type CSSProperties } from 'react';
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, TYPES } from '@/config/categories';
+import { SUBTYPES, TYPES, toneFg, toneLine, toneTint, toneVar, type Tone } from '@/config/categories';
 import { Icon, type IconName } from '@/lib/icons';
+import { stripes } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import { t } from '@/i18n';
 import { Dialog } from '@/components/ui/Dialog';
 
 export const ONBOARDED_KEY = 'wip.onboarded';
 /** Crește când ghidul se schimbă (ex. noile culori ale statusurilor): cine l-a văzut îl primește din nou, o dată. */
-export const ONBOARDING_VERSION = 2;
+export const ONBOARDING_VERSION = 3;
 
-/** Ghidul de la prima vizită (redeschis din Setări): culorile statusurilor, cum citești harta, cum ajuți. */
+/** Ghidul de la prima vizită (redeschis din „?” sau din Setări): culorile gravității, cum citești harta, cum ajuți. */
 export function Onboarding() {
   const { setModal } = useApp();
   const [step, setStep] = useState(0);
@@ -56,19 +57,19 @@ export function Onboarding() {
 function Welcome() {
   const rows: { sample: JSX.Element; title: string; text: string }[] = [
     {
-      sample: <Sample bg="var(--s-official)" fg="var(--on-cat)" border="var(--s-official)" badge="shield" icon="droplet" />,
-      title: 'Oficial · albastru',
-      text: 'Anunț al furnizorului: Apă-Canal, Premier Energy, Energocom sau Chișinău-Gaz.',
+      sample: <Sample tone="full" badge="shield" icon="bolt" />,
+      title: 'Întrerupere totală · roșu',
+      text: 'Nu ai apă, curent sau gaz la adresele din anunț.',
     },
     {
-      sample: <Sample bg="var(--s-confirmed)" fg="var(--on-cat)" border="var(--s-confirmed)" badge="3" icon="bolt" />,
-      title: 'Confirmat · verde',
-      text: 'Raportat de un vecin și confirmat de cel puțin 3 oameni din apropiere.',
-    },
-    {
-      sample: <Sample bg="var(--s-partial)" fg="var(--on-cat)" border="var(--s-partial)" icon="flame" />,
+      sample: <Sample tone="partial" badge="shield" icon="droplet" />,
       title: 'Parțial · galben',
       text: 'Doar o parte din adrese sau presiune/tensiune slabă: posibil afectat.',
+    },
+    {
+      sample: <Sample tone="full" striped badge="3" icon="flame" />,
+      title: 'Raportat de vecini · cu dungi',
+      text: 'Aceleași culori, cu dungi oblice: problema vine de la oameni, nu de la furnizor. Cifra arată câți au confirmat.',
     },
   ];
   return (
@@ -76,7 +77,7 @@ function Welcome() {
       <p className="body-text">
         {t('Harta arată deconectările de apă, energie electrică și gaz din Chișinău: anunțurile oficiale ale furnizorilor și problemele raportate de vecini.')}
       </p>
-      <h3 className="h3">{t('Culoarea arată statusul')}</h3>
+      <h3 className="h3">{t('Culoarea arată cât de grav e')}</h3>
       <ul className="onb__list">
         {rows.map((r) => (
           <li key={r.title}>
@@ -101,9 +102,17 @@ function Welcome() {
   );
 }
 
-/** Un marcaj de exemplu, desenat ca pe hartă. */
-function Sample({ bg, fg, border, dashed, badge, icon = 'bolt' }: { bg: string; fg: string; border: string; dashed?: boolean; badge?: string | IconName; icon?: IconName }) {
-  const style: CSSProperties = { width: 40, height: 40, background: bg, color: fg, borderColor: border, borderStyle: dashed ? 'dashed' : 'solid' };
+/** Un marcaj de exemplu, desenat ca pe hartă: culoarea gravității, cu dungi pentru raportările vecinilor. */
+function Sample({ tone, striped, dashed, badge, icon = 'bolt' }: { tone: Tone; striped?: boolean; dashed?: boolean; badge?: string | IconName; icon?: IconName }) {
+  const style: CSSProperties = {
+    width: 40,
+    height: 40,
+    background: toneVar(tone),
+    backgroundImage: striped ? stripes(toneFg(tone)) : undefined,
+    color: toneFg(tone),
+    borderColor: toneLine(tone),
+    borderStyle: dashed ? 'dashed' : 'solid',
+  };
   return (
     <span className="onb__sample">
       <span className="tile" style={style}>
@@ -116,8 +125,8 @@ function Sample({ bg, fg, border, dashed, badge, icon = 'bolt' }: { bg: string; 
 
 function ReadTheMap() {
   const rows: { sample: JSX.Element; title: string; text: string }[] = [
-    { sample: <Sample bg="var(--surface)" fg="var(--s-reported)" border="var(--s-reported)" dashed />, title: 'Neconfirmat', text: 'Raportat recent, așteaptă confirmări. Expiră singur dacă nu le primește.' },
-    { sample: <Sample bg="var(--s-closed)" fg="var(--surface)" border="var(--s-closed)" />, title: 'Rezolvat sau expirat', text: 'Problema s-a încheiat; dispare de pe hartă.' },
+    { sample: <Sample tone="full" striped dashed icon="droplet" />, title: 'Neconfirmat', text: 'Raportat recent, așteaptă confirmări. Expiră singur dacă nu le primește.' },
+    { sample: <Sample tone="closed" />, title: 'Rezolvat sau expirat', text: 'Problema s-a încheiat; dispare de pe hartă.' },
   ];
   return (
     <>
@@ -132,17 +141,17 @@ function ReadTheMap() {
           </li>
         ))}
         <li>
-          <span className="onb__circle" style={{ borderColor: 'var(--s-official)', background: 'var(--s-official-t)' }} />
+          <span className="onb__circle" style={{ borderColor: toneLine('full'), background: toneTint('full') }} />
           <span className="stack">
             <strong>{t('Cercul din jurul marcajului')}</strong>
-            <span className="muted small">{t('Zona afectată, în culoarea statusului: câte un cerc mic (25–55 m) pentru fiecare adresă din anunț.')}</span>
+            <span className="muted small">{t('Zona afectată: câte un cerc mic (25–55 m) pentru fiecare adresă. Linie continuă = anunț oficial, punctată = raportare a vecinilor.')}</span>
           </span>
         </li>
         <li>
-          <span className="onb__circle" style={{ borderColor: 'var(--s-confirmed)', background: 'var(--s-official)', borderWidth: 4 }} />
+          <span className="onb__circle" style={{ borderColor: toneVar('partial'), background: toneVar('full'), borderWidth: 4 }} />
           <span className="stack">
             <strong>{t('Cercul mare cu număr')}</strong>
-            <span className="muted small">{t('Mai multe evenimente apropiate. Inelul arată câte sunt oficiale, confirmate sau parțiale; apasă ca să le vezi separat.')}</span>
+            <span className="muted small">{t('Mai multe evenimente apropiate. Inelul arată câte sunt totale (roșu) și parțiale (galben); apasă ca să le vezi separat.')}</span>
           </span>
         </li>
       </ul>

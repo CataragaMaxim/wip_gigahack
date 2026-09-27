@@ -29,8 +29,10 @@ export function ProximityPrompt() {
       if (e.sourceType !== 'citizen' || (e.status !== 'raportat' && e.status !== 'confirmat')) continue;
       if (votes[e.id] || dismissed[e.id] || e.authorId === user.uid) continue;
       const d = distance(userPos, e.location);
-      // 50 m + eroarea GPS (plafonată), ca un vecin aflat chiar lângă raportare să fie întrebat și cu GPS imprecis.
-      if (d <= CONFIG.PROMPT_RADIUS_M + Math.min(userAccuracy, CONFIG.PROMPT_ACCURACY_MAX_M) && d < bd) {
+      // 50 m + eroarea GPS (plafonată), ca un vecin aflat chiar lângă raportare să fie întrebat și cu GPS imprecis,
+      // dar niciodată mai departe decât raza în care poate confirma (VOTE_RADIUS_M).
+      const reach = Math.min(CONFIG.VOTE_RADIUS_M, CONFIG.PROMPT_RADIUS_M + Math.min(userAccuracy, CONFIG.PROMPT_ACCURACY_MAX_M));
+      if (d <= reach && d < bd) {
         bd = d;
         best = e;
       }
