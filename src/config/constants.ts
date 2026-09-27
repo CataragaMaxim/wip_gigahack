@@ -23,12 +23,22 @@ export const CONFIG = {
   REPORT_EXPIRY_H: 6,
   /** O raportare confirmată, fără activitate, expiră după atâtea ore. */
   CONFIRMED_EXPIRY_H: 24,
+  /**
+   * Credibilitatea autorului unei raportări (calculată pe server, în funcția onVoteCreated):
+   * pornește de la CRED_START; fiecare „Da, și la mine” +CRED_YES, fiecare „Nu, la mine funcționează” −CRED_NO.
+   * Sub CRED_MIN, contul și dispozitivul nu mai pot raporta REPORT_BLOCK_DAYS zile; apoi scorul revine la CRED_START.
+   */
+  CRED_START: 50,
+  CRED_YES: 1,
+  CRED_NO: 0.5,
+  CRED_MIN: 40,
+  REPORT_BLOCK_DAYS: 7,
   /** Pe lângă „Acasă”, câte adrese suplimentare poate salva un utilizator. */
   MAX_EXTRA_ADDRESSES: 5,
   /** Limita de caractere a descrierii. */
   DESCRIPTION_MAX: 280,
-  /** O adresă salvată e „afectată” dacă e la cel mult atâția metri de eveniment. */
-  IMPACT_RADIUS_M: 250,
+  /** O adresă salvată e „afectată” (alertă, filtrul „Adresele mele”) doar dacă e la cel mult atâția metri de eveniment. */
+  IMPACT_RADIUS_M: 50,
   /** Zoomul hărții pe locația utilizatorului (la deschidere și la „Locația mea”). */
   LOCATE_ZOOM: 15,
   /** Opțiunile de rază din Setări (metri; 'all' = tot orașul). */

@@ -63,6 +63,14 @@ async def report_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         if not isinstance(uid, str) or not uid:
             await message.reply_text(TEXTS["report_login_required"])
             return ConversationHandler.END
+        # Credibilitate sub 40 → contul nu poate raporta 7 zile (functions/credibility.py).
+        profile = await asyncio.to_thread(lambda: get_db().collection("users").document(uid).get())
+        blocked_until = (profile.to_dict() or {}).get("reportBlockedUntil")
+        if blocked_until and blocked_until > datetime.now(CHISINAU_TZ):
+            await message.reply_text(
+                TEXTS["report_blocked"].format(date=blocked_until.astimezone(CHISINAU_TZ).strftime("%d.%m.%Y, %H:%M"))
+            )
+            return ConversationHandler.END
     except Exception:
         logger.exception("Could not check Telegram account link before report")
         await message.reply_text(TEXTS["report_create_failed"])

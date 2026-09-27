@@ -103,7 +103,7 @@ Toate sunt în `src/config/constants.ts`:
 | `REPORT_EXPIRY_H` | 6 | Expirarea raportărilor neconfirmate |
 | `CONFIRMED_EXPIRY_H` | 24 | Expirarea raportărilor confirmate fără activitate |
 | `DESCRIPTION_MAX` | 280 | Limita descrierii |
-| `IMPACT_RADIUS_M` | 250 | Distanța la care o adresă salvată e considerată afectată |
+| `IMPACT_RADIUS_M` | 50 | Distanța (până la adresa evenimentului) la care o adresă salvată e considerată afectată |
 
 ## Limitări cunoscute
 

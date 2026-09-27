@@ -4,6 +4,8 @@ import {
   serverTimestamp, increment, where, writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { deviceId } from './device';
+import { CONFIG } from '@/config/constants';
 import {
   profileFromFirestore, locationFromFirestore, locationToFirestore,
   historyFromFirestore, profileWritableFields,
@@ -54,6 +56,22 @@ export async function ensureUserProfile(uid: string, data: {
   const created = await getDoc(ref);
   return profileFromFirestore(uid, created.data()!);
 }
+
+/**
+ * Blocarea raportărilor după o credibilitate prea mică: data până la care contul sau acest dispozitiv nu poate raporta
+ * (null = poate raporta). Citește profilul actual și documentul `blockedDevices/{deviceId}`.
+ */
+export async function getReportBlock(uid: string): Promise<Date | null> {
+  const [user, device] = await Promise.all([getDoc(doc(db, USERS, uid)), getDoc(doc(db, 'blockedDevices', deviceId()))]);
+  const until = [user.data()?.reportBlockedUntil, device.data()?.until]
+    .map((v) => (v && typeof v.toDate === 'function' ? (v.toDate() as Date) : null))
+    .filter((d): d is Date => !!d && d.getTime() > Date.now());
+  return until.length ? new Date(Math.max(...until.map((d) => d.getTime()))) : null;
+}
+
+/** Scorul afișat: după ce blocarea a expirat, scorul revine la valoarea de pornire (serverul îl resetează la următorul vot). */
+export const effectiveCredibility = (p: Pick<UserProfile, 'credibilityScore' | 'reportBlockedUntil'>) =>
+  p.reportBlockedUntil && p.reportBlockedUntil.toMillis() <= Date.now() ? CONFIG.CRED_START : p.credibilityScore;
 
 export async function updateUserProfile(
   uid: string,

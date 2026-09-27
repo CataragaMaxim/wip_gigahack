@@ -28,6 +28,8 @@ export interface UserProfile {
   photoURL: string | null;
   userType: UserRole;
   credibilityScore: number;
+  /** Până când contul nu poate raporta (credibilitate sub CONFIG.CRED_MIN). Scris doar de server. */
+  reportBlockedUntil: Timestamp | null;
   banned: boolean;
   locale: 'ro' | 'ru' | 'en';
   notificationsEnabled: boolean;

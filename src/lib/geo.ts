@@ -40,6 +40,12 @@ export function distanceToEvent(p: LatLng, e: Pick<UrbanEvent, 'location' | 'pat
   return e.path ? Math.min(d, distanceToPath(p, e.path)) : d;
 }
 
+/** Distanța până la adresa evenimentului (punctul lui sau strada), fără zona din jur: pentru „adresa mea e afectată”. */
+export function distanceToEventPoint(p: LatLng, e: Pick<UrbanEvent, 'location' | 'path'>): number {
+  const d = distance(p, e.location);
+  return e.path ? Math.min(d, distanceToPath(p, e.path)) : d;
+}
+
 export const DEFAULT_AREA_M = 150;
 /** Raza zonei afectate: calculată de fluxurile oficiale, altfel o zonă implicită în jurul punctului. */
 export const areaRadius = (e: Pick<UrbanEvent, 'radiusM'>) => e.radiusM ?? DEFAULT_AREA_M;

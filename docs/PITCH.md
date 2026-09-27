@@ -71,7 +71,7 @@
 
 ## Slide 3 — Solution & live demo · 2:00
 
-**On screen:** the one-sentence pitch, the word **LIVE**, a QR code to the app, and *"Real data from 4 official providers · updated every hour"*.
+**On screen:** the one-sentence pitch, the word **LIVE**, a QR code to the app, and *"Real data from 4 official providers · updated every 1–2 hours"*.
 
 **Say the bridging line, then switch to the app:**
 > "Social media is fast but unverified. Official sources are verified but nobody sees them. We combine the two. This is running live right now, with real data."
@@ -130,7 +130,7 @@ Citizen reports ─────► real-time database ─────► live ma
 - **Providers:** a verified early signal of where an unannounced breakdown is and how big it is
 - **City Hall:** one public, verified picture of disruptions across the city
 
-**What we measure:** % of users who knew about a cut *before* it happened (today: 1 in 3 find out only once they're hit) · official data online in ≤ 1 h · time until a report is confirmed
+**What we measure:** % of users who knew about a cut *before* it happened (today: 1 in 3 find out only once they're hit) · official data online in ≤ 2 h (water and power within 1 h) · time until a report is confirmed
 
 **Next step, i.e. what happens on Monday:**
 1. Providers publish a simple structured feed (API) instead of us reading their websites. Our importers are ready.
@@ -286,11 +286,12 @@ The daily outage forecast in Telegram is still a concept.
 | When the app asks "Do you have this too?" | Signed-in users within **50 m** of a report (grows with GPS inaccuracy, max. +100 m) | Asks the right people at the right moment, with no searching |
 | Votes per person | **One per device**, no account needed | Confirming is effortless, and it's still hard to game |
 | Who can report | Signed-in users only (email / Google) | Accountability for new reports |
+| Credibility | Start **50** · each "Me too" **+1** · each "Mine works" **−0.5** | Below **40**: the account and the device can't report for **7 days**, then back to 50 |
 | Disputed | "No, mine works" > "Me too", **min. 3** | False alarms and pranks leave the map without a moderator |
 | Duplicate check | Similar reports within **300 m** shown before posting | One problem → one report with more confirmations |
 | Expiry, unconfirmed | **6 h** | Stale, unverified reports disappear |
 | Expiry, confirmed with no activity | **24 h** | The map shows the present, not old news |
-| Affected address | Saved address within **250 m** of an event | Personal "you're affected" signal |
+| Affected address | Saved address within **50 m** of the event's address | Personal "you're affected" signal |
 | Map horizon | In progress + next **48 h**; the rest is in the calendar | Map stays readable; planning happens in the calendar |
 
 All thresholds are in one file (`src/config/constants.ts`) and can be tuned with real usage data.

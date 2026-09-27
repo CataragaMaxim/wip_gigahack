@@ -5,20 +5,12 @@ import {
 } from 'firebase/firestore';
 import { geohashForLocation } from 'geofire-common';
 import { db, auth } from './firebase';
+import { deviceId } from './device';
 import { fromFirestore, toFirestore } from './converters';
 import type { EventsService } from './eventsService';
 
 const EVENTS = 'events';
 
-const deviceId = () => {
-  const KEY = 'wip.deviceId';
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-};
 
 export const firebaseEventsService: EventsService = {
   async list() {
@@ -38,6 +30,8 @@ export const firebaseEventsService: EventsService = {
     const ref = await addDoc(collection(db, EVENTS), {
       ...toFirestore(rest),
       geohash: geohashForLocation([event.location.lat, event.location.lng]),
+      // Dispozitivul autorului: o credibilitate prea mică blochează raportările și de pe el (colecția blockedDevices).
+      authorDeviceId: deviceId(),
     });
     return { ...event, id: ref.id };
   },

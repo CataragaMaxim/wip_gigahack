@@ -12,7 +12,7 @@ import { AddressInput } from '@/components/ui/AddressInput';
 import type { GeoResult } from '@/services/geocoding';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { roleLabel, type HistoryEntry } from '@/types/user';
-import { listUserHistory } from '@/services/userService';
+import { effectiveCredibility, getReportBlock, getUserProfile, listUserHistory } from '@/services/userService';
 import { LANGS, t } from '@/i18n';
 
 const THEMES: { key: Theme; label: string; icon: IconName }[] = [
@@ -40,6 +40,27 @@ export function SettingsPanel() {
         .filter((e) => e.authorId === user.uid)
         .sort((a, b) => (b.reportedAt ?? '').localeCompare(a.reportedAt ?? ''))
     : [];
+
+  // Credibilitatea se schimbă pe server (voturile altora): o citim din nou la fiecare deschidere a Setărilor.
+  const [cred, setCred] = useState<{ score: number; blockedUntil: Date | null } | null>(null);
+  useEffect(() => {
+    if (!user) {
+      setCred(null);
+      return;
+    }
+    let cancelled = false;
+    void Promise.all([getUserProfile(user.uid), getReportBlock(user.uid)])
+      .then(([p, until]) => {
+        if (!cancelled) setCred({ score: effectiveCredibility(p ?? user), blockedUntil: until });
+      })
+      .catch(() => {
+        if (!cancelled) setCred({ score: effectiveCredibility(user), blockedUntil: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const score = cred?.score ?? (user ? effectiveCredibility(user) : CONFIG.CRED_START);
 
   // Istoricul se încarcă la nevoie.
   useEffect(() => {
@@ -86,9 +107,20 @@ export function SettingsPanel() {
                 </span>
                 <span className="badge badge--outline">
                   <Icon name="check" size={12} />
-                  Credibilitate: {user.credibilityScore}/100
+                  {t('Credibilitate: {n}', { n: Number.isInteger(score) ? score : score.toFixed(1) })}
                 </span>
               </div>
+              <span className="muted xsmall">
+                {t('Fiecare „Da, și la mine” la raportările tale: +{yes}. Fiecare „Nu, la mine funcționează”: −{no}. Sub {min}, nu poți raporta {days} zile.', {
+                  yes: CONFIG.CRED_YES,
+                  no: CONFIG.CRED_NO,
+                  min: CONFIG.CRED_MIN,
+                  days: CONFIG.REPORT_BLOCK_DAYS,
+                })}
+              </span>
+              {cred?.blockedUntil && (
+                <span className="small strong">{t('Poți raporta din nou pe {date}.', { date: fmtAt(cred.blockedUntil) })}</span>
+              )}
             </div>
           </div>
 

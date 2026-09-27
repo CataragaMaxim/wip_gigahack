@@ -792,7 +792,7 @@ textarea::placeholder {
   font-size: 0; line-height: 1;
 }
 .cal__dot:not(:empty) { height: 14px; min-width: 14px; padding: 0 3px; font-size: 10px; font-weight: 700; color: var(--surface); display: flex; align-items: center; justify-content: center; }
-.cal__day.has-events .cal__dot:not(:empty) { background: var(--c-utilitati); color: var(--on-cat); }
+.cal__day.has-events .cal__dot:not(:empty) { background: var(--ink); color: var(--on-ink); }
 .cal__day.is-selected .cal__dot:not(:empty) { background: var(--on-ink); color: var(--ink); }
 .cal__agenda { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .cal__item {

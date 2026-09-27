@@ -12,12 +12,15 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn() && (uid() == userId || isManager());
-      allow create: if isSignedIn() && uid() == userId;
+      // Profilul nou pornește cu credibilitatea 50 și fără blocare (le schimbă doar funcția onVoteCreated).
+      allow create: if isSignedIn() && uid() == userId
+        && request.resource.data.get('credibilityScore', 50) == 50
+        && !('reportBlockedUntil' in request.resource.data);
       // Clientul poate schimba doar câmpuri "sigure" (nume, poză, locale, notificări).
       allow update: if isSignedIn() && (
         (uid() == userId &&
           !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['userType', 'credibilityScore', 'banned', 'stats', 'createdAt'])
+            .hasAny(['userType', 'credibilityScore', 'reportBlockedUntil', 'banned', 'stats', 'createdAt'])
         ) || isAdmin()
       );
       allow delete: if isSignedIn() && uid() == userId;
@@ -33,6 +36,12 @@ service cloud.firestore {
       }
     }
 
+    // Dispozitivele blocate temporar pentru raportări (scrise doar de funcția onVoteCreated).
+    match /blockedDevices/{deviceId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /events/{eventId} {
       // Un vot (oricine, ca votul din `votes`): doar confirmations/denials, cu cel mult +1 fiecare.
       function isVoteBump() {
@@ -44,8 +53,20 @@ service cloud.firestore {
           && d.denials >= o.denials && d.denials <= o.denials + 1;
       }
 
+      // Credibilitate sub 40 → contul și dispozitivul nu pot raporta 7 zile (vezi telegram-bot/functions/credibility.py).
+      function accountBlocked() {
+        let u = /databases/$(database)/documents/users/$(uid());
+        return exists(u) && get(u).data.get('reportBlockedUntil', null) != null
+          && get(u).data.reportBlockedUntil > request.time;
+      }
+      function deviceBlocked() {
+        let d = request.resource.data.get('authorDeviceId', null);
+        return d != null && exists(/databases/$(database)/documents/blockedDevices/$(d))
+          && get(/databases/$(database)/documents/blockedDevices/$(d)).data.until > request.time;
+      }
+
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && !accountBlocked() && !deviceBlocked();
       allow update: if (isSignedIn() && (resource.data.authorId == uid() || isManager())) || isVoteBump();
       allow delete: if isSignedIn() && resource.data.authorId == uid();
 
