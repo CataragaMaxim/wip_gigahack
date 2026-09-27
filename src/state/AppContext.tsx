@@ -380,16 +380,15 @@ function useAppStore() {
       .flatMap(splitAreas)
       .filter((e) => !deletedIds[e.id] && isKnownType(e.subtype))
       .map((e) => {
-        const v = votes[e.id];
-        const yes = v === 'yes' ? 1 : 0;
-        const no = v === 'no' ? 1 : 0;
-        const status = deriveStatus(e, yes, no);
+        // The local vote marks the user's choice; Firestore owns the shared totals.
+        // Don't add the optimistic local choice on top of the updated server count.
+        const status = deriveStatus(e);
         const active = !isClosed(status) && status !== 'contestat';
         return {
           ...e,
           status,
-          conf: e.confirmations + yes,
-          den: e.denials + no,
+          conf: e.confirmations,
+          den: e.denials,
           distanceM: userPos ? distanceToEvent(userPos, e) : null,
           nearM: anchors.length ? Math.min(...anchors.map((p) => distanceToEvent(p, e))) : null,
           affects:
@@ -551,24 +550,34 @@ function useAppStore() {
     async (id: string, v: Vote) => {
       if (votes[id]) return;
       const ev = byId[id];
-      if (!ev) return;
+      if (!ev || !userPos || ev.sourceType !== 'citizen' || isClosed(ev.status) || ev.authorId === user?.uid) return;
+      if (ev.distanceM == null || ev.distanceM > CONFIG.VOTE_RADIUS_M) return;
       setVotes((s) => ({ ...s, [id]: v }));
-      await eventsService.vote(id, v);
+      try {
+        await eventsService.vote(id, v, userPos);
+      } catch (cause) {
+        setVotes((s) => {
+          if (s[id] !== v) return s;
+          const next = { ...s };
+          delete next[id];
+          return next;
+        });
+        const message = cause instanceof Error ? cause.message : t('Votul nu a putut fi salvat. Încearcă din nou.');
+        flash(message);
+        return;
+      }
 
       if (user) {
-        await Promise.all([
-          bumpUserStats(user.uid, { [v === 'yes' ? 'confirmations' : 'denials']: 1 }),
-          recordHistory(user.uid, {
-            eventId: id,
-            kind: v === 'yes' ? 'confirmed' : 'denied',
-            title: ev.title,
-            category: ev.category,
-          }),
-        ]);
+        void recordHistory(user.uid, {
+          eventId: id,
+          kind: v === 'yes' ? 'confirmed' : 'denied',
+          title: ev.title,
+          category: ev.category,
+        }).catch((error) => console.error('Vote was recorded, but account history could not be updated.', error));
       }
       flash(t('Mulțumim! Răspunsul tău a fost înregistrat.'));
     },
-    [votes, byId, user, flash],
+    [votes, byId, user, userPos, flash],
   );
 
   const openAuth = useCallback((m: AuthMode, after: AuthAfter = null) => {

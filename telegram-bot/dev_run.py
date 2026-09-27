@@ -1,7 +1,7 @@
 """Run the bot locally using long polling."""
 
-from bot.app import app
+from bot.app import build_app
 
 
 if __name__ == "__main__":
-    app.run_polling()
+    build_app().run_polling()

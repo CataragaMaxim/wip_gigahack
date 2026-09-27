@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 from pathlib import Path
 
@@ -26,6 +27,17 @@ def get_db() -> Client:
         if _db is not None:
             return _db
 
+        in_managed_runtime = bool(
+            os.getenv("K_SERVICE")
+            or os.getenv("FUNCTION_TARGET")
+            or os.getenv("FUNCTIONS_EMULATOR")
+        )
+        if not FIREBASE_PROJECT_ID and not in_managed_runtime:
+            raise RuntimeError(
+                "Set APP_FIREBASE_PROJECT_ID to a development Firebase project "
+                "or emulator project before using Firestore locally."
+            )
+
         try:
             app = firebase_admin.get_app()
         except ValueError:
@@ -45,7 +57,7 @@ def _load_credential():
 
     account_file = Path(value).expanduser()
     if not account_file.is_file():
-        raise FileNotFoundError("FIREBASE_SERVICE_ACCOUNT must name an existing JSON file")
+        raise FileNotFoundError("APP_FIREBASE_SERVICE_ACCOUNT must name an existing JSON file")
     return credentials.Certificate(str(account_file))
 
 

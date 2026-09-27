@@ -110,6 +110,9 @@ export interface AuthSnapshot {
 export function watchAuth(cb: (snap: AuthSnapshot) => void): () => void {
   return onAuthStateChanged(auth, async (fb: FirebaseUser | null) => {
     if (!fb) return cb({ profile: null, locations: [] });
+    // Anonymous Firebase Auth provides a stable, rules-verifiable vote identity
+    // without making a guest appear signed in or creating a profile document.
+    if (fb.isAnonymous) return cb({ profile: null, locations: [] });
 
     // ensureUserProfile este idempotent: dacă există deja, îl întoarce.
     const profile = await ensureUserProfile(fb.uid, {

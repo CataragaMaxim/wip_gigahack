@@ -1,12 +1,14 @@
 import {
   collection, doc, getDocs, addDoc, deleteDoc,
-  setDoc, getDoc, updateDoc, increment,
-  query, orderBy, limit, serverTimestamp, onSnapshot,
+  query, orderBy, limit, onSnapshot,
 } from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { geohashForLocation } from 'geofire-common';
-import { db, auth } from './firebase';
+import { auth, db } from './firebase';
 import { fromFirestore, toFirestore } from './converters';
 import type { EventsService } from './eventsService';
+import type { LatLng } from '@/types';
 
 const EVENTS = 'events';
 
@@ -46,13 +48,14 @@ export const firebaseEventsService: EventsService = {
     await deleteDoc(doc(db, EVENTS, id));
   },
 
-  async vote(eventId, vote) {
-    const did = deviceId();
-    const voteRef = doc(db, EVENTS, eventId, 'votes', did);
-    if ((await getDoc(voteRef)).exists()) return;
-    await setDoc(voteRef, { vote, uid: auth.currentUser?.uid ?? null, at: serverTimestamp() });
-    await updateDoc(doc(db, EVENTS, eventId), {
-      [vote === 'yes' ? 'confirmations' : 'denials']: increment(1),
-    });
+  async vote(eventId, vote, location: LatLng) {
+    if (vote !== 'yes' && vote !== 'no') throw new Error('Invalid vote choice.');
+    if (!auth.currentUser) await signInAnonymously(auth);
+    const functions = getFunctions(undefined, 'europe-west1');
+    const castVote = httpsCallable<
+      { eventId: string; vote: 'yes' | 'no'; latitude: number; longitude: number; legacyDeviceId: string },
+      { confirmations: number; denials: number; status: string }
+    >(functions, 'castWebVote');
+    await castVote({ eventId, vote, latitude: location.lat, longitude: location.lng, legacyDeviceId: deviceId() });
   },
 };

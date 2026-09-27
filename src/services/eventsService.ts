@@ -1,6 +1,6 @@
 import { firebaseEventsService } from './firebaseEventsService';
 import { createMockEvents } from '@/data/mockEvents';
-import type { UrbanEvent } from '@/types';
+import type { LatLng, UrbanEvent } from '@/types';
 
 /**
  * Stratul de date. Componentele depind doar de această interfață,
@@ -16,7 +16,7 @@ export interface EventsService {
   subscribe(onData: (events: UrbanEvent[]) => void, onError: (e: unknown) => void): () => void;
   create(event: UrbanEvent): Promise<UrbanEvent>;
   remove(id: string): Promise<void>;
-  vote(id: string, vote: 'yes' | 'no'): Promise<void>;
+  vote(id: string, vote: 'yes' | 'no', location: LatLng): Promise<void>;
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));

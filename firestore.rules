@@ -34,25 +34,23 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      // Un vot (oricine, ca votul din `votes`): doar confirmations/denials, cu cel mult +1 fiecare.
-      function isVoteBump() {
-        let d = request.resource.data;
-        let o = resource.data;
-        return d.diff(o).affectedKeys().hasOnly(['confirmations', 'denials'])
-          && d.confirmations is int && d.denials is int
-          && d.confirmations >= o.confirmations && d.confirmations <= o.confirmations + 1
-          && d.denials >= o.denials && d.denials <= o.denials + 1;
-      }
-
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if (isSignedIn() && (resource.data.authorId == uid() || isManager())) || isVoteBump();
+      // Reports start with zero votes. Admin SDK writes (scrapers and bot) bypass rules.
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == uid()
+        && request.resource.data.sourceType == 'citizen'
+        && request.resource.data.confirmations == 0
+        && request.resource.data.denials == 0;
+      allow update: if isSignedIn()
+        && (resource.data.authorId == uid() || isManager())
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['confirmations', 'denials']);
       allow delete: if isSignedIn() && resource.data.authorId == uid();
 
-      match /votes/{deviceId} {
-        allow read: if true;
-        allow create: if true;
-        allow update, delete: if false;
+      match /votes/{voterId} {
+        allow read: if isSignedIn() && (uid() == voterId || isManager());
+        // Web votes go through the callable; Telegram uses the Admin SDK.
+        allow create, update, delete: if false;
       }
     }
   }

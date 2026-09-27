@@ -26,8 +26,13 @@ from bot.keyboards import (
     report_timing_keyboard,
 )
 from bot.states import REPORT_DATE, REPORT_LOCATION, REPORT_SUBTYPE, REPORT_TIMING
-from bot.texts import TEXTS
-from services.events_service import ALLOWED_SUBTYPES, create_event
+from bot.texts import TEXTS, text_pattern
+from bot.handlers.auth import login, logout
+from bot.handlers.locations import locations_start
+from bot.handlers.settings import settings_start
+from bot.handlers.language import language_start
+from bot.handlers.vote import vote_start
+from services.events_service import ALLOWED_SUBTYPES, DuplicateEventError, create_event
 from services.firestore_client import get_db
 
 logger = logging.getLogger(__name__)
@@ -54,6 +59,13 @@ async def report_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
 
     message, chat = private
+    for key in (
+        "telegram_location_pending",
+        "telegram_vote_location_pending",
+        "telegram_vote_session",
+        "telegram_min_trust_score_pending",
+    ):
+        context.user_data.pop(key, None)
     try:
         user_snapshot = await asyncio.to_thread(
             lambda: get_db().collection("telegramUsers").document(str(chat.id)).get()
@@ -192,6 +204,17 @@ async def receive_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             longitude=message.location.longitude,
             start_at=report.get("start_at"),
         )
+    except DuplicateEventError as error:
+        duplicate = error.duplicate
+        await message.reply_text(
+            TEXTS["report_duplicate"].format(
+                title=duplicate.title,
+                distance=round(duplicate.distance_m),
+            ),
+            reply_markup=remove_reply_keyboard(),
+        )
+        context.user_data.pop(REPORT_CONTEXT_KEY, None)
+        return ConversationHandler.END
     except Exception:
         logger.exception("Could not create citizen event from Telegram report")
         await message.reply_text(TEXTS["report_create_failed"], reply_markup=remove_reply_keyboard())
@@ -229,24 +252,80 @@ async def cancel_report_callback(update: Update, context: ContextTypes.DEFAULT_T
     return ConversationHandler.END
 
 
-def build_report_handler() -> ConversationHandler:
+async def _handoff(update: Update, context: ContextTypes.DEFAULT_TYPE, handler) -> int:
+    """End an in-progress report before handing the update to another bot flow."""
+    context.user_data.pop(REPORT_CONTEXT_KEY, None)
+    for key in (
+        "telegram_location_pending",
+        "telegram_vote_location_pending",
+        "telegram_vote_session",
+        "telegram_min_trust_score_pending",
+    ):
+        context.user_data.pop(key, None)
+    await handler(update, context)
+    return ConversationHandler.END
+
+
+async def switch_to_vote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await _handoff(update, context, vote_start)
+
+
+async def switch_to_locations(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await _handoff(update, context, locations_start)
+
+
+async def switch_to_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await _handoff(update, context, settings_start)
+
+
+async def switch_to_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await _handoff(update, context, login)
+
+
+async def switch_to_logout(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await _handoff(update, context, logout)
+
+
+async def switch_to_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await _handoff(update, context, language_start)
+
+
+def build_report_handler(*, persistent: bool = False) -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[CommandHandler("raporteaza", report_start)],
+        entry_points=[
+            CommandHandler("raporteaza", report_start),
+            MessageHandler(filters.Regex(text_pattern("menu_report")), report_start),
+        ],
         states={
             REPORT_SUBTYPE: [CallbackQueryHandler(choose_subtype, pattern=r"^report:subtype:")],
             REPORT_TIMING: [CallbackQueryHandler(choose_timing, pattern=r"^report:timing:")],
             REPORT_DATE: [CallbackQueryHandler(calendar_action, pattern=r"^report:(?:month|date|noop)$|^report:(?:month|date):")],
             REPORT_LOCATION: [
                 MessageHandler(filters.LOCATION, receive_location),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, invalid_report_message),
+                MessageHandler(
+                    filters.TEXT
+                    & ~filters.COMMAND
+                    & ~filters.Regex(text_pattern("menu_cancel", "menu_vote", "menu_locations", "menu_settings", "menu_report", "menu_language")),
+                    invalid_report_message,
+                ),
             ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel_report),
-            MessageHandler(filters.Regex(r"^❌ Anulează$"), cancel_report),
+            CommandHandler("vote", switch_to_vote),
+            CommandHandler("locatii", switch_to_locations),
+            CommandHandler("setari", switch_to_settings),
+            CommandHandler("login", switch_to_login),
+            CommandHandler("logout", switch_to_logout),
+            CommandHandler(["language", "limba"], switch_to_language),
+            MessageHandler(filters.Regex(text_pattern("menu_vote")), switch_to_vote),
+            MessageHandler(filters.Regex(text_pattern("menu_locations")), switch_to_locations),
+            MessageHandler(filters.Regex(text_pattern("menu_settings")), switch_to_settings),
+            MessageHandler(filters.Regex(text_pattern("menu_language")), switch_to_language),
+            MessageHandler(filters.Regex(text_pattern("menu_cancel")), cancel_report),
             CallbackQueryHandler(cancel_report_callback, pattern=r"^report:cancel$"),
         ],
         name="citizen_event_report",
-        persistent=False,
+        persistent=persistent,
         allow_reentry=True,
     )

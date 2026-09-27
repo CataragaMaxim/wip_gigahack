@@ -170,7 +170,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
         </>
       )}
 
-      {!closed && !isMine && (
+      {!official && !closed && !isMine && (
         <section className="vote">
           <h3 className="h3">{t('Ai și tu această problemă?')}</h3>
           {(myVote || !voteBlocked) && (

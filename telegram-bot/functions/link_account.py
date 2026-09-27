@@ -9,21 +9,21 @@ from urllib.request import Request, urlopen
 
 from firebase_admin import auth
 from firebase_functions import https_fn, options
-from firebase_functions.params import SecretParam
 
-from bot.texts import TEXTS
+from bot.texts import localized_text
 from config import FIREBASE_AUTH_ORIGIN
 from services.auth_service import AuthLinkError, consume_auth_link
 from services.firestore_client import get_db
+from functions.secrets import BOT_TOKEN_SECRET
 
 logger = logging.getLogger(__name__)
-BOT_TOKEN_SECRET = SecretParam("BOT_TOKEN")
-
 _cors_origins = [FIREBASE_AUTH_ORIGIN] if FIREBASE_AUTH_ORIGIN else []
 
 
 def _send_confirmation(chat_id: int) -> None:
-    payload = {"chat_id": chat_id, "text": TEXTS["link_success"]}
+    preference = get_db().collection("telegramBotPreferences").document(str(chat_id)).get().to_dict() or {}
+    language = preference.get("language") if preference.get("language") in {"ro", "en", "ru"} else "ro"
+    payload = {"chat_id": chat_id, "text": localized_text(language, "link_success")}
     request = Request(
         f"https://api.telegram.org/bot{BOT_TOKEN_SECRET.value}/sendMessage",
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -38,7 +38,7 @@ def _send_confirmation(chat_id: int) -> None:
 
 @https_fn.on_request(
     region="europe-west1",
-    cors=options.CorsOptions(cors_origins=_cors_origins, cors_methods=["post"]),
+    cors=options.CorsOptions(cors_origins=_cors_origins, cors_methods=["POST"]),
     secrets=[BOT_TOKEN_SECRET],
 )
 def linkTelegramAccount(req: https_fn.Request) -> https_fn.Response:

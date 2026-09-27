@@ -1,5 +1,5 @@
-python-telegram-bot>=21,<23
-firebase-admin>=6,<8
-pygeohash>=1.2,<2
-firebase-functions>=0.4,<1
-tzdata>=2024.1
+python-telegram-bot==22.8
+firebase-admin==7.7.0
+pygeohash==1.2.0
+firebase-functions==0.6.0
+tzdata==2026.4

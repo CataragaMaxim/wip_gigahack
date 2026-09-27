@@ -9,7 +9,7 @@ UI-ul folosește doar interfața `EventsService` din `eventsService.ts`. Acum ru
 3. Creează `firebaseEventsService.ts` care implementează `EventsService`:
    - `list()` → citește colecția `events` (filtrare după status/timp pe server sau cu reguli).
    - `create()` → `addDoc(collection(db, 'events'), …)`; `location` ca `GeoPoint`, `path` ca listă de `GeoPoint`.
-   - `vote()` → document `events/{id}/votes/{deviceId}` (un vot pe dispozitiv) + contor actualizat de o Cloud Function.
+   - `vote()` → apelează Cloud Function `castWebVote`; UID-ul Firebase (dacă există) sau ID-ul stabil al browserului devine cheia pentru `events/{id}/votes/{voterId}`. Callable-ul validează eligibilitatea și actualizează votul, contoarele și statisticile în tranzacția Admin SDK; regulile Firestore blochează scrierile directe ale clienților la voturi și contoare.
    - `remove()` → permis doar autorului (Firestore Security Rules: `request.auth.uid == resource.data.authorId`).
 4. În `eventsService.ts` înlocuiește `export const eventsService = mockEventsService` cu implementarea Firebase.
 
