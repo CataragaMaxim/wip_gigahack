@@ -1,8 +1,8 @@
 import { CONFIG } from '@/config/constants';
-import { typeTint, typeVar } from '@/config/categories';
+import { typeVar } from '@/config/categories';
 import { fmtAgo, fmtAt, initialsInScript, plural } from '@/lib/format';
 import { Icon } from '@/lib/icons';
-import { categoryLine, countdown, districtName, eventTitle, isClosed, streetLine } from '@/lib/status';
+import { categoryLine, countdown, districtName, eventColor, eventTint, eventTitle, isClosed, streetLine } from '@/lib/status';
 import { useApp } from '@/state/AppContext';
 import type { DerivedEvent } from '@/types';
 import { EventTile, SeverityBadge, SourceBadge, StatusBadge } from './EventBits';
@@ -25,7 +25,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
     if (!online) voteBlocked = t('Confirmarea necesită conexiune la internet.');
     else if (!userPos) voteBlocked = t('Poți confirma doar dacă ești în apropiere. Activează locația pentru a vota.');
     else if (!near)
-      voteBlocked = t('Poți confirma doar dacă ești în apropiere (până la {km} km).', { km: CONFIG.VOTE_RADIUS_M / 1000 });
+      voteBlocked = t('Poți confirma doar dacă ești în apropiere (până la {m} m).', { m: CONFIG.VOTE_RADIUS_M });
   }
 
   const hash = [...e.id].reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -62,8 +62,8 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
       )}
 
       {cd && (
-        <div className="countdown" style={{ background: typeTint(e.subtype) }}>
-          <span style={{ color: typeVar(e.subtype) }}>
+        <div className="countdown" style={{ background: eventTint(e) }}>
+          <span style={{ color: eventColor(e) }}>
             <Icon name="clock" size={22} />
           </span>
           <span className="stack">
@@ -125,7 +125,7 @@ export function EventDetail({ e, showActions = true }: { e: DerivedEvent; showAc
             <ul className="streets">
               {e.streets.map((s) => (
                 <li key={s}>
-                  <span className="streets__dot" style={{ background: typeVar(e.subtype) }} />
+                  <span className="streets__dot" style={{ background: eventColor(e) }} />
                   {streetLine(s)}
                 </li>
               ))}

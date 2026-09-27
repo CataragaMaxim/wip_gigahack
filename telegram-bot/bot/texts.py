@@ -29,6 +29,10 @@ RO_TEXTS = {
     "logout_failed": "Nu am putut deconecta contul acum. Încearcă din nou mai târziu.",
     "link_success": "✅ Contul tău a fost conectat cu succes.",
     "report_login_required": "Pentru a trimite o raportare, conectează mai întâi contul cu /login.",
+    "report_blocked": (
+        "Nu poți raporta până pe {date}: raportările tale au primit prea multe răspunsuri "
+        "„Nu, la mine funcționează”."
+    ),
     "report_choose_subtype": "Ce problemă vrei să raportezi?",
     "report_choose_timing": "Problema este activă acum sau urmează să înceapă?",
     "report_live": "🔴 Se întâmplă acum",

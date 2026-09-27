@@ -32,9 +32,9 @@ export function EventListHeader() {
   );
 }
 
-/** Filtrele pe tip (electricitate, apă, gaz), în capul listei. */
+/** Filtrele pe tip (electricitate, apă, gaz) și „Adresele mele” (doar ce atinge o adresă salvată), în capul listei. */
 export function TypeFilter() {
-  const { types, toggleType } = useApp();
+  const { types, toggleType, mineOnly, toggleMineOnly, user, locations } = useApp();
   return (
     <div className="chips type-filter" role="group" aria-label={t('Filtrează după tip')}>
       {TYPES.map((k) => {
@@ -53,6 +53,19 @@ export function TypeFilter() {
           </button>
         );
       })}
+      {user && locations.length > 0 && (
+        <button
+          type="button"
+          className={`chip ${mineOnly ? 'is-on' : ''}`}
+          style={{ ['--cat' as string]: 'var(--ink)', ['--cat-t' as string]: 'var(--sunk)' }}
+          aria-pressed={mineOnly}
+          onClick={toggleMineOnly}
+          title={t('Doar ce atinge direct adresele tale salvate')}
+        >
+          <Icon name="home" size={17} />
+          {t('Adresele mele')}
+        </button>
+      )}
     </div>
   );
 }

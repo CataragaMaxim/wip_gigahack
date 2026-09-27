@@ -194,6 +194,8 @@ textarea::placeholder {
   justify-content: center;
   width: 34px;
   height: 34px;
+  flex-shrink: 0;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--ink);
   color: var(--on-ink);
@@ -204,6 +206,7 @@ textarea::placeholder {
 }
 .avatar-btn.is-active .avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
 .avatar--lg { width: 52px; height: 52px; font-size: 19px; }
+.avatar > img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .avatar--sm { width: 34px; height: 34px; font-size: 12px; border: 2px solid var(--surface); }
 .avatar--tone1 { background: var(--text-2); color: var(--surface); }
 .avatar--tone2 { background: var(--border-strong); color: var(--text); }
@@ -296,6 +299,10 @@ textarea::placeholder {
 .wip-marker:hover .wip-marker__dot { transform: scale(1.08); }
 .wip-marker.is-selected .wip-marker__dot { width: 42px; height: 42px; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink), 0 6px 16px rgba(0, 0, 0, 0.25); }
 .wip-marker.is-faded .wip-marker__dot { opacity: 0.5; }
+/* Raportările vecinilor: dungi oblice în culoarea iconiței (albe pe roșu, închise pe galben). */
+.wip-marker.is-striped .wip-marker__dot {
+  background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--m-fg) 34%, transparent) 0 3px, transparent 3px 7px);
+}
 .wip-marker__badge {
   position: absolute;
   right: -2px;
@@ -454,6 +461,9 @@ textarea::placeholder {
 .badge--muted { color: var(--text-2) !important; }
 .sev-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
 .sev-dot.is-full { background: currentColor; }
+/* Gravitatea are culoarea ei: totală = roșu, parțial = galben. */
+.badge.badge--full, .badge--lg.badge--full { color: var(--s-full-line); border-color: var(--s-full-line); background: var(--s-full-t); }
+.badge.badge--partial, .badge--lg.badge--partial { color: var(--s-partial-line); border-color: var(--s-partial-line); background: var(--s-partial-t); }
 
 .skeleton-row { display: flex; gap: 12px; padding: 12px; }
 .skel { display: block; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--sunk) 0%, var(--border) 50%, var(--sunk) 100%); background-size: 200% 100%; animation: wip-shimmer 1.4s ease-in-out infinite; }
@@ -498,6 +508,7 @@ textarea::placeholder {
 /* ---------- setări ---------- */
 .settings { display: flex; flex-direction: column; gap: 24px; }
 .profile { display: flex; align-items: center; gap: 14px; }
+.profile > .stack { min-width: 0; }
 .profile__name { font-size: 17px; }
 .address-row { display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 14px; min-height: 52px; border-radius: var(--radius-m); background: var(--sunk); }
 .card { padding: 14px; border-radius: 14px; }
@@ -510,6 +521,7 @@ textarea::placeholder {
 .seg__btn[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
 .report-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius-m); border: 1px solid var(--border); background: transparent; text-align: left; transition: background-color 0.2s ease; }
 .report-row:hover { background: var(--hover); }
+.report-row--static, .report-row--static:hover { background: transparent; cursor: default; }
 
 /* ---------- formulare ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; }
@@ -784,7 +796,7 @@ textarea::placeholder {
   font-size: 0; line-height: 1;
 }
 .cal__dot:not(:empty) { height: 14px; min-width: 14px; padding: 0 3px; font-size: 10px; font-weight: 700; color: var(--surface); display: flex; align-items: center; justify-content: center; }
-.cal__day.has-events .cal__dot:not(:empty) { background: var(--c-utilitati); color: var(--on-cat); }
+.cal__day.has-events .cal__dot:not(:empty) { background: var(--ink); color: var(--on-ink); }
 .cal__day.is-selected .cal__dot:not(:empty) { background: var(--on-ink); color: var(--ink); }
 .cal__agenda { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .cal__item {
@@ -893,7 +905,7 @@ textarea::placeholder {
 .wip-cluster__dot {
   position: relative; width: calc(100% - 10px); height: calc(100% - 10px); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--cl-bg); color: var(--on-cat); border: 2px solid var(--surface);
+  background: var(--cl-bg); color: var(--cl-fg, var(--on-cat)); border: 2px solid var(--surface);
   transition: transform 0.15s ease;
 }
 .wip-cluster:hover .wip-cluster__dot { transform: scale(1.06); }

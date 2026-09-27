@@ -4,11 +4,11 @@ import { flushSync } from 'react-dom';
 import { CONFIG, DEMO_USER_LOCATION, USE_DEMO_LOCATION, type RadiusOption } from '@/config/constants';
 import { ALL_TYPES_ON, SUBTYPE_TITLE_RO, isKnownType } from '@/config/categories';
 import { ALL_CATEGORIES_ON } from '@/data/mockUser';
-import { distance, distanceToEvent } from '@/lib/geo';
+import { distance, distanceToEvent, distanceToEventPoint } from '@/lib/geo';
 import { activeOnDay, countOutages, deriveStatus, isClosed, isOnMapNow, isPublic } from '@/lib/status';
 import { fromKey } from '@/lib/days';
 import { load, resetIfStale, save } from '@/lib/storage';
-import { normalize } from '@/lib/format';
+import { fmtAt, normalize } from '@/lib/format';
 import { eventsService } from '@/services/eventsService';
 import { matchStreet, type StreetMatch } from '@/services/streetMatch';
 import type { GeoResult } from '@/services/geocoding';
@@ -30,6 +30,7 @@ import {
   deleteUserProfile,
   bumpUserStats,
   recordHistory,
+  getReportBlock,
 } from '@/services/userService';
 import type { UserProfile, SavedLocationDoc } from '@/types/user';
 import type {
@@ -294,6 +295,8 @@ function useAppStore() {
   /** Filtrele de pe hartă: câte unul pe tip (apă, gaz, electricitate). */
   const [types, setTypes] = useState<Record<SubtypeKey, boolean>>({ ...ALL_TYPES_ON });
   const [fadingTypes, setFadingTypes] = useState<Partial<Record<SubtypeKey, true>>>({});
+  /** Doar evenimentele care ating direct o adresă salvată (Acasă, Serviciu…), la cel mult IMPACT_RADIUS_M. */
+  const [mineOnly, setMineOnly] = useState(false);
   const fadeTimers = useRef<Partial<Record<SubtypeKey, number>>>({});
   const [search, setSearch] = useState('');
   /** Lista arată doar aceste evenimente (grupul de pe hartă cu mai multe evenimente în același loc). */
@@ -394,7 +397,7 @@ function useAppStore() {
           affects:
             user && active
               ? locations
-                  .filter((l) => l.prefs[e.category] && distanceToEvent(l.location, e) <= CONFIG.IMPACT_RADIUS_M)
+                  .filter((l) => l.prefs[e.category] && distanceToEventPoint(l.location, e) <= CONFIG.IMPACT_RADIUS_M)
                   .map((l) => l.name)
               : [],
         };
@@ -426,6 +429,7 @@ function useAppStore() {
     return events
       .filter((e) => {
         if (!types[e.subtype] && !fadingTypes[e.subtype]) return false;
+        if (mineOnly && e.affects.length === 0) return false;
         if (previewDay) {
           // Ziua aleasă din calendar: tot ce e programat sau raportat atunci (fără ce a fost rezolvat sau contestat).
           if (e.status === 'rezolvat' || e.status === 'contestat' || !activeOnDay(e, fromKey(previewDay))) return false;
@@ -450,7 +454,7 @@ function useAppStore() {
         const t = (e: UrbanEvent) => new Date(e.updatedAt ?? e.reportedAt ?? e.startAt ?? 0).getTime();
         return t(b) - t(a);
       });
-  }, [events, types, fadingTypes, user, radius, search, focusIds, now, previewDay]);
+  }, [events, types, fadingTypes, mineOnly, user, radius, search, focusIds, now, previewDay]);
 
   // ---------- acțiuni ----------
   const toggleType = useCallback((k: SubtypeKey) => {
@@ -477,8 +481,15 @@ function useAppStore() {
     });
   }, []);
 
+  const toggleMineOnly = useCallback(() => setMineOnly((v) => !v), []);
+  // Fără cont sau fără adrese salvate filtrul n-are sens (lista ar rămâne goală): îl oprim.
+  useEffect(() => {
+    if (!user || locations.length === 0) setMineOnly(false);
+  }, [user, locations.length]);
+
   const resetFilters = useCallback(() => {
     setTypes({ ...ALL_TYPES_ON });
+    setMineOnly(false);
     setRadius('all');
     setSearch('');
   }, []);
@@ -550,8 +561,10 @@ function useAppStore() {
     async (id: string, v: Vote) => {
       if (votes[id]) return;
       const ev = byId[id];
-      if (!ev || !userPos || ev.sourceType !== 'citizen' || isClosed(ev.status) || ev.authorId === user?.uid) return;
+      if (!ev) return;
+      if (!userPos || ev.sourceType !== 'citizen' || isClosed(ev.status) || ev.authorId === user?.uid) return;
       if (ev.distanceM == null || ev.distanceM > CONFIG.VOTE_RADIUS_M) return;
+
       setVotes((s) => ({ ...s, [id]: v }));
       try {
         await eventsService.vote(id, v, userPos);
@@ -774,7 +787,19 @@ function useAppStore() {
   );
 
   // ---------- raportare ----------
-  const openReport = useCallback(() => {
+  /** Mesajul pentru cine nu mai poate raporta (credibilitate sub CONFIG.CRED_MIN), sau null. */
+  const reportBlockedMsg = useCallback(async (uid: string): Promise<string | null> => {
+    try {
+      const until = await getReportBlock(uid);
+      return until
+        ? t('Nu poți raporta până pe {date}: raportările tale au primit prea multe răspunsuri „Nu, la mine funcționează”.', { date: fmtAt(until) })
+        : null;
+    } catch {
+      return null; // regulile bazei de date resping oricum o raportare de pe un cont sau dispozitiv blocat
+    }
+  }, []);
+
+  const openReport = useCallback(async () => {
     if (!online) {
       flash(t('Raportarea necesită conexiune la internet'));
       return;
@@ -783,10 +808,15 @@ function useAppStore() {
       openAuth('signup', 'report');
       return;
     }
+    const blocked = await reportBlockedMsg(user.uid);
+    if (blocked) {
+      flash(blocked);
+      return;
+    }
     setReport(emptyReport());
     setSheetSnap('mini');
     setModal('report');
-  }, [online, user, openAuth, flash]);
+  }, [online, user, openAuth, flash, reportBlockedMsg]);
 
   const closeReport = useCallback(() => {
     setModal(null);
@@ -846,6 +876,12 @@ function useAppStore() {
 
   const submitReport = useCallback(async () => {
     if (!report.pin || !report.category || !report.subtype || !user) return;
+    const blocked = await reportBlockedMsg(user.uid);
+    if (blocked) {
+      flash(blocked);
+      setModal(null);
+      return;
+    }
     const st = report.street;
     const e: UrbanEvent = {
       id: `u-${Date.now()}`,
@@ -879,7 +915,7 @@ function useAppStore() {
     ]);
 
     patchReport({ step: 'done', resultId: saved.id });
-  }, [report, user, patchReport]);
+  }, [report, user, patchReport, reportBlockedMsg, flash]);
 
   const viewReportResult = useCallback(() => {
     const id = report.resultId;
@@ -914,7 +950,7 @@ function useAppStore() {
     events, visible, byId, selected, loadState, syncedAt, fetchEvents, votes, vote, online,
     userPos, userAccuracy, anchors, gps, locateMe, gpsNotice, setGpsNotice, manualPlace, setManualLocation, openLocationPicker,
     // filtre & căutare
-    types, fadingTypes, toggleType, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
+    types, fadingTypes, toggleType, mineOnly, toggleMineOnly, resetFilters, search, setSearch, focusIds, setFocusIds, previewDay, setPreviewDay,
     // panou
     mode, openEvent, backToList, closeDetail, detailFrom, openCalendar, openSettings, panelOpen, setPanelOpen, sheetSnap, setSheetSnap, cycleSheet, sheetPx, cityActiveCount, laterCount,
     following, toggleFollow, deleteAsk, setDeleteAsk, deleteEvent,

@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Circle, MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-import { RESOLVED_HEX, SUBTYPES, TYPE_HEX } from '@/config/categories';
+import { STATUS_FILL, STATUS_LINE, SUBTYPES } from '@/config/categories';
 import { CONFIG, MAP } from '@/config/constants';
 import { useApp } from '@/state/AppContext';
-import { eventTitle, isClosed, statusBadge } from '@/lib/status';
+import { eventTitle, statusBadge, tone } from '@/lib/status';
 import { areaRadius } from '@/lib/geo';
 import { reverseGeocode } from '@/services/geocoding';
 import type { DerivedEvent } from '@/types';
@@ -161,10 +161,14 @@ function ManualMarker() {
   );
 }
 
-/** Zona afectată: cercul care cuprinde toate adresele anunțului (sau o zonă implicită în jurul raportării). */
+/**
+ * Zona afectată: cercul care cuprinde toate adresele anunțului (sau o zonă implicită în jurul raportării).
+ * Culoarea = gravitatea (roșu / galben); linie continuă = anunț oficial, punctată = raportare a vecinilor.
+ */
 const EventShape = memo(function EventShape({ e, theme, show, selected }: { e: DerivedEvent; theme: 'light' | 'dark'; show: boolean; selected: boolean }) {
-  const color = isClosed(e.status) ? RESOLVED_HEX[theme] : TYPE_HEX[theme][e.subtype];
-  const partial = e.severity === 'partial';
+  const k = tone(e);
+  const color = STATUS_LINE[theme][k];
+  const partial = k === 'partial';
   const base = e.status === 'contestat' ? 0.35 : 1;
   return (
     <Circle
@@ -175,9 +179,9 @@ const EventShape = memo(function EventShape({ e, theme, show, selected }: { e: D
         color,
         weight: selected ? 3 : 2,
         opacity: show ? base : 0,
-        fillColor: color,
-        fillOpacity: show ? (selected ? 0.22 : partial ? 0.08 : 0.14) * base : 0,
-        dashArray: e.status === 'raportat' ? '2 8' : partial ? '10 6' : undefined,
+        fillColor: STATUS_FILL[theme][k],
+        fillOpacity: show ? (selected ? 0.24 : partial ? 0.2 : 0.14) * base : 0,
+        dashArray: e.sourceType === 'citizen' ? (e.status === 'raportat' ? '2 8' : '2 5') : undefined,
         className: 'wip-line',
       }}
     />

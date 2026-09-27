@@ -15,6 +15,7 @@ export function profileFromFirestore(uid: string, d: any): UserProfile {
     photoURL: d.photoURL ?? null,
     userType: (d.userType as UserRole) ?? UserRole.User,
     credibilityScore: d.credibilityScore ?? 50,
+    reportBlockedUntil: ts(d.reportBlockedUntil),
     banned: d.banned ?? false,
     locale: d.locale ?? 'ro',
     notificationsEnabled: d.notificationsEnabled ?? true,

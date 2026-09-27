@@ -1,5 +1,5 @@
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES, toneFg, toneLine, toneTint, toneVar, type Tone } from '@/config/categories';
 import type { DerivedEvent, Status, UrbanEvent } from '@/types';
 import { fmtAgo, fmtAt } from './format';
 import { t } from '@/i18n';
@@ -82,16 +82,39 @@ export function sourceLabel(e: UrbanEvent): { label: string; icon: IconName } {
   return { label: t('Raportat de vecini'), icon: 'user' };
 }
 
-/** Aspectul markerului/plăcuței: culoarea = categoria, forma = statusul, umplerea = gravitatea. */
+/**
+ * Gravitatea, arătată prin culoare: întrerupere totală = roșu, parțial (doar o parte din adrese sau presiune slabă) = galben.
+ * Anunțurile oficiale și raportările vecinilor au aceleași culori; raportările se deosebesc prin dungi oblice.
+ */
+export function tone(e: Pick<UrbanEvent, 'severity'> & { status: Status }): Tone {
+  if (isClosed(e.status)) return 'closed';
+  return e.severity === 'partial' ? 'partial' : 'full';
+}
+type ToneInput = Pick<UrbanEvent, 'severity'> & { status: Status };
+/** Culoarea pentru text, contururi și puncte (lizibilă pe fundal deschis). */
+export const eventColor = (e: ToneInput) => toneLine(tone(e));
+export const eventTint = (e: ToneInput) => toneTint(tone(e));
+
+/** Dungile oblice ale raportărilor vecinilor, în culoarea iconiței (albe pe roșu, închise pe galben). */
+export const stripes = (fg: string) =>
+  `repeating-linear-gradient(-45deg, color-mix(in srgb, ${fg} 34%, transparent) 0 3px, transparent 3px 7px)`;
+
+/**
+ * Aspectul markerului/plăcuței: culoarea = gravitatea, dungile = raportare a vecinilor, conturul punctat = încă neconfirmată,
+ * estompat = contestată, iconița = tipul.
+ */
 export function tileStyle(e: DerivedEvent) {
-  const color = typeVar(e.subtype);
-  const tint = typeTint(e.subtype);
-  if (isClosed(e.status))
-    return { bg: 'var(--resolved)', fg: 'var(--surface)', border: 'var(--resolved)', dashed: false, faded: false };
-  if (e.status === 'raportat') return { bg: 'var(--surface)', fg: color, border: color, dashed: true, faded: false };
-  const faded = e.status === 'contestat';
-  if (e.severity === 'partial') return { bg: tint, fg: color, border: color, dashed: false, faded };
-  return { bg: color, fg: 'var(--on-cat)', border: color, dashed: false, faded };
+  const k = tone(e);
+  if (k === 'closed')
+    return { bg: toneVar(k), fg: toneFg(k), border: toneLine(k), dashed: false, faded: false, striped: false };
+  return {
+    bg: toneVar(k),
+    fg: toneFg(k),
+    border: toneLine(k),
+    dashed: e.status === 'raportat',
+    faded: e.status === 'contestat',
+    striped: e.sourceType === 'citizen',
+  };
 }
 
 export function timeInfo(e: DerivedEvent): string {

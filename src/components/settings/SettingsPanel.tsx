@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from 'react';
 import { CONFIG } from '@/config/constants';
-import { SUBTYPES, catTint, catVar, typeTint, typeVar } from '@/config/categories';
+import { SUBTYPES, catTint, catVar } from '@/config/categories';
 import { fmtAt, initials } from '@/lib/format';
 import { Icon, type IconName } from '@/lib/icons';
 import { useApp } from '@/state/AppContext';
-import { districtName, eventTitle } from '@/lib/status';
+import { districtName, eventColor, eventTint, eventTitle } from '@/lib/status';
 import type { Theme } from '@/types';
 import { StatusBadge } from '@/components/events/EventBits';
 import { DeleteConfirm } from '@/components/events/EventDetail';
@@ -12,7 +12,7 @@ import { AddressInput } from '@/components/ui/AddressInput';
 import type { GeoResult } from '@/services/geocoding';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { roleLabel, type HistoryEntry } from '@/types/user';
-import { listUserHistory } from '@/services/userService';
+import { effectiveCredibility, getReportBlock, getUserProfile, listUserHistory } from '@/services/userService';
 import { LANGS, t } from '@/i18n';
 
 const THEMES: { key: Theme; label: string; icon: IconName }[] = [
@@ -41,6 +41,27 @@ export function SettingsPanel() {
         .sort((a, b) => (b.reportedAt ?? '').localeCompare(a.reportedAt ?? ''))
     : [];
 
+  // Credibilitatea se schimbă pe server (voturile altora): o citim din nou la fiecare deschidere a Setărilor.
+  const [cred, setCred] = useState<{ score: number; blockedUntil: Date | null } | null>(null);
+  useEffect(() => {
+    if (!user) {
+      setCred(null);
+      return;
+    }
+    let cancelled = false;
+    void Promise.all([getUserProfile(user.uid), getReportBlock(user.uid)])
+      .then(([p, until]) => {
+        if (!cancelled) setCred({ score: effectiveCredibility(p ?? user), blockedUntil: until });
+      })
+      .catch(() => {
+        if (!cancelled) setCred({ score: effectiveCredibility(user), blockedUntil: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const score = cred?.score ?? (user ? effectiveCredibility(user) : CONFIG.CRED_START);
+
   // Istoricul se încarcă la nevoie.
   useEffect(() => {
     if (!user) {
@@ -67,11 +88,7 @@ export function SettingsPanel() {
           <div className="profile">
             <span className="avatar avatar--lg">
               {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-                />
+                <img src={user.photoURL} alt="" />
               ) : (
                 initials(user.name)
               )}
@@ -86,9 +103,20 @@ export function SettingsPanel() {
                 </span>
                 <span className="badge badge--outline">
                   <Icon name="check" size={12} />
-                  Credibilitate: {user.credibilityScore}/100
+                  {t('Credibilitate: {n}', { n: Number.isInteger(score) ? score : score.toFixed(1) })}
                 </span>
               </div>
+              <span className="muted xsmall">
+                {t('Fiecare „Da, și la mine” la raportările tale: +{yes}. Fiecare „Nu, la mine funcționează”: −{no}. Sub {min}, nu poți raporta {days} zile.', {
+                  yes: CONFIG.CRED_YES,
+                  no: CONFIG.CRED_NO,
+                  min: CONFIG.CRED_MIN,
+                  days: CONFIG.REPORT_BLOCK_DAYS,
+                })}
+              </span>
+              {cred?.blockedUntil && (
+                <span className="small strong">{t('Poți raporta din nou pe {date}.', { date: fmtAt(cred.blockedUntil) })}</span>
+              )}
             </div>
           </div>
 
@@ -208,7 +236,7 @@ export function SettingsPanel() {
                   <button type="button" className="report-row" onClick={() => openEvent(e.id)}>
                     <span
                       className="tile tile--sm"
-                      style={{ background: typeTint(e.subtype), color: typeVar(e.subtype), borderColor: 'transparent' }}
+                      style={{ background: eventTint(e), color: eventColor(e), borderColor: 'transparent' }}
                     >
                       <Icon name={SUBTYPES[e.subtype].icon} size={18} />
                     </span>
@@ -241,13 +269,9 @@ export function SettingsPanel() {
           {history.length > 0 && (
             <section className="stack gap-8">
               <h3 className="h3">{t('Istoricul meu')}</h3>
+              {/* Istoricul e doar pentru citit: evenimentele vechi pot să nu mai existe, deci nu se deschid. */}
               {history.map((h) => (
-                <button
-                  key={`${h.eventId}-${h.kind}`}
-                  type="button"
-                  className="report-row"
-                  onClick={() => openEvent(h.eventId)}
-                >
+                <div key={`${h.eventId}-${h.kind}`} className="report-row report-row--static">
                   <span
                     className="tile tile--sm"
                     style={{ background: catTint(h.category), color: catVar(h.category), borderColor: 'transparent' }}
@@ -260,7 +284,7 @@ export function SettingsPanel() {
                       {t(HISTORY_LABEL[h.kind])} · {h.at ? fmtAt(h.at.toDate()) : ''}
                     </span>
                   </span>
-                </button>
+                </div>
               ))}
             </section>
           )}
