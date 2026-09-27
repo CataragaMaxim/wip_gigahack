@@ -88,11 +88,7 @@ export function SettingsPanel() {
           <div className="profile">
             <span className="avatar avatar--lg">
               {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-                />
+                <img src={user.photoURL} alt="" />
               ) : (
                 initials(user.name)
               )}
